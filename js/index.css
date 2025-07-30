@@ -15,14 +15,14 @@
 .k-ftp-backup-view-stats-card h3 {
   margin: 0 0 0.5rem;
   font-size: var(--text-sm);
-  color: var(--theme-color-text);
+  color: var(--theme-color-text-highlight);
 }
 
 .k-ftp-backup-view-stats-card p {
   font-size: var(--text-lg);
   font-weight: 600;
   margin: 0;
-  color: var(--theme-color-text);
+  color: var(--theme-color-text-highlight);
 }
 
 .k-ftp-backup-view-stats-card-latest {
@@ -74,7 +74,7 @@
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
   text-align: center;
-  color: var(--color-dark);
+  color: var(--theme-color-text);
 }
 
 .k-ftp-backup-dialog-section {
@@ -84,39 +84,27 @@
 .k-ftp-backup-dialog-section h3 {
   font-size: 1.2rem;
   margin-bottom: 0.5rem;
-  color: var(--color-dark);
+  color: var(--theme-color-text);
 }
 
 .k-ftp-backup-dialog-code {
-  background: #f7f7f7;
+  background: var(--theme-color-back, var(--color-gray-100));
   padding: 1rem;
   border-radius: 4px;
   margin: 1rem 0;
-  border-left: 3px solid var(--color-focus);
+  border-left: 3px solid var(--theme-color-border);
   overflow-x: auto;
 }
 
 .k-ftp-backup-dialog-code pre {
-  font-family: monospace;
+  font-family: var(--font-mono);
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.4;
+  color: var(--theme-color-text-highlight);
 }
 
 .k-ftp-backup-dialog-hint {
   font-size: 0.9rem;
-  color: var(--color-text-light);
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .k-ftp-backup-dialog-code {
-    background: var(--color-dark);
-    border-left-color: var(--color-focus);
-  }
-
-  .k-ftp-backup-dialog-title,
-  .k-ftp-backup-dialog-section h3 {
-    color: var(--color-white);
-  }
+  color: var(--theme-color-text-light, var(--color-text-light));
 }
