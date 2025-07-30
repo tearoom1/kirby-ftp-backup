@@ -1,0 +1,19 @@
+{
+  "name": "kirby-ftp-backup",
+  "version": "1.0.0",
+  "description": "Kirby FTP Backup plugin",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx -y kirbyup js/index.js --watch",
+    "build": "npx -y kirbyup js/index.js",
+    "lint": "npx standard js/**/*.js"
+  },
+  "keywords": [
+    "kirby",
+    "plugin",
+    "backup",
+    "ftp"
+  ],
+  "author": "",
+  "license": "MIT"
+}

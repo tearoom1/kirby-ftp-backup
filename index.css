@@ -1,0 +1,105 @@
+.k-ftp-backup-view-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.k-ftp-backup-view-stats-card {
+  background: var(--color-white);
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: var(--shadow-card);
+}
+
+.k-ftp-backup-view-stats-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-light);
+}
+
+.k-ftp-backup-view-stats-card p {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.k-ftp-backup-view-stats-card-latest {
+  font-size: var(--text-sm);
+  margin-top: 0.5rem;
+  color: var(--color-text);
+}
+
+.k-ftp-backup-view-section {
+  margin-bottom: 2rem;
+}
+
+.k-ftp-backup-view-section h2 {
+  font-size: var(--text-lg);
+  margin-bottom: 1rem;
+}
+
+.k-ftp-backup-view-backup-list {
+  background: var(--color-white);
+  border-radius: 4px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.k-ftp-backup-view-backup-list-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-light);
+}
+
+.k-ftp-backup-view-cron {
+  background: var(--color-dark);
+  color: var(--color-white);
+  padding: 1rem;
+  border-radius: 4px;
+  font-family: monospace;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.k-ftp-backup-view-cron button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: 0;
+  color: var(--color-white);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.k-ftp-backup-view-cron button:hover {
+  opacity: 1;
+}
+
+.k-ftp-backup-view-loading {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.k-ftp-backup-view-actions {
+  margin-bottom: 1.5rem;
+}
+
+/* Tab styles */
+.k-tabs-content {
+  margin-top: 1rem;
+}
+
+/* Form styles */
+.k-fieldset {
+  margin-bottom: 1.5rem;
+}
+
+/* Make sure the plugin icon looks nice */
+.k-topbar-menu-icon[data-type="upload"] {
+  color: var(--color-focus);
+}
+
