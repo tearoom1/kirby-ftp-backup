@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.3.1...v0.3.2) (2025-07-30)
+
+
+### Bug Fixes
+
+* readme ([2362ac0](https://github.com/tearoom1/kirby-ftp-backup/commit/2362ac03dc418c541d541009ff45f7a651aca54b))
+
 ## [0.3.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.3.0...v0.3.1) (2025-07-30)
 
 
