@@ -2,6 +2,8 @@
 
 A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP server.
 
+[![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-content-watch)
+
 ## Features
 
 - Create ZIP backups of your site content
