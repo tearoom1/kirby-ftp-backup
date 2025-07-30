@@ -32,7 +32,12 @@
           passive: true,
           ssl: false
         },
-        backups: []
+        backups: [],
+        tabs: [
+          { name: "settings", label: "Settings" },
+          { name: "backups", label: "Backups" },
+          { name: "cron", label: "Cron Job" }
+        ]
       };
     },
     computed: {
@@ -138,13 +143,13 @@
         try {
           const response = await this.$api.post("ftp-backup/create");
           if (response.status === "success") {
-            this.$store.dispatch("notification/success", response.message);
+            window.panel.notification.success(response.message);
             this.loadBackups();
           } else {
-            this.$store.dispatch("notification/error", response.message);
+            window.panel.notification.error(response.message);
           }
         } catch (error) {
-          this.$store.dispatch("notification/error", "Failed to create backup");
+          window.panel.notification.error("Failed to create backup");
         } finally {
           this.isCreatingBackup = false;
         }
@@ -176,15 +181,13 @@
   };
   var _sfc_render = function render() {
     var _vm = this, _c = _vm._self._c;
-    return _c("k-panel-inside", { staticClass: "k-ftp-backup-view" }, [_c("div", { staticClass: "k-ftp-backup-view-stats" }, [_c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Backups")]), _c("p", [_vm._v(_vm._s(_vm.stats.count))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Size")]), _c("p", [_vm._v(_vm._s(_vm.stats.formattedTotalSize))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Latest Backup")]), _vm.stats.latestBackup ? _c("p", [_vm._v(_vm._s(_vm.stats.latestBackup.formattedDate))]) : _c("p", [_vm._v("None")]), _vm.stats.latestBackup ? _c("div", { staticClass: "k-ftp-backup-view-stats-card-latest" }, [_vm._v(" " + _vm._s(_vm.stats.latestBackup.filename) + " ")]) : _vm._e()])]), _c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("div", { staticClass: "k-ftp-backup-view-actions" }, [_c("k-button-group", [_c("k-button", { attrs: { "icon": "upload", "disabled": _vm.isLoading, "progress": _vm.isCreatingBackup }, on: { "click": _vm.createBackup } }, [_vm._v(" Create Backup Now ")]), _c("k-button", { attrs: { "icon": "refresh", "disabled": _vm.isLoading, "progress": _vm.isLoadingBackups }, on: { "click": _vm.loadBackups } })], 1)], 1)]), _c("k-tabs", { attrs: { "tabs": [
-      { name: "settings", label: "Settings" },
-      { name: "backups", label: "Backups" },
-      { name: "cron", label: "Cron Job" }
-    ] }, model: { value: _vm.activeTab, callback: function($$v) {
-      _vm.activeTab = $$v;
-    }, expression: "activeTab" } }), _vm.activeTab === "settings" ? _c("k-tab", { attrs: { "name": "settings" } }, [_c("k-form", { attrs: { "fields": _vm.formFields }, on: { "submit": _vm.saveSettings }, model: { value: _vm.ftpSettings, callback: function($$v) {
+    return _c("k-panel-inside", { staticClass: "k-ftp-backup-view" }, [_c("div", { staticClass: "k-ftp-backup-view-stats" }, [_c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Backups")]), _c("p", [_vm._v(_vm._s(_vm.stats.count))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Size")]), _c("p", [_vm._v(_vm._s(_vm.stats.formattedTotalSize))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Latest Backup")]), _vm.stats.latestBackup ? _c("p", [_vm._v(_vm._s(_vm.stats.latestBackup.formattedDate))]) : _c("p", [_vm._v("None")]), _vm.stats.latestBackup ? _c("div", { staticClass: "k-ftp-backup-view-stats-card-latest" }, [_vm._v(" " + _vm._s(_vm.stats.latestBackup.filename) + " ")]) : _vm._e()])]), _c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("div", { staticClass: "k-ftp-backup-view-actions" }, [_c("k-button-group", [_c("k-button", { attrs: { "icon": "upload", "disabled": _vm.isLoading, "progress": _vm.isCreatingBackup }, on: { "click": _vm.createBackup } }, [_vm._v(" Create Backup Now ")]), _c("k-button", { attrs: { "icon": "refresh", "disabled": _vm.isLoading, "progress": _vm.isLoadingBackups }, on: { "click": _vm.loadBackups } })], 1)], 1)]), _c("nav", { staticClass: "k-tabs" }, _vm._l(_vm.tabs, function(tab) {
+      return _c("k-button", { key: tab.name, staticClass: "k-tab-button", attrs: { "current": _vm.activeTab === tab.name }, on: { "click": function($event) {
+        _vm.activeTab = tab.name;
+      } } }, [_vm._v(" " + _vm._s(tab.label) + " ")]);
+    }), 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "settings", expression: "activeTab === 'settings'" }], staticClass: "k-tab-content" }, [_c("k-form", { attrs: { "fields": _vm.formFields }, on: { "submit": _vm.saveSettings }, model: { value: _vm.ftpSettings, callback: function($$v) {
       _vm.ftpSettings = $$v;
-    }, expression: "ftpSettings" } })], 1) : _vm._e(), _vm.activeTab === "backups" ? _c("k-tab", { attrs: { "name": "backups" } }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, on: { "action": _vm.handleBackupAction } })], 1) : _vm._e(), _vm.activeTab === "cron" ? _c("k-tab", { attrs: { "name": "cron" } }, [_c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("h2", [_vm._v("Cron Job Setup")]), _c("p", [_vm._v("Use the following command in your crontab to schedule automatic backups:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCronCommand } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)]), _c("p", [_vm._v("Example crontab entry to run daily at 2 AM:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" 0 2 * * * " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCrontabEntry } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)])])]) : _vm._e()], 1);
+    }, expression: "ftpSettings" } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "backups", expression: "activeTab === 'backups'" }], staticClass: "k-tab-content" }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, on: { "action": _vm.handleBackupAction } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "cron", expression: "activeTab === 'cron'" }], staticClass: "k-tab-content" }, [_c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("h2", [_vm._v("Cron Job Setup")]), _c("p", [_vm._v("Use the following command in your crontab to schedule automatic backups:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCronCommand } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)]), _c("p", [_vm._v("Example crontab entry to run daily at 2 AM:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" 0 2 * * * " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCrontabEntry } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)])])])]);
   };
   var _sfc_staticRenderFns = [];
   _sfc_render._withStripped = true;

@@ -43,27 +43,30 @@
       </div>
     </div>
     
-    <!-- Tabs for Settings and Backups List -->
-    <k-tabs
-      v-model="activeTab"
-      :tabs="[
-        { name: 'settings', label: 'Settings' },
-        { name: 'backups', label: 'Backups' },
-        { name: 'cron', label: 'Cron Job' }
-      ]"
-    />
+    <!-- Tabs Navigation -->
+    <nav class="k-tabs">
+      <k-button
+        v-for="tab in tabs"
+        :key="tab.name"
+        :current="activeTab === tab.name"
+        @click="activeTab = tab.name"
+        class="k-tab-button"
+      >
+        {{ tab.label }}
+      </k-button>
+    </nav>
     
     <!-- Settings Tab -->
-    <k-tab v-if="activeTab === 'settings'" name="settings">
+    <div v-show="activeTab === 'settings'" class="k-tab-content">
       <k-form
         :fields="formFields"
         v-model="ftpSettings"
         @submit="saveSettings"
       />
-    </k-tab>
+    </div>
     
     <!-- Backups Tab -->
-    <k-tab v-if="activeTab === 'backups'" name="backups">
+    <div v-show="activeTab === 'backups'" class="k-tab-content">
       <div v-if="isLoadingBackups" class="k-ftp-backup-view-loading">
         <k-loader />
       </div>
@@ -78,10 +81,10 @@
         layout="list"
         @action="handleBackupAction"
       />
-    </k-tab>
+    </div>
     
     <!-- Cron Tab -->
-    <k-tab v-if="activeTab === 'cron'" name="cron">
+    <div v-show="activeTab === 'cron'" class="k-tab-content">
       <div class="k-ftp-backup-view-section">
         <h2>Cron Job Setup</h2>
         <p>Use the following command in your crontab to schedule automatic backups:</p>
@@ -101,7 +104,7 @@
           </button>
         </div>
       </div>
-    </k-tab>
+    </div>
   </k-panel-inside>
 </template>
 
@@ -127,7 +130,12 @@ export default {
         passive: true,
         ssl: false
       },
-      backups: []
+      backups: [],
+      tabs: [
+        { name: 'settings', label: 'Settings' },
+        { name: 'backups', label: 'Backups' },
+        { name: 'cron', label: 'Cron Job' }
+      ]
     };
   },
   
@@ -246,13 +254,13 @@ export default {
         const response = await this.$api.post('ftp-backup/create');
         
         if (response.status === 'success') {
-          this.$store.dispatch('notification/success', response.message);
+          window.panel.notification.success(response.message);
           this.loadBackups();
         } else {
-          this.$store.dispatch('notification/error', response.message);
+          window.panel.notification.error(response.message);
         }
       } catch (error) {
-        this.$store.dispatch('notification/error', 'Failed to create backup');
+        window.panel.notification.error('Failed to create backup');
       } finally {
         this.isCreatingBackup = false;
       }
