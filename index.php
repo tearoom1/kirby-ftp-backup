@@ -1,7 +1,5 @@
 <?php
 
-use Kirby\Cms\App;
-use Kirby\Http\Response;
 use TearoomOne\FtpBackup\BackupManager;
 
 // Register autoloader
@@ -15,7 +13,7 @@ Kirby::plugin('tearoom1/ftp-backup', [
     // Plugin information
     'name' => 'FTP Backup',
     'description' => 'Plugin to create and manage site backups with FTP functionality',
-    
+
     // Plugin options
     'options' => [
         'backupDirectory' => kirby()->root('content') . '/.backups',
@@ -29,24 +27,15 @@ Kirby::plugin('tearoom1/ftp-backup', [
         'ftpSsl' => false, // Use SSL/TLS
         'ftpPassive' => true, // Use passive mode
     ],
-    
+
     // Panel areas registration
     'areas' => [
         'ftp-backup' => require __DIR__ . '/src/areas/ftp-backup.php',
     ],
-    
+
     // API routes
     'api' => [
         'routes' => [
-            // Get FTP settings (read-only, from config)
-            [
-                'pattern' => 'ftp-backup/settings',
-                'method' => 'GET',
-                'action' => function () {
-                    $manager = new BackupManager();
-                    return $manager->getSettings();
-                }
-            ],
             // List backups
             [
                 'pattern' => 'ftp-backup/backups',
@@ -65,15 +54,6 @@ Kirby::plugin('tearoom1/ftp-backup', [
                     return $manager->createBackup();
                 }
             ],
-            // Download backup
-            [
-                'pattern' => 'ftp-backup/download/(:any)',
-                'method' => 'GET',
-                'action' => function (string $filename) {
-                    $manager = new BackupManager();
-                    return $manager->downloadBackup($filename);
-                }
-            ],
             // Get backup stats
             [
                 'pattern' => 'ftp-backup/stats',
@@ -81,10 +61,23 @@ Kirby::plugin('tearoom1/ftp-backup', [
                 'action' => function () {
                     return BackupController::getStats();
                 }
-            ]
+            ],
         ]
     ],
-    
+
+    // Panel routes
+    'routes' => [
+        // Download backup
+        [
+            'pattern' => 'ftp-backup/download/(:any)',
+            'method' => 'GET',
+            'action' => function (string $filename) {
+                $manager = new BackupManager();
+                return $manager->downloadBackup($filename);
+            }
+        ],
+    ],
+
     // CLI commands
     'commands' => [
         'ftp-backup:create' => [

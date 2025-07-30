@@ -81,7 +81,7 @@ class BackupManager
                     'filename' => $file,
                     'size' => F::size($path),
                     'modified' => F::modified($path),
-                    'downloadUrl' => '/api/ftp-backup/download/' . $file
+                    'downloadUrl' => '/ftp-backup/download/' . $file
                 ];
             }
         }

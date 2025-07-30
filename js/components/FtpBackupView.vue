@@ -61,8 +61,11 @@
           v-else
           :items="backups"
           layout="list"
-          @action="handleBackupAction"
-      />
+      >
+        <template slot="options" slot-scope="{ item }">
+          <k-button icon="download" @click="downloadBackup(item)" />
+        </template>
+      </k-collection>
     </div>
 
     <!-- Settings Info Dialog -->
@@ -72,12 +75,12 @@
     >
       <div class="k-ftp-backup-dialog-content">
         <h2 class="k-ftp-backup-dialog-title">FTP Backup Settings</h2>
-        
+
         <div class="k-ftp-backup-dialog-section">
           <h3>Configuration</h3>
           <p>FTP settings are managed through your site config file.</p>
           <p>Add the following to your <code>site/config/config.php</code> file:</p>
-          
+
           <div class="k-ftp-backup-dialog-code">
 <pre>'tearoom1.ftp-backup' => [
     'ftpHost' => 'your-ftp-host.com',
@@ -93,7 +96,7 @@
 ]</pre>
           </div>
         </div>
-        
+
         <div class="k-ftp-backup-dialog-section">
           <h3>Automatic Backups</h3>
           <p>For automatic backups, set up a cron job to run:</p>
@@ -148,7 +151,7 @@ export default {
               id: backup.filename,
               text: backup.filename,
               info: new Date(backup.modified * 1000).toLocaleString() + ' - ' + this.formatSize(backup.size),
-              link: backup.downloadUrl,
+              url: backup.downloadUrl,
               icon: 'archive'
             };
           });
@@ -182,12 +185,6 @@ export default {
       }
     },
 
-    handleBackupAction(action, item) {
-      if (action === 'download') {
-        window.open('/' + item.link, '_blank');
-      }
-    },
-
     showSettingsInfo() {
       this.$refs.settingsDialog.open();
     },
@@ -203,6 +200,9 @@ export default {
       }
 
       return `${size.toFixed(2)} ${units[unitIndex]}`;
+    },
+    downloadBackup(item) {
+      window.open(item.url, '_blank');
     }
   }
 };
