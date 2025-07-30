@@ -16,6 +16,7 @@ Kirby::plugin('tearoom1/ftp-backup', [
     'options' => [
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
+        'deleteFromFtp' => true, // Delete backups from FTP server
     ],
     
     // Panel areas registration

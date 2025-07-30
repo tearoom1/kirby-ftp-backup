@@ -47,45 +47,67 @@
             label: "FTP Host",
             type: "text",
             required: true,
-            width: 1 / 2
+            width: 3 / 6
           },
           port: {
             label: "FTP Port",
             type: "number",
             default: 21,
-            width: 1 / 2
-          },
-          username: {
-            label: "Username",
-            type: "text",
-            required: true,
-            width: 1 / 2
-          },
-          password: {
-            label: "Password",
-            type: "password",
-            help: "Leave empty to keep existing password",
-            width: 1 / 2
-          },
-          directory: {
-            label: "Remote Directory",
-            type: "text",
-            default: "/",
-            width: 1 / 2
-          },
-          passive: {
-            label: "Passive Mode",
-            type: "toggle",
-            default: true,
-            text: ["Off", "On"],
-            width: 1 / 2
+            width: 1 / 6
           },
           ssl: {
             label: "Use SSL/TLS",
             type: "toggle",
             default: false,
             text: ["Off", "On"],
-            width: 1 / 2
+            width: 1 / 6
+          },
+          passive: {
+            label: "Passive Mode",
+            type: "toggle",
+            default: true,
+            text: ["Off", "On"],
+            width: 1 / 6
+          },
+          username: {
+            label: "Username",
+            type: "text",
+            required: true,
+            width: 1 / 3
+          },
+          password: {
+            label: "Password",
+            type: "password",
+            help: "Leave empty to keep existing password",
+            width: 1 / 3
+          },
+          directory: {
+            label: "Remote Directory",
+            type: "text",
+            default: "/",
+            width: 1 / 3
+          },
+          localDirectory: {
+            label: "Local Backup Directory",
+            type: "text",
+            default: "content/.backups",
+            help: "Relative to Kirby root. Defaults to content/.backups",
+            width: 1 / 3
+          },
+          retentionCount: {
+            label: "Backup Retention Count",
+            type: "text",
+            default: "10",
+            help: "How many backups to keep. Defaults to 10",
+            width: 1 / 3
+          },
+          deleteFromFtp: {
+            label: "Delete Backups from FTP",
+            type: "toggle",
+            default: true,
+            text: ["Off", "On"],
+            help: "Also deletes backups from FTP server",
+            width: 1 / 3
           }
         };
       }
@@ -203,7 +225,7 @@
     _sfc_render,
     _sfc_staticRenderFns
   );
-  __component__.options.__file = "/Users/mathis/Work/Basic/my-kirby-starter/site/plugins/kirby-ftp-backup/js/components/FtpBackupView.vue";
+  __component__.options.__file = "/Users/mathis/Work/Basic/kirby-basic/site/plugins/kirby-ftp-backup/js/components/FtpBackupView.vue";
   const FtpBackupView = __component__.exports;
   panel.plugin("tearoom1/ftp-backup", {
     components: {

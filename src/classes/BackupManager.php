@@ -186,34 +186,18 @@ class BackupManager
     private function uploadToFtp(string $localFile, string $remoteFilename): array
     {
         try {
-            // Get FTP settings
-            if (!F::exists($this->settingsFile)) {
+            $ftpResult = $this->initFtpClient();
+            
+            if (!$ftpResult['success']) {
                 return [
                     'uploaded' => false,
-                    'message' => 'No FTP settings found'
+                    'message' => $ftpResult['message']
                 ];
             }
             
-            $settings = Data::read($this->settingsFile);
-            if (empty($settings['host']) || empty($settings['username']) || empty($settings['password'])) {
-                return [
-                    'uploaded' => false,
-                    'message' => 'Incomplete FTP settings'
-                ];
-            }
+            $ftpClient = $ftpResult['client'];
+            $directory = $ftpResult['directory'];
             
-            // Create FTP client and upload
-            $ftpClient = new FtpClient(
-                $settings['host'],
-                $settings['port'] ?? 21,
-                $settings['username'],
-                $settings['password'],
-                $settings['ssl'] ?? false,
-                $settings['passive'] ?? true
-            );
-            
-            $ftpClient->connect();
-            $directory = $settings['directory'] ?? '/';
             $ftpClient->upload($localFile, $directory . '/' . $remoteFilename);
             $ftpClient->disconnect();
             
@@ -227,6 +211,80 @@ class BackupManager
                 'message' => 'FTP upload failed: ' . $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Remove a backup file from the FTP server
+     */
+    private function removeFromFtp(string $filename): array
+    {
+        try {
+            $ftpResult = $this->initFtpClient();
+            
+            if (!$ftpResult['success']) {
+                return [
+                    'deleted' => false,
+                    'message' => $ftpResult['message']
+                ];
+            }
+            
+            $ftpClient = $ftpResult['client'];
+            $directory = $ftpResult['directory'];
+            
+            $ftpClient->delete($directory . '/' . $filename);
+            $ftpClient->disconnect();
+            
+            return [
+                'deleted' => true,
+                'message' => 'File deleted from FTP server'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'deleted' => false,
+                'message' => 'FTP deletion failed: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Initialize the FTP client with settings
+     */
+    private function initFtpClient(): array
+    {
+        // Get FTP settings
+        if (!F::exists($this->settingsFile)) {
+            return [
+                'success' => false,
+                'message' => 'No FTP settings found'
+            ];
+        }
+        
+        $settings = Data::read($this->settingsFile);
+        if (empty($settings['host']) || empty($settings['username']) || empty($settings['password'])) {
+            return [
+                'success' => false,
+                'message' => 'Incomplete FTP settings'
+            ];
+        }
+        
+        // Create and connect FTP client
+        $ftpClient = new FtpClient(
+            $settings['host'],
+            $settings['port'] ?? 21,
+            $settings['username'],
+            $settings['password'],
+            $settings['ssl'] ?? false,
+            $settings['passive'] ?? true
+        );
+        
+        $ftpClient->connect();
+        $directory = $settings['directory'] ?? '/';
+        
+        return [
+            'success' => true,
+            'client' => $ftpClient,
+            'directory' => $directory
+        ];
     }
 
     /**
@@ -288,7 +346,9 @@ class BackupManager
             foreach ($toDelete as $file) {
                 F::remove($this->backupDir . '/' . $file);
 
-                // TODO also remove from ftp
+                if (option('tearoom1.ftp-backup.deleteFromFtp', true)) {
+                    $this->removeFromFtp($file);
+                }
             }
         }
     }

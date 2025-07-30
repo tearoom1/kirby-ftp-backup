@@ -123,6 +123,22 @@ class FtpClient
     }
     
     /**
+     * Delete a file from the FTP server
+     */
+    public function delete(string $remoteFile): bool
+    {
+        if (!$this->connection) {
+            throw new \Exception('Not connected to FTP server');
+        }
+        
+        if (!ftp_delete($this->connection, $remoteFile)) {
+            throw new \Exception("Failed to delete file from FTP server: {$remoteFile}");
+        }
+        
+        return true;
+    }
+    
+    /**
      * Destructor to ensure connection is closed
      */
     public function __destruct()
