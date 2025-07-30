@@ -139,6 +139,40 @@ class FtpClient
     }
     
     /**
+     * List files in a directory on the FTP server
+     */
+    public function listDirectory(string $directory): array
+    {
+        if (!$this->connection) {
+            throw new \Exception('Not connected to FTP server');
+        }
+        
+        // Normalize directory path
+        $directory = rtrim($directory, '/');
+        if ($directory === '') {
+            $directory = '/';
+        }
+        
+        // Get raw listing
+        $rawList = ftp_nlist($this->connection, $directory);
+        
+        if ($rawList === false) {
+            throw new \Exception("Failed to list directory on FTP server: {$directory}");
+        }
+        
+        // Filter out parent directory entries and get just filenames
+        $files = [];
+        foreach ($rawList as $item) {
+            $filename = basename($item);
+            if ($filename !== '.' && $filename !== '..') {
+                $files[] = $filename;
+            }
+        }
+        
+        return $files;
+    }
+    
+    /**
      * Destructor to ensure connection is closed
      */
     public function __destruct()

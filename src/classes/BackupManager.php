@@ -284,11 +284,10 @@ class BackupManager
     /**
      * Clean up old backups based on retention setting
      */
-    private function cleanupOldBackups(): void
+    public function cleanupOldBackups(): void
     {
-        // Get retention value from settings, fallback to option, then default to 10
         $settings = $this->getSettings();
-        $retention = (int)($settings['backupRetention'] ?? option('tearoom1.ftp-backup.backupRetention', 10));
+        $retention = $settings['backupRetention'] ?? 10;
 
         $files = Dir::read($this->backupDir);
 
@@ -310,15 +309,79 @@ class BackupManager
 
             foreach ($toDelete as $file) {
                 F::remove($this->backupDir . '/' . $file);
+            }
+        }
 
-                // Use deleteFromFtp setting from panel or fallback to config option
-                $settings = $this->getSettings();
-                $deleteFromFtp = $settings['deleteFromFtp'] ?? option('tearoom1.ftp-backup.deleteFromFtp', true);
+        if ($settings['deleteFromFtp']) {
+            // Also clean up FTP backups directly
+            $this->cleanupFtpBackups();
+        }
+    }
 
-                if ($deleteFromFtp) {
-                    $this->removeFromFtp($file);
+    /**
+     * Clean up old backups from FTP server based on retention setting
+     */
+    public function cleanupFtpBackups(): array
+    {
+        try {
+            $settings = $this->getSettings();
+            $backupRetention = $settings['backupRetention'] ?? 10;
+
+            // Skip cleanup if retention is set to 0 (keep all backups)
+            if ($backupRetention <= 0) {
+                return [
+                    'success' => true,
+                    'message' => 'Retention set to keep all backups, skipping FTP cleanup'
+                ];
+            }
+
+            // Initialize FTP client
+            $ftpResult = $this->initFtpClient();
+            if (!$ftpResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to connect to FTP server: ' . $ftpResult['message']
+                ];
+            }
+
+            $ftpClient = $ftpResult['client'];
+            $directory = $settings['ftpDirectory'] ?? '';
+
+            // List files on the FTP server
+            $files = $ftpClient->listDirectory($directory);
+            
+            // Filter to only include .zip files
+            $backups = [];
+            foreach ($files as $file) {
+                if (substr($file, -4) === '.zip') {
+                    $backups[] = $file;
                 }
             }
+
+            // Sort backups by filename (assuming they contain dates/timestamps)
+            usort($backups, function($a, $b) {
+                return strcmp($b, $a); // Sort in descending order (newest first)
+            });
+
+            // Keep only the specified number of backups
+            $toDelete = array_slice($backups, $backupRetention);
+            $deletedCount = 0;
+
+            foreach ($toDelete as $file) {
+                $this->removeFromFtp($file);
+                $deletedCount++;
+            }
+
+            return [
+                'success' => true,
+                'message' => "Deleted {$deletedCount} old backups from FTP server"
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error cleaning up FTP backups: ' . $e->getMessage()
+            ];
         }
     }
 
