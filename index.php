@@ -67,13 +67,14 @@ Kirby::plugin('tearoom1/ftp-backup', [
 
     // Panel routes
     'routes' => [
-        // Download backup
+        // Download backup (with secure key as query param)
         [
             'pattern' => 'ftp-backup/download/(:any)',
             'method' => 'GET',
             'action' => function (string $filename) {
+                $key = get('key');
                 $manager = new BackupManager();
-                return $manager->downloadBackup($filename);
+                return $manager->downloadBackup($filename, $key);
             }
         ],
     ],

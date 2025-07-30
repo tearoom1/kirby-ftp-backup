@@ -77,11 +77,12 @@ class BackupManager
         foreach ($files as $file) {
             if (F::extension($file) === 'zip') {
                 $path = $this->backupDir . '/' . $file;
+                $key = $this->generateDownloadKey($file);
                 $backups[] = [
                     'filename' => $file,
                     'size' => F::size($path),
                     'modified' => F::modified($path),
-                    'downloadUrl' => '/ftp-backup/download/' . $file
+                    'downloadUrl' => '/ftp-backup/download/' . $file . '?key=' . $key
                 ];
             }
         }
@@ -322,10 +323,41 @@ class BackupManager
     }
 
     /**
+     * Generate a secure key for download links
+     * The key is based on hostname and expires after 24 hours
+     */
+    private function generateDownloadKey(string $filename): string
+    {
+        // Use the current date (resets every 24 hours) and host as the basis for the key
+        $date = date('Y-m-d');
+        $host = kirby()->site()->url();
+        $salt = 'ftp-backup-secure-key'; // Additional salt for security
+        
+        // Create a hash that changes daily and is specific to this host and file
+        return hash('sha256', $filename . $date . $host . $salt);
+    }
+    
+    /**
+     * Validate a download key for a given filename
+     */
+    public function validateDownloadKey(string $filename, string $key): bool
+    {
+        $validKey = $this->generateDownloadKey($filename);
+        return hash_equals($validKey, $key);
+    }
+
+    /**
      * Download a backup file
      */
-    public function downloadBackup(string $filename): Response
+    public function downloadBackup(string $filename, string $key): Response
     {
+        if (!$this->validateDownloadKey($filename, $key)) {
+            return Response::json([
+                'status' => 'error',
+                'message' => 'Invalid download key. Please refresh the page.'
+            ], 403);
+        }
+
         $filepath = $this->backupDir . '/' . $filename;
 
         if (!F::exists($filepath)) {
