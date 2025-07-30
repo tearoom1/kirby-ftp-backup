@@ -6,7 +6,7 @@
 }
 
 .k-ftp-backup-view-stats-card {
-  background: var(--color-white);
+  background: var(--theme-color-back);
   padding: 1rem;
   border-radius: 4px;
   box-shadow: var(--shadow-card);
@@ -15,13 +15,14 @@
 .k-ftp-backup-view-stats-card h3 {
   margin: 0 0 0.5rem;
   font-size: var(--text-sm);
-  color: var(--color-text-light);
+  color: var(--theme-color-text);
 }
 
 .k-ftp-backup-view-stats-card p {
   font-size: var(--text-lg);
   font-weight: 600;
   margin: 0;
+  color: var(--theme-color-text);
 }
 
 .k-ftp-backup-view-stats-card-latest {
