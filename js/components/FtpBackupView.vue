@@ -39,6 +39,10 @@
               :disabled="isLoading"
               :progress="isLoadingBackups"
           />
+          <k-button
+              icon="info"
+              @click="showSettingsInfo"
+          />
         </k-button-group>
       </div>
     </div>
@@ -61,32 +65,54 @@
       />
     </div>
 
-    <!-- Settings Info Section -->
-    <div class="k-ftp-backup-view-settings-info">
-      <k-box theme="info">
-        <h3>FTP Settings</h3>
-        <p>FTP settings are managed through your site config file.</p>
-        <p>Add the following to your <code>site/config/config.php</code> file:</p>
+    <!-- Settings Info Dialog -->
+    <k-dialog
+      ref="settingsDialog"
+      size="large"
+    >
+      <div class="k-ftp-backup-dialog-content">
+        <h2 class="k-ftp-backup-dialog-title">FTP Backup Settings</h2>
         
-        <pre>
-'tearoom1.ftp-backup' => [
+        <div class="k-ftp-backup-dialog-section">
+          <h3>Configuration</h3>
+          <p>FTP settings are managed through your site config file.</p>
+          <p>Add the following to your <code>site/config/config.php</code> file:</p>
+          
+          <div class="k-ftp-backup-dialog-code">
+<pre>'tearoom1.ftp-backup' => [
     'ftpHost' => 'your-ftp-host.com',
     'ftpPort' => 21,
     'ftpUsername' => 'your-username',
     'ftpPassword' => 'your-password',
-    'ftpDirectory' => '/backups',
+    'ftpDirectory' => 'backups',
     'ftpSsl' => false,
     'ftpPassive' => true,
     'backupDirectory' => 'content/.backups',
     'backupRetention' => 10,
     'deleteFromFtp' => true
-]
-        </pre>
+]</pre>
+          </div>
+        </div>
         
-        <p>For automatic backups, set up a cron job to run:</p>
-        <pre>php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
-      </k-box>
-    </div>
+        <div class="k-ftp-backup-dialog-section">
+          <h3>Automatic Backups</h3>
+          <p>For automatic backups, set up a cron job to run:</p>
+          <div class="k-ftp-backup-dialog-code">
+            <pre>php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
+          </div>
+          <p class="k-ftp-backup-dialog-hint">Example crontab entry (daily at 2AM):</p>
+          <div class="k-ftp-backup-dialog-code">
+            <pre>0 2 * * * php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
+          </div>
+        </div>
+      </div>
+
+      <k-button-group slot="footer">
+        <k-button icon="check" @click="$refs.settingsDialog.close()">
+          Close
+        </k-button>
+      </k-button-group>
+    </k-dialog>
   </k-panel-inside>
 </template>
 
@@ -160,6 +186,10 @@ export default {
       if (action === 'download') {
         window.open('/' + item.link, '_blank');
       }
+    },
+
+    showSettingsInfo() {
+      this.$refs.settingsDialog.open();
     },
 
     formatSize(bytes) {

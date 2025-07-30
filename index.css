@@ -103,6 +103,61 @@
   color: var(--color-focus);
 }
 
-.k-ftp-backup-view-settings-info {
-  margin-top: 1.5rem;
+
+/* Dialog styling */
+.k-ftp-backup-dialog-content {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.k-ftp-backup-dialog-title {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--color-dark);
+}
+
+.k-ftp-backup-dialog-section {
+  margin-bottom: 2rem;
+}
+
+.k-ftp-backup-dialog-section h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-dark);
+}
+
+.k-ftp-backup-dialog-code {
+  background: #f7f7f7;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  border-left: 3px solid var(--color-focus);
+  overflow-x: auto;
+}
+
+.k-ftp-backup-dialog-code pre {
+  font-family: monospace;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.k-ftp-backup-dialog-hint {
+  font-size: 0.9rem;
+  color: var(--color-text-light);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .k-ftp-backup-dialog-code {
+    background: var(--color-dark);
+    border-left-color: var(--color-focus);
+  }
+
+  .k-ftp-backup-dialog-title,
+  .k-ftp-backup-dialog-section h3 {
+    color: var(--color-white);
+  }
 }
