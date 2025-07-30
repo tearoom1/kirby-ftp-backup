@@ -53,32 +53,6 @@
   color: var(--color-text-light);
 }
 
-.k-ftp-backup-view-cron {
-  background: var(--color-dark);
-  color: var(--color-white);
-  padding: 1rem;
-  border-radius: 4px;
-  font-family: monospace;
-  margin-bottom: 1rem;
-  position: relative;
-}
-
-.k-ftp-backup-view-cron button {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: transparent;
-  border: 0;
-  color: var(--color-white);
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.k-ftp-backup-view-cron button:hover {
-  opacity: 1;
-}
-
 .k-ftp-backup-view-loading {
   display: flex;
   justify-content: center;
@@ -88,22 +62,6 @@
 .k-ftp-backup-view-actions {
   margin-bottom: 1.5rem;
 }
-
-/* Tab styles */
-.k-tabs-content {
-  margin-top: 1rem;
-}
-
-/* Form styles */
-.k-fieldset {
-  margin-bottom: 1.5rem;
-}
-
-/* Make sure the plugin icon looks nice */
-.k-topbar-menu-icon[data-type="upload"] {
-  color: var(--color-focus);
-}
-
 
 /* Dialog styling */
 .k-ftp-backup-dialog-content {

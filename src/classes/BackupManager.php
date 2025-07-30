@@ -41,16 +41,16 @@ class BackupManager
     public function getSettings(): array
     {
         return [
-            'host' => option('tearoom1.ftp-backup.ftpHost', ''),
-            'port' => option('tearoom1.ftp-backup.ftpPort', 21),
-            'username' => option('tearoom1.ftp-backup.ftpUsername', ''),
-            'password' => option('tearoom1.ftp-backup.ftpPassword', ''),
-            'directory' => option('tearoom1.ftp-backup.ftpDirectory', '/'),
-            'ssl' => option('tearoom1.ftp-backup.ftpSsl', false),
-            'passive' => option('tearoom1.ftp-backup.ftpPassive', true),
-            'deleteFromFtp' => option('tearoom1.ftp-backup.deleteFromFtp', true),
-            'backupDirectory' => $this->backupDir,
-            'backupRetention' => option('tearoom1.ftp-backup.backupRetention', 10)
+            'ftpHost' => option('tearoom1.ftp-backup.ftpHost', ''),
+            'ftpPort' => option('tearoom1.ftp-backup.ftpPort', 21),
+            'ftpUsername' => option('tearoom1.ftp-backup.ftpUsername', ''),
+            'ftpPassword' => option('tearoom1.ftp-backup.ftpPassword', ''),
+            'ftpDirectory' => option('tearoom1.ftp-backup.ftpDirectory', ''),
+            'ftpSsl' => option('tearoom1.ftp-backup.ftpSsl', false),
+            'ftpPassive' => option('tearoom1.ftp-backup.ftpPassive', true),
+            'backupDirectory' => option('tearoom1.ftp-backup.backupDirectory', kirby()->root('content') . '/.backups'),
+            'backupRetention' => option('tearoom1.ftp-backup.backupRetention', 10),
+            'deleteFromFtp' => option('tearoom1.ftp-backup.deleteFromFtp', true)
         ];
     }
 
@@ -59,10 +59,10 @@ class BackupManager
      */
     public function saveSettings(array $settings): array
     {
-        // This functionality is removed as we're using Kirby options now
+        // Settings are now managed via config options only
         return [
             'status' => 'error',
-            'message' => 'Settings must be configured in the site/config/config.php file'
+            'message' => 'Settings are managed via site config options only.'
         ];
     }
 
@@ -222,7 +222,7 @@ class BackupManager
         $settings = $this->getSettings();
 
         // Check if essential settings are available
-        if (empty($settings['host']) || empty($settings['username']) || empty($settings['password'])) {
+        if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) || empty($settings['ftpPassword'])) {
             return [
                 'success' => false,
                 'message' => 'Incomplete FTP settings'
@@ -231,16 +231,16 @@ class BackupManager
 
         // Create and connect FTP client
         $ftpClient = new FtpClient(
-            $settings['host'],
-            (int)($settings['port'] ?? 21),
-            $settings['username'],
-            $settings['password'],
-            (bool)($settings['ssl'] ?? false),
-            (bool)($settings['passive'] ?? true)
+            $settings['ftpHost'],
+            (int)($settings['ftpPort'] ?? 21),
+            $settings['ftpUsername'],
+            $settings['ftpPassword'],
+            (bool)($settings['ftpSsl'] ?? false),
+            (bool)($settings['ftpPassive'] ?? true)
         );
 
         $ftpClient->connect();
-        $directory = $settings['directory'] ?? '/';
+        $directory = $settings['ftpDirectory'] ?? '/';
 
         return [
             'success' => true,
