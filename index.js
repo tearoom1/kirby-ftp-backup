@@ -19,7 +19,7 @@
     },
     data() {
       return {
-        activeTab: "settings",
+        activeTab: "backups",
         isLoading: false,
         isCreatingBackup: false,
         isLoadingBackups: false,
@@ -101,7 +101,7 @@
           const response = await this.$api.get("ftp-backup/settings");
           this.ftpSettings = response;
         } catch (error) {
-          this.$store.dispatch("notification/error", "Failed to load FTP settings");
+          window.panel.notification.error("Failed to load FTP settings");
         } finally {
           this.isLoading = false;
         }
@@ -111,12 +111,12 @@
         try {
           const response = await this.$api.post("ftp-backup/settings", this.ftpSettings);
           if (response.status === "success") {
-            this.$store.dispatch("notification/success", response.message);
+            window.panel.notification.success(response.message);
           } else {
-            this.$store.dispatch("notification/error", response.message);
+            window.panel.notification.error(response.message);
           }
         } catch (error) {
-          this.$store.dispatch("notification/error", "Failed to save FTP settings");
+          window.panel.notification.error("Failed to save FTP settings");
         } finally {
           this.isLoading = false;
         }
@@ -139,7 +139,7 @@
             this.backups = [];
           }
         } catch (error) {
-          this.$store.dispatch("notification/error", "Failed to load backups");
+          window.panel.notification.error("Failed to load backups");
           this.backups = [];
         } finally {
           this.isLoadingBackups = false;
@@ -163,7 +163,7 @@
       },
       handleBackupAction(action, item) {
         if (action === "download") {
-          window.open(item.link, "_blank");
+          window.open("/" + item.link, "_blank");
         }
       },
       formatSize(bytes) {
@@ -178,11 +178,11 @@
       },
       copyCronCommand() {
         navigator.clipboard.writeText(this.cronCommand);
-        this.$store.dispatch("notification/success", "Command copied to clipboard");
+        window.panel.notification.success("Command copied to clipboard");
       },
       copyCrontabEntry() {
         navigator.clipboard.writeText(`0 2 * * * ${this.cronCommand}`);
-        this.$store.dispatch("notification/success", "Crontab entry copied to clipboard");
+        window.panel.notification.success("Crontab entry copied to clipboard");
       }
     }
   };
