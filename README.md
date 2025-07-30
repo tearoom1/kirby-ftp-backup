@@ -4,6 +4,8 @@ A Kirby CMS plugin that creates backups of your site content and uploads them to
 
 [![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-content-watch)
 
+***
+
 ## Features
 
 - Create ZIP backups of your site content
