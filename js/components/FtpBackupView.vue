@@ -26,18 +26,18 @@
       <div class="k-ftp-backup-view-actions">
         <k-button-group>
           <k-button
-            icon="upload"
-            @click="createBackup"
-            :disabled="isLoading"
-            :progress="isCreatingBackup"
+              icon="upload"
+              @click="createBackup"
+              :disabled="isLoading"
+              :progress="isCreatingBackup"
           >
             Create Backup Now
           </k-button>
           <k-button
-            icon="refresh"
-            @click="loadBackups"
-            :disabled="isLoading"
-            :progress="isLoadingBackups"
+              icon="refresh"
+              @click="loadBackups"
+              :disabled="isLoading"
+              :progress="isLoadingBackups"
           />
         </k-button-group>
       </div>
@@ -80,7 +80,16 @@
         :fields="formFields"
         v-model="ftpSettings"
         @submit="saveSettings"
-      />
+      >
+        <template slot="footer">
+          <k-button
+              type="submit"
+              icon="check"
+          >
+            Save Settings
+          </k-button>
+        </template>
+      </k-form>
     </div>
     
     <!-- Cron Tab -->
@@ -145,39 +154,46 @@ export default {
         host: {
           label: 'FTP Host',
           type: 'text',
-          required: true
+          required: true,
+          width: 1/2
         },
         port: {
           label: 'FTP Port',
           type: 'number',
-          default: 21
+          default: 21,
+          width: 1/2
         },
         username: {
           label: 'Username',
           type: 'text',
-          required: true
+          required: true,
+          width: 1/2
         },
         password: {
           label: 'Password',
           type: 'password',
-          help: 'Leave empty to keep existing password'
+          help: 'Leave empty to keep existing password',
+          width: 1/2
         },
         directory: {
           label: 'Remote Directory',
           type: 'text',
-          default: '/'
+          default: '/',
+          width: 1/2
         },
         passive: {
           label: 'Passive Mode',
           type: 'toggle',
           default: true,
-          text: ['Off', 'On']
+          text: ['Off', 'On'],
+          width: 1/2
         },
         ssl: {
           label: 'Use SSL/TLS',
           type: 'toggle',
           default: false,
-          text: ['Off', 'On']
+          text: ['Off', 'On'],
+          width: 1/2
         }
       };
     }

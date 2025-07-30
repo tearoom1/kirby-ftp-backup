@@ -7,6 +7,7 @@ namespace TearoomOne\FtpBackup;
  */
 class FtpClient
 {
+    const TIMEOUT = 60;
     private string $host;
     private int $port;
     private string $username;
@@ -40,11 +41,11 @@ class FtpClient
             if (!function_exists('ftp_ssl_connect')) {
                 throw new \Exception('FTP SSL is not supported on this server');
             }
-            $this->connection = ftp_ssl_connect($this->host, $this->port);
+            $this->connection = ftp_ssl_connect($this->host, $this->port, self::TIMEOUT);
         } else {
-            $this->connection = ftp_connect($this->host, $this->port);
+            $this->connection = ftp_connect($this->host, $this->port, self::TIMEOUT);
         }
-        
+
         if (!$this->connection) {
             throw new \Exception("Failed to connect to FTP server: {$this->host}:{$this->port}");
         }
