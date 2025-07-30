@@ -287,6 +287,8 @@ class BackupManager
             
             foreach ($toDelete as $file) {
                 F::remove($this->backupDir . '/' . $file);
+
+                // TODO also remove from ftp
             }
         }
     }
