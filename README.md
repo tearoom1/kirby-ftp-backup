@@ -34,10 +34,10 @@ All configuration is handled through Kirby's option system. Add the following to
     'ftpPort' => 21,
     'ftpUsername' => 'your-username',
     'ftpPassword' => 'your-password',
-    'ftpDirectory' => 'backups', 
+    'ftpDirectory' => 'backups',
     'ftpSsl' => false,
     'ftpPassive' => true,
-    
+
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
     'backupRetention' => 10,                 // Number of backups to keep when using simple retention strategy
@@ -159,11 +159,15 @@ If you encounter issues:
 - PHP 7.4+
 - PHP ZIP extension
 - PHP FTP extension
-
 ## License
 
-MIT License
+This plugin is licensed under the [MIT License](LICENSE), but **using Kirby in production** requires you
+to [buy a license](https://getkirby.com/buy).
 
 ## Credits
 
-Developed by [Your Name/Company]
+- Developed by Mathis Koblin
+- Assisted by AI Claude 3.7 Sonnet
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/tearoom1)
+
