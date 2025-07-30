@@ -15,8 +15,7 @@ return [
                     'component' => 'ftp-backup-view',
                     'title' => 'FTP Backup',
                     'props' => [
-                        'stats' => BackupController::getStats(),
-                        'cronCommand' => BackupController::getCronCommand()
+                        'stats' => BackupController::getStats()
                     ]
                 ];
             }

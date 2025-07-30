@@ -103,3 +103,6 @@
   color: var(--color-focus);
 }
 
+.k-ftp-backup-view-settings-info {
+  margin-top: 1.5rem;
+}

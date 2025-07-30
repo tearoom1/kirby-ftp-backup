@@ -6,12 +6,12 @@
         <h3>Total Backups</h3>
         <p>{{ stats.count }}</p>
       </div>
-      
+
       <div class="k-ftp-backup-view-stats-card">
         <h3>Total Size</h3>
         <p>{{ stats.formattedTotalSize }}</p>
       </div>
-      
+
       <div class="k-ftp-backup-view-stats-card">
         <h3>Latest Backup</h3>
         <p v-if="stats.latestBackup">{{ stats.latestBackup.formattedDate }}</p>
@@ -21,7 +21,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="k-ftp-backup-view-section">
       <div class="k-ftp-backup-view-actions">
         <k-button-group>
@@ -42,22 +42,9 @@
         </k-button-group>
       </div>
     </div>
-    
-    <!-- Tabs Navigation -->
-    <nav class="k-tabs">
-      <k-button
-        v-for="tab in tabs"
-        :key="tab.name"
-        :current="activeTab === tab.name"
-        @click="activeTab = tab.name"
-        class="k-tab-button"
-      >
-        {{ tab.label }}
-      </k-button>
-    </nav>
 
-    <!-- Backups Tab -->
-    <div v-show="activeTab === 'backups'" class="k-tab-content">
+    <!-- Backups List -->
+    <div class="k-tab-content">
       <div v-if="isLoadingBackups" class="k-ftp-backup-view-loading">
         <k-loader />
       </div>
@@ -73,46 +60,32 @@
           @action="handleBackupAction"
       />
     </div>
-    
-    <!-- Settings Tab -->
-    <div v-show="activeTab === 'settings'" class="k-tab-content">
-      <k-form
-        :fields="formFields"
-        v-model="ftpSettings"
-        @submit="saveSettings"
-      >
-        <template slot="footer">
-          <k-button
-              type="submit"
-              icon="check"
-          >
-            Save Settings
-          </k-button>
-        </template>
-      </k-form>
-    </div>
-    
-    <!-- Cron Tab -->
-    <div v-show="activeTab === 'cron'" class="k-tab-content">
-      <div class="k-ftp-backup-view-section">
-        <h2>Cron Job Setup</h2>
-        <p>Use the following command in your crontab to schedule automatic backups:</p>
+
+    <!-- Settings Info Section -->
+    <div class="k-ftp-backup-view-settings-info">
+      <k-box theme="info">
+        <h3>FTP Settings</h3>
+        <p>FTP settings are managed through your site config file.</p>
+        <p>Add the following to your <code>site/config/config.php</code> file:</p>
         
-        <div class="k-ftp-backup-view-cron">
-          {{ cronCommand }}
-          <button @click="copyCronCommand">
-            <k-icon type="copy" />
-          </button>
-        </div>
+        <pre>
+'tearoom1.ftp-backup' => [
+    'ftpHost' => 'your-ftp-host.com',
+    'ftpPort' => 21,
+    'ftpUsername' => 'your-username',
+    'ftpPassword' => 'your-password',
+    'ftpDirectory' => '/backups',
+    'ftpSsl' => false,
+    'ftpPassive' => true,
+    'backupDirectory' => 'content/.backups',
+    'backupRetention' => 10,
+    'deleteFromFtp' => true
+]
+        </pre>
         
-        <p>Example crontab entry to run daily at 2 AM:</p>
-        <div class="k-ftp-backup-view-cron">
-          0 2 * * * {{ cronCommand }}
-          <button @click="copyCrontabEntry">
-            <k-icon type="copy" />
-          </button>
-        </div>
-      </div>
+        <p>For automatic backups, set up a cron job to run:</p>
+        <pre>php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
+      </k-box>
     </div>
   </k-panel-inside>
 </template>
@@ -120,150 +93,29 @@
 <script>
 export default {
   props: {
-    stats: Object,
-    cronCommand: String
+    stats: Object
   },
-  
+
   data() {
     return {
-      activeTab: 'backups',
       isLoading: false,
       isCreatingBackup: false,
       isLoadingBackups: false,
-      ftpSettings: {
-        host: '',
-        port: 21,
-        username: '',
-        password: '',
-        directory: '/',
-        passive: true,
-        ssl: false
-      },
-      backups: [],
-      tabs: [
-        { name: 'backups', label: 'Backups' },
-        { name: 'settings', label: 'Settings' },
-        { name: 'cron', label: 'Cron Job' }
-      ]
+      backups: []
     };
   },
-  
-  computed: {
-    formFields() {
-      return {
-        host: {
-          label: 'FTP Host',
-          type: 'text',
-          required: true,
-          width: 3/6
-        },
-        port: {
-          label: 'FTP Port',
-          type: 'number',
-          default: 21,
-          width: 1/6
-        },
-        ssl: {
-          label: 'Use SSL/TLS',
-          type: 'toggle',
-          default: false,
-          text: ['Off', 'On'],
-          width: 1/6
-        },
-        passive: {
-          label: 'Passive Mode',
-          type: 'toggle',
-          default: true,
-          text: ['Off', 'On'],
-          width: 1/6
-        },
-        username: {
-          label: 'Username',
-          type: 'text',
-          required: true,
-          width: 1/3
-        },
-        password: {
-          label: 'Password',
-          type: 'password',
-          help: 'Leave empty to keep existing password',
-          width: 1/3
-        },
-        directory: {
-          label: 'Remote Directory',
-          type: 'text',
-          default: '/',
-          width: 1/3
-        },
-        localDirectory: {
-          label: 'Local Backup Directory',
-          type: 'text',
-          default: 'content/.backups',
-          help: 'Relative to Kirby root. Defaults to content/.backups',
-          width: 1/3
-        },
-        retentionCount: {
-          label: 'Backup Retention Count',
-          type: 'text',
-          default: '10',
-          help: 'How many backups to keep. Defaults to 10',
-          width: 1/3
-        },
-        deleteFromFtp: {
-          label: 'Delete Backups from FTP',
-          type: 'toggle',
-          default: true,
-          text: ['Off', 'On'],
-          help: 'Also deletes backups from FTP server',
-          width: 1/3
-        }
-      };
-    }
-  },
-  
+
   created() {
-    this.loadSettings();
     this.loadBackups();
   },
-  
+
   methods: {
-    async loadSettings() {
-      this.isLoading = true;
-      
-      try {
-        const response = await this.$api.get('ftp-backup/settings');
-        this.ftpSettings = response;
-      } catch (error) {
-        window.panel.notification.error('Failed to load FTP settings');
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    
-    async saveSettings() {
-      this.isLoading = true;
-      
-      try {
-        const response = await this.$api.post('ftp-backup/settings', this.ftpSettings);
-        
-        if (response.status === 'success') {
-          window.panel.notification.success(response.message);
-        } else {
-          window.panel.notification.error(response.message);
-        }
-      } catch (error) {
-        window.panel.notification.error('Failed to save FTP settings');
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    
     async loadBackups() {
       this.isLoadingBackups = true;
-      
+
       try {
         const response = await this.$api.get('ftp-backup/backups');
-        
+
         if (response.status === 'success' && response.data) {
           this.backups = response.data.map(backup => {
             return {
@@ -284,13 +136,13 @@ export default {
         this.isLoadingBackups = false;
       }
     },
-    
+
     async createBackup() {
       this.isCreatingBackup = true;
-      
+
       try {
         const response = await this.$api.post('ftp-backup/create');
-        
+
         if (response.status === 'success') {
           window.panel.notification.success(response.message);
           this.loadBackups();
@@ -303,38 +155,25 @@ export default {
         this.isCreatingBackup = false;
       }
     },
-    
+
     handleBackupAction(action, item) {
       if (action === 'download') {
         window.open('/' + item.link, '_blank');
       }
     },
-    
+
     formatSize(bytes) {
       const units = ['B', 'KB', 'MB', 'GB', 'TB'];
       let size = bytes;
       let unitIndex = 0;
-      
+
       while (size >= 1024 && unitIndex < units.length - 1) {
         size /= 1024;
         unitIndex++;
       }
-      
+
       return `${size.toFixed(2)} ${units[unitIndex]}`;
-    },
-    
-    copyCronCommand() {
-      navigator.clipboard.writeText(this.cronCommand);
-      window.panel.notification.success('Command copied to clipboard');
-    },
-    
-    copyCrontabEntry() {
-      navigator.clipboard.writeText(`0 2 * * * ${this.cronCommand}`);
-      window.panel.notification.success('Crontab entry copied to clipboard');
     }
   }
 };
 </script>
-<style>
-
-</style>

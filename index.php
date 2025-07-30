@@ -12,11 +12,22 @@ load([
 ], __DIR__);
 
 Kirby::plugin('tearoom1/ftp-backup', [
+    // Plugin information
+    'name' => 'FTP Backup',
+    'description' => 'Plugin to create and manage site backups with FTP functionality',
+    
     // Plugin options
     'options' => [
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
         'deleteFromFtp' => true, // Delete backups from FTP server
+        'ftpHost' => '', // FTP host
+        'ftpPort' => 21, // FTP port
+        'ftpUsername' => '', // FTP username
+        'ftpPassword' => '', // FTP password
+        'ftpDirectory' => '/', // FTP remote directory
+        'ftpSsl' => false, // Use SSL/TLS
+        'ftpPassive' => true, // Use passive mode
     ],
     
     // Panel areas registration
@@ -27,34 +38,13 @@ Kirby::plugin('tearoom1/ftp-backup', [
     // API routes
     'api' => [
         'routes' => [
-            // Get FTP settings
+            // Get FTP settings (read-only, from config)
             [
                 'pattern' => 'ftp-backup/settings',
                 'method' => 'GET',
                 'action' => function () {
                     $manager = new BackupManager();
                     return $manager->getSettings();
-                }
-            ],
-            // Save FTP settings
-            [
-                'pattern' => 'ftp-backup/settings',
-                'method' => 'POST',
-                'action' => function () {
-                    $manager = new BackupManager();
-                    $request = kirby()->request();
-                    
-                    $settings = [
-                        'host' => $request->get('host'),
-                        'port' => (int)$request->get('port', 21),
-                        'username' => $request->get('username'),
-                        'password' => $request->get('password'),
-                        'directory' => $request->get('directory', '/'),
-                        'passive' => (bool)$request->get('passive', true),
-                        'ssl' => (bool)$request->get('ssl', false),
-                    ];
-                    
-                    return $manager->saveSettings($settings);
                 }
             ],
             // List backups
@@ -82,6 +72,14 @@ Kirby::plugin('tearoom1/ftp-backup', [
                 'action' => function (string $filename) {
                     $manager = new BackupManager();
                     return $manager->downloadBackup($filename);
+                }
+            ],
+            // Get backup stats
+            [
+                'pattern' => 'ftp-backup/stats',
+                'method' => 'GET',
+                'action' => function () {
+                    return BackupController::getStats();
                 }
             ]
         ]
