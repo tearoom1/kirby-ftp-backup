@@ -1,6 +1,6 @@
 <?php
 
-use MatroochkitaPlugins\FtpBackup\BackupController;
+use TearoomOne\FtpBackup\BackupController;
 
 return [
     'label' => 'FTP Backup',

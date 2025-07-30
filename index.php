@@ -2,13 +2,13 @@
 
 use Kirby\Cms\App;
 use Kirby\Http\Response;
-use MatroochkitaPlugins\FtpBackup\BackupManager;
+use TearoomOne\FtpBackup\BackupManager;
 
 // Register autoloader
 load([
-    'MatroochkitaPlugins\\FtpBackup\\BackupManager' => 'src/classes/BackupManager.php',
-    'MatroochkitaPlugins\\FtpBackup\\FtpClient' => 'src/classes/FtpClient.php',
-    'MatroochkitaPlugins\\FtpBackup\\BackupController' => 'src/classes/BackupController.php',
+    'TearoomOne\\FtpBackup\\BackupManager' => 'src/classes/BackupManager.php',
+    'TearoomOne\\FtpBackup\\FtpClient' => 'src/classes/FtpClient.php',
+    'TearoomOne\\FtpBackup\\BackupController' => 'src/classes/BackupController.php',
 ], __DIR__);
 
 Kirby::plugin('tearoom1/ftp-backup', [
@@ -16,7 +16,6 @@ Kirby::plugin('tearoom1/ftp-backup', [
     'options' => [
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
-        'backupSchedule' => '0 0 * * *', // Daily at midnight
     ],
     
     // Panel areas registration

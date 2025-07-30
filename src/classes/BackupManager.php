@@ -1,6 +1,6 @@
 <?php
 
-namespace MatroochkitaPlugins\FtpBackup;
+namespace TearoomOne\FtpBackup;
 
 use Kirby\Cms\App;
 use Kirby\Data\Data;
@@ -21,7 +21,7 @@ class BackupManager
     {
         $kirby = App::instance();
         $this->settingsFile = $kirby->root('config') . '/ftp-backup-settings.json';
-        $this->backupDir = option('matrochka.ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
+        $this->backupDir = option('tearoom1.ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
         
         // Ensure backup directory exists
         if (!is_dir($this->backupDir)) {
@@ -266,7 +266,7 @@ class BackupManager
      */
     private function cleanupOldBackups(): void
     {
-        $retention = option('matrochka.ftp-backup.backupRetention', 10);
+        $retention = option('tearoom1.ftp-backup.backupRetention', 10);
         $files = Dir::read($this->backupDir);
         
         $backups = [];

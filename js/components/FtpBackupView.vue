@@ -55,16 +55,7 @@
         {{ tab.label }}
       </k-button>
     </nav>
-    
-    <!-- Settings Tab -->
-    <div v-show="activeTab === 'settings'" class="k-tab-content">
-      <k-form
-        :fields="formFields"
-        v-model="ftpSettings"
-        @submit="saveSettings"
-      />
-    </div>
-    
+
     <!-- Backups Tab -->
     <div v-show="activeTab === 'backups'" class="k-tab-content">
       <div v-if="isLoadingBackups" class="k-ftp-backup-view-loading">
@@ -76,10 +67,19 @@
         </div>
       </div>
       <k-collection
-        v-else
-        :items="backups"
-        layout="list"
-        @action="handleBackupAction"
+          v-else
+          :items="backups"
+          layout="list"
+          @action="handleBackupAction"
+      />
+    </div>
+    
+    <!-- Settings Tab -->
+    <div v-show="activeTab === 'settings'" class="k-tab-content">
+      <k-form
+        :fields="formFields"
+        v-model="ftpSettings"
+        @submit="saveSettings"
       />
     </div>
     
@@ -132,8 +132,8 @@ export default {
       },
       backups: [],
       tabs: [
-        { name: 'settings', label: 'Settings' },
         { name: 'backups', label: 'Backups' },
+        { name: 'settings', label: 'Settings' },
         { name: 'cron', label: 'Cron Job' }
       ]
     };

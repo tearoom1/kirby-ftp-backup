@@ -34,8 +34,8 @@
         },
         backups: [],
         tabs: [
-          { name: "settings", label: "Settings" },
           { name: "backups", label: "Backups" },
+          { name: "settings", label: "Settings" },
           { name: "cron", label: "Cron Job" }
         ]
       };
@@ -185,9 +185,9 @@
       return _c("k-button", { key: tab.name, staticClass: "k-tab-button", attrs: { "current": _vm.activeTab === tab.name }, on: { "click": function($event) {
         _vm.activeTab = tab.name;
       } } }, [_vm._v(" " + _vm._s(tab.label) + " ")]);
-    }), 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "settings", expression: "activeTab === 'settings'" }], staticClass: "k-tab-content" }, [_c("k-form", { attrs: { "fields": _vm.formFields }, on: { "submit": _vm.saveSettings }, model: { value: _vm.ftpSettings, callback: function($$v) {
+    }), 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "backups", expression: "activeTab === 'backups'" }], staticClass: "k-tab-content" }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, on: { "action": _vm.handleBackupAction } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "settings", expression: "activeTab === 'settings'" }], staticClass: "k-tab-content" }, [_c("k-form", { attrs: { "fields": _vm.formFields }, on: { "submit": _vm.saveSettings }, model: { value: _vm.ftpSettings, callback: function($$v) {
       _vm.ftpSettings = $$v;
-    }, expression: "ftpSettings" } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "backups", expression: "activeTab === 'backups'" }], staticClass: "k-tab-content" }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, on: { "action": _vm.handleBackupAction } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "cron", expression: "activeTab === 'cron'" }], staticClass: "k-tab-content" }, [_c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("h2", [_vm._v("Cron Job Setup")]), _c("p", [_vm._v("Use the following command in your crontab to schedule automatic backups:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCronCommand } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)]), _c("p", [_vm._v("Example crontab entry to run daily at 2 AM:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" 0 2 * * * " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCrontabEntry } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)])])])]);
+    }, expression: "ftpSettings" } })], 1), _c("div", { directives: [{ name: "show", rawName: "v-show", value: _vm.activeTab === "cron", expression: "activeTab === 'cron'" }], staticClass: "k-tab-content" }, [_c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("h2", [_vm._v("Cron Job Setup")]), _c("p", [_vm._v("Use the following command in your crontab to schedule automatic backups:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCronCommand } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)]), _c("p", [_vm._v("Example crontab entry to run daily at 2 AM:")]), _c("div", { staticClass: "k-ftp-backup-view-cron" }, [_vm._v(" 0 2 * * * " + _vm._s(_vm.cronCommand) + " "), _c("button", { on: { "click": _vm.copyCrontabEntry } }, [_c("k-icon", { attrs: { "type": "copy" } })], 1)])])])]);
   };
   var _sfc_staticRenderFns = [];
   _sfc_render._withStripped = true;

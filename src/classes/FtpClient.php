@@ -1,6 +1,6 @@
 <?php
 
-namespace MatroochkitaPlugins\FtpBackup;
+namespace TearoomOne\FtpBackup;
 
 /**
  * FTP client for handling FTP operations

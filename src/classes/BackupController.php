@@ -1,6 +1,6 @@
 <?php
 
-namespace MatroochkitaPlugins\FtpBackup;
+namespace TearoomOne\FtpBackup;
 
 use Kirby\Http\Response;
 use Kirby\Http\Request;
@@ -70,7 +70,7 @@ class BackupController
     public static function getCronCommand(): string
     {
         $php = PHP_BINARY;
-        $script = kirby()->root('index') . '/ftp-backup.php';
+        $script = kirby()->root('site') . '/plugins/kirby-ftp-backup/run.php';
         
         return "{$php} {$script}";
     }
