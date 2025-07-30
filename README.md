@@ -40,8 +40,14 @@ All configuration is handled through Kirby's option system. Add the following to
     
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
-    'backupRetention' => 10,                 // Number of backups to keep
-    'deleteFromFtp' => true                  // Whether to delete old backups from FTP
+    'backupRetention' => 10,                 // Number of backups to keep when using simple retention strategy
+    'deleteFromFtp' => true,                  // Whether to delete old backups from FTP
+    'retentionStrategy' => 'simple',         // Backup retention strategy: 'simple' or 'tiered'
+    'tieredRetention' => [
+        'daily' => 10,    // Keep all backups for the first 10 days
+        'weekly' => 4,    // Then keep 1 per week for 4 weeks
+        'monthly' => 6    // Then keep 1 per month for 6 months
+    ]
 ]
 ```
 
@@ -57,8 +63,43 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpSsl` | boolean | `false` | Use SSL/TLS connection                                             |
 | `ftpPassive` | boolean | `true` | Use passive mode                                                   |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
-| `backupRetention` | integer | `10` | Number of backups to keep locally and on FTP                       |
+| `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy  |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                      |
+| `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                |
+| `tieredRetention` | array | see below | Settings for tiered retention strategy                            |
+
+### Retention Strategies
+
+The plugin supports two retention strategies for managing old backups:
+
+#### Simple Retention
+
+Keeps a fixed number of most recent backups, discarding older ones. This is controlled by the `backupRetention` option.
+
+```php
+'backupRetention' => 10, // Keep 10 most recent backups
+```
+
+#### Tiered Retention
+
+A more sophisticated approach that keeps backups with decreasing frequency as they age:
+
+```php
+'retentionStrategy' => 'tiered',
+'tieredRetention' => [
+    'daily' => 10,    // Keep all backups for the first 10 days
+    'weekly' => 4,    // Then keep 1 per week for 4 weeks
+    'monthly' => 6    // Then keep 1 per month for 6 months
+]
+```
+
+This strategy:
+1. Keeps all backups from the last X days
+2. Then keeps one backup per week for Y weeks
+3. Then keeps one backup per month for Z months
+4. Deletes anything older
+
+This provides a good balance between recent recovery points and long-term archiving.
 
 ## Panel Interface
 

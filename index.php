@@ -26,6 +26,12 @@ Kirby::plugin('tearoom1/ftp-backup', [
         'ftpDirectory' => '/', // FTP remote directory
         'ftpSsl' => false, // Use SSL/TLS
         'ftpPassive' => true, // Use passive mode
+        'retentionStrategy' => 'simple', // 'simple' or 'tiered'
+        'tieredRetention' => [
+            'daily' => 10,    // Keep all backups for the first 10 days
+            'weekly' => 4,    // Then keep 1 per week for 4 weeks
+            'monthly' => 6    // Then keep 1 per month for 6 months
+        ]
     ],
 
     // Panel areas registration
