@@ -112,7 +112,8 @@ class BackupManager
         try {
             // Generate filename with date
             $date = date('Y-m-d-His');
-            $filename = "backup-{$date}.zip";
+            $filePrefix = option('tearoom1.ftp-backup.filePrefix', 'backup-');
+            $filename = "{$filePrefix}{$date}.zip";
             $filepath = $this->backupDir . '/' . $filename;
 
             // Create zip archive of content folder

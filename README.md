@@ -46,6 +46,7 @@ All configuration is handled through Kirby's option system. Add the following to
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
     'backupRetention' => 10,                 // Number of backups to keep when using simple retention strategy
     'deleteFromFtp' => true,                  // Whether to delete old backups from FTP
+    'filePrefix' => 'backup-',               // Prefix for backup filenames
     'retentionStrategy' => 'simple',         // Backup retention strategy: 'simple' or 'tiered'
     'tieredRetention' => [
         'daily' => 10,    // Keep all backups for the first 10 days
@@ -69,6 +70,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy  |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                      |
+| `filePrefix` | string | `'backup-'` | Prefix for backup filenames |
 | `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                |
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                            |
 
@@ -173,4 +175,3 @@ This plugin is licensed under the [MIT License](LICENSE)
 - Assisted by AI Claude 3.7 Sonnet
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/tearoom1)
-

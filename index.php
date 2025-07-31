@@ -19,6 +19,7 @@ Kirby::plugin('tearoom1/ftp-backup', [
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
         'deleteFromFtp' => true, // Delete backups from FTP server
+        'filePrefix' => 'backup-', // Prefix for backup filenames
         'ftpHost' => '', // FTP host
         'ftpPort' => 21, // FTP port
         'ftpUsername' => '', // FTP username
