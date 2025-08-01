@@ -1,3 +1,10 @@
+## [0.4.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.1...v0.4.2) (2025-08-01)
+
+
+### Bug Fixes
+
+* updated src structure ([5b4c84e](https://github.com/tearoom1/kirby-ftp-backup/commit/5b4c84e0bd89e0f8833549e04c50dd744189d0d5))
+
 ## [0.4.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.0...v0.4.1) (2025-08-01)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * cleanup ([90fc7c6](https://github.com/tearoom1/kirby-ftp-backup/commit/90fc7c6e22413cc743c6316cfff79885b544f19d))
-
-## [0.3.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.2.0...v0.3.0) (2025-07-30)
-
-
-### Features
-
-* ready for publish ([2280066](https://github.com/tearoom1/kirby-ftp-backup/commit/2280066300a1c8e378268efc77c3bf3225858dd6))
 
