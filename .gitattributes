@@ -11,6 +11,7 @@
 package.json export-ignore
 package-lock.json export-ignore
 node_modules/ export-ignore
+composer.lock export-ignore
 
 # Documentation
 CHANGELOG.md export-ignore
