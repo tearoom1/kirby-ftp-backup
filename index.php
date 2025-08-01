@@ -2,12 +2,7 @@
 
 use TearoomOne\FtpBackup\BackupManager;
 
-// Register autoloader
-load([
-    'TearoomOne\\FtpBackup\\BackupManager' => 'src/classes/BackupManager.php',
-    'TearoomOne\\FtpBackup\\FtpClient' => 'src/classes/FtpClient.php',
-    'TearoomOne\\FtpBackup\\BackupController' => 'src/classes/BackupController.php',
-], __DIR__);
+@include_once __DIR__ . '/vendor/autoload.php';
 
 Kirby::plugin('tearoom1/ftp-backup', [
     // Plugin information
