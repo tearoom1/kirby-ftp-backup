@@ -1,3 +1,10 @@
+## [0.4.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.2...v0.4.3) (2025-08-02)
+
+
+### Bug Fixes
+
+* reverted to use class loading in index.php ([a0a0cf8](https://github.com/tearoom1/kirby-ftp-backup/commit/a0a0cf8233aba81ceb8ad9cc1135e27197c524af))
+
 ## [0.4.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.1...v0.4.2) (2025-08-01)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * readme ([2362ac0](https://github.com/tearoom1/kirby-ftp-backup/commit/2362ac03dc418c541d541009ff45f7a651aca54b))
-
-## [0.3.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.3.0...v0.3.1) (2025-07-30)
-
-
-### Bug Fixes
-
-* cleanup ([90fc7c6](https://github.com/tearoom1/kirby-ftp-backup/commit/90fc7c6e22413cc743c6316cfff79885b544f19d))
 
