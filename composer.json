@@ -1,40 +1,44 @@
 {
-  "name": "tearoom1/kirby-ftp-backup",
-  "description": "Kirby plugin that creates backups of your site content and uploads them to an FTP server.",
-  "type": "kirby-plugin",
-  "license": "MIT",
-  "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
-  "version": "0.4.2",
-  "keywords": [
-    "kirby",
-    "panel",
-    "backup",
-    "ftp"
-  ],
-  "authors": [
-    {
-      "name": "Mathis Koblin",
-      "email": "mail@tearoom.one",
-      "homepage": "https://www.tearoom.one",
-      "role": "Maintainer"
+    "name": "tearoom1/kirby-ftp-backup",
+    "description": "Kirby plugin that creates backups of your site content and uploads them to an FTP server.",
+    "type": "kirby-plugin",
+    "license": "MIT",
+    "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
+    "version": "0.4.2",
+    "keywords": [
+        "kirby",
+        "panel",
+        "backup",
+        "ftp"
+    ],
+    "authors": [
+        {
+            "name": "Mathis Koblin",
+            "email": "mail@tearoom.one",
+            "homepage": "https://www.tearoom.one",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "docs": "https://github.com/tearoom1/kirby-ftp-backup/blob/main/README.md",
+        "source": "https://github.com/tearoom1/kirby-ftp-backup"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tearoom1/kirby-ftp-backup.git"
+    },
+    "require": {
+        "getkirby/composer-installer": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "TearoomOne\\FtpBackup\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "getkirby/composer-installer": true
+        }
     }
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tearoom1/kirby-ftp-backup.git"
-  },
-  "require": {
-    "getkirby/composer-installer": "^1.2"
-  },
-  "autoload": {
-    "psr-4": {
-      "TearoomOne\\FtpBackup\\": "src/"
-    }
-  },
-  "config": {
-    "optimize-autoloader": true,
-    "allow-plugins": {
-      "getkirby/composer-installer": true
-    }
-  }
 }
