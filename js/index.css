@@ -2,10 +2,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .k-ftp-backup-view-stats-card {
-  background-color: var(--color-light);
+  background: var(--theme-color-back);
   border-radius: 4px;
   padding: 1rem;
   flex: 1;
@@ -156,10 +157,4 @@
 
 .k-ftp-backup-files-table tbody tr:hover {
   background-color: var(--color-background);
-}
-
-@media (prefers-color-scheme: dark) {
-  .k-ftp-backup-view-stats-card {
-    background-color: var(--color-dark);
-  }
 }
