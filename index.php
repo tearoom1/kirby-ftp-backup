@@ -2,9 +2,9 @@
 
 // Register autoloader
 load([
-    'TearoomOne\\FtpBackup\\BackupManager' => 'src/classes/BackupManager.php',
-    'TearoomOne\\FtpBackup\\FtpClient' => 'src/classes/FtpClient.php',
-    'TearoomOne\\FtpBackup\\BackupController' => 'src/classes/BackupController.php',
+    'TearoomOne\\FtpBackup\\BackupManager' => 'src/BackupManager.php',
+    'TearoomOne\\FtpBackup\\FtpClient' => 'src/FtpClient.php',
+    'TearoomOne\\FtpBackup\\BackupController' => 'src/BackupController.php',
 ], __DIR__);
 
 use TearoomOne\FtpBackup\BackupManager;
