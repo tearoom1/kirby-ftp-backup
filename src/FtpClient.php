@@ -173,6 +173,42 @@ class FtpClient
     }
     
     /**
+     * Get file size from FTP server
+     */
+    public function getFileSize(string $remoteFile): int
+    {
+        if (!$this->connection) {
+            throw new \Exception('Not connected to FTP server');
+        }
+        
+        $size = ftp_size($this->connection, $remoteFile);
+        
+        if ($size < 0) {
+            throw new \Exception("Failed to get file size from FTP server: {$remoteFile}");
+        }
+        
+        return $size;
+    }
+    
+    /**
+     * Get file modified time from FTP server
+     */
+    public function getModifiedTime(string $remoteFile): int
+    {
+        if (!$this->connection) {
+            throw new \Exception('Not connected to FTP server');
+        }
+        
+        $time = ftp_mdtm($this->connection, $remoteFile);
+        
+        if ($time < 0) {
+            throw new \Exception("Failed to get modified time from FTP server: {$remoteFile}");
+        }
+        
+        return $time;
+    }
+    
+    /**
      * Destructor to ensure connection is closed
      */
     public function __destruct()

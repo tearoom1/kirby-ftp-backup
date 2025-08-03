@@ -53,6 +53,13 @@
               icon="info"
               @click="showSettingsInfo"
           />
+          <k-button
+              icon="server"
+              @click="showFtpServerStats"
+              :disabled="isLoading || isLoadingFtpStats"
+              :progress="isLoadingFtpStats"
+              title="Show FTP Server Stats"
+          />
         </k-button-group>
       </div>
     </div>
@@ -124,6 +131,77 @@
         </k-button>
       </k-button-group>
     </k-dialog>
+    
+    <!-- FTP Server Stats Dialog -->
+    <k-dialog
+      ref="ftpStatsDialog"
+      size="large"
+    >
+      <div class="k-ftp-backup-dialog-content">
+        <h2 class="k-ftp-backup-dialog-title">FTP Server Stats</h2>
+        
+        <div v-if="isLoadingFtpStats" class="k-ftp-backup-view-loading">
+          <k-loader />
+        </div>
+        <div v-else-if="ftpStatsError" class="k-ftp-backup-error">
+          <k-box theme="negative">
+            {{ ftpStatsError }}
+          </k-box>
+        </div>
+        <div v-else-if="ftpStats">
+          <div class="k-ftp-backup-view-stats">
+            <div class="k-ftp-backup-view-stats-card">
+              <h3>Files on Server</h3>
+              <p>{{ ftpStats.count }}</p>
+            </div>
+            
+            <div class="k-ftp-backup-view-stats-card">
+              <h3>Total Size</h3>
+              <p>{{ ftpStats.formattedTotalSize }}</p>
+            </div>
+            
+            <div class="k-ftp-backup-view-stats-card">
+              <h3>Latest Backup</h3>
+              <p>{{ ftpStats.latestModified }}</p>
+            </div>
+          </div>
+          
+          <div class="k-ftp-backup-dialog-section">
+            <h3>Files on FTP Server</h3>
+            <div v-if="ftpStats.files && ftpStats.files.length > 0">
+              <table class="k-ftp-backup-files-table">
+                <thead>
+                  <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="file in ftpStats.files" :key="file.filename">
+                    <td>{{ file.filename }}</td>
+                    <td>{{ file.formattedSize }}</td>
+                    <td>{{ file.formattedDate }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="k-ftp-backup-view-backup-list-empty">
+              No backups available on FTP server
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <k-button-group slot="footer">
+        <k-button icon="refresh" @click="loadFtpServerStats" :disabled="isLoadingFtpStats" :progress="isLoadingFtpStats">
+          Refresh
+        </k-button>
+        <k-button icon="check" @click="$refs.ftpStatsDialog.close()">
+          Close
+        </k-button>
+      </k-button-group>
+    </k-dialog>
   </k-panel-inside>
 </template>
 
@@ -138,12 +216,15 @@ export default {
       isLoading: false,
       isCreatingBackup: false,
       isLoadingBackups: false,
+      isLoadingFtpStats: false,
       backups: [],
       ftpWarning: {
         show: false,
         message: '',
         isPersistent: false
-      }
+      },
+      ftpStats: null,
+      ftpStatsError: null
     };
   },
 
@@ -224,6 +305,33 @@ export default {
       window.open(item.url, '_blank');
     },
 
+    // FTP Server Stats methods
+    showFtpServerStats() {
+      this.loadFtpServerStats();
+      this.$refs.ftpStatsDialog.open();
+    },
+    
+    async loadFtpServerStats() {
+      this.isLoadingFtpStats = true;
+      this.ftpStatsError = null;
+      
+      try {
+        const response = await this.$api.get('ftp-backup/ftp-stats');
+        
+        if (response.status === 'success' && response.data) {
+          this.ftpStats = response.data;
+        } else {
+          this.ftpStatsError = response.message || 'Failed to load FTP server stats';
+          this.ftpStats = null;
+        }
+      } catch (error) {
+        this.ftpStatsError = 'Failed to connect to FTP server';
+        this.ftpStats = null;
+      } finally {
+        this.isLoadingFtpStats = false;
+      }
+    },
+    
     // FTP Warning Panel Methods
     showFtpWarning(message, isPersistent = false) {
       this.ftpWarning = {

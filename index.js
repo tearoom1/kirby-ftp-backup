@@ -21,12 +21,15 @@
         isLoading: false,
         isCreatingBackup: false,
         isLoadingBackups: false,
+        isLoadingFtpStats: false,
         backups: [],
         ftpWarning: {
           show: false,
           message: "",
           isPersistent: false
-        }
+        },
+        ftpStats: null,
+        ftpStatsError: null
       };
     },
     created() {
@@ -92,6 +95,29 @@
       downloadBackup(item) {
         window.open(item.url, "_blank");
       },
+      // FTP Server Stats methods
+      showFtpServerStats() {
+        this.loadFtpServerStats();
+        this.$refs.ftpStatsDialog.open();
+      },
+      async loadFtpServerStats() {
+        this.isLoadingFtpStats = true;
+        this.ftpStatsError = null;
+        try {
+          const response = await this.$api.get("ftp-backup/ftp-stats");
+          if (response.status === "success" && response.data) {
+            this.ftpStats = response.data;
+          } else {
+            this.ftpStatsError = response.message || "Failed to load FTP server stats";
+            this.ftpStats = null;
+          }
+        } catch (error) {
+          this.ftpStatsError = "Failed to connect to FTP server";
+          this.ftpStats = null;
+        } finally {
+          this.isLoadingFtpStats = false;
+        }
+      },
       // FTP Warning Panel Methods
       showFtpWarning(message, isPersistent = false) {
         this.ftpWarning = {
@@ -137,12 +163,16 @@
   };
   var _sfc_render = function render() {
     var _vm = this, _c = _vm._self._c;
-    return _c("k-panel-inside", { staticClass: "k-ftp-backup-view" }, [_vm.ftpWarning.show ? _c("div", { staticClass: "k-ftp-backup-view-warning" }, [_c("k-box", { staticClass: "k-ftp-backup-view-warning-box", attrs: { "theme": "negative" } }, [_c("k-icon", { attrs: { "type": "alert" } }), _c("span", [_vm._v(_vm._s(_vm.ftpWarning.message))]), _c("k-button", { attrs: { "icon": "settings" }, on: { "click": _vm.showSettingsInfo } }), _c("k-button", { attrs: { "icon": "cancel" }, on: { "click": _vm.dismissWarning } })], 1)], 1) : _vm._e(), _c("div", { staticClass: "k-ftp-backup-view-stats" }, [_c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Backups")]), _c("p", [_vm._v(_vm._s(_vm.stats.count))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Size")]), _c("p", [_vm._v(_vm._s(_vm.stats.formattedTotalSize))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Latest Backup")]), _vm.stats.latestBackup ? _c("p", [_vm._v(_vm._s(_vm.stats.latestBackup.formattedDate))]) : _c("p", [_vm._v("None")]), _vm.stats.latestBackup ? _c("div", { staticClass: "k-ftp-backup-view-stats-card-latest" }, [_vm._v(" " + _vm._s(_vm.stats.latestBackup.filename) + " ")]) : _vm._e()])]), _c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("div", { staticClass: "k-ftp-backup-view-actions" }, [_c("k-button-group", [_c("k-button", { attrs: { "icon": "upload", "disabled": _vm.isLoading, "progress": _vm.isCreatingBackup }, on: { "click": _vm.createBackup } }, [_vm._v(" Create Backup Now ")]), _c("k-button", { attrs: { "icon": "refresh", "disabled": _vm.isLoading, "progress": _vm.isLoadingBackups }, on: { "click": _vm.loadBackups } }), _c("k-button", { attrs: { "icon": "info" }, on: { "click": _vm.showSettingsInfo } })], 1)], 1)]), _c("div", { staticClass: "k-tab-content" }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, scopedSlots: _vm._u([{ key: "options", fn: function({ item }) {
+    return _c("k-panel-inside", { staticClass: "k-ftp-backup-view" }, [_vm.ftpWarning.show ? _c("div", { staticClass: "k-ftp-backup-view-warning" }, [_c("k-box", { staticClass: "k-ftp-backup-view-warning-box", attrs: { "theme": "negative" } }, [_c("k-icon", { attrs: { "type": "alert" } }), _c("span", [_vm._v(_vm._s(_vm.ftpWarning.message))]), _c("k-button", { attrs: { "icon": "settings" }, on: { "click": _vm.showSettingsInfo } }), _c("k-button", { attrs: { "icon": "cancel" }, on: { "click": _vm.dismissWarning } })], 1)], 1) : _vm._e(), _c("div", { staticClass: "k-ftp-backup-view-stats" }, [_c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Backups")]), _c("p", [_vm._v(_vm._s(_vm.stats.count))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Size")]), _c("p", [_vm._v(_vm._s(_vm.stats.formattedTotalSize))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Latest Backup")]), _vm.stats.latestBackup ? _c("p", [_vm._v(_vm._s(_vm.stats.latestBackup.formattedDate))]) : _c("p", [_vm._v("None")]), _vm.stats.latestBackup ? _c("div", { staticClass: "k-ftp-backup-view-stats-card-latest" }, [_vm._v(" " + _vm._s(_vm.stats.latestBackup.filename) + " ")]) : _vm._e()])]), _c("div", { staticClass: "k-ftp-backup-view-section" }, [_c("div", { staticClass: "k-ftp-backup-view-actions" }, [_c("k-button-group", [_c("k-button", { attrs: { "icon": "upload", "disabled": _vm.isLoading, "progress": _vm.isCreatingBackup }, on: { "click": _vm.createBackup } }, [_vm._v(" Create Backup Now ")]), _c("k-button", { attrs: { "icon": "refresh", "disabled": _vm.isLoading, "progress": _vm.isLoadingBackups }, on: { "click": _vm.loadBackups } }), _c("k-button", { attrs: { "icon": "info" }, on: { "click": _vm.showSettingsInfo } }), _c("k-button", { attrs: { "icon": "server", "disabled": _vm.isLoading || _vm.isLoadingFtpStats, "progress": _vm.isLoadingFtpStats, "title": "Show FTP Server Stats" }, on: { "click": _vm.showFtpServerStats } })], 1)], 1)]), _c("div", { staticClass: "k-tab-content" }, [_vm.isLoadingBackups ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.backups.length === 0 ? _c("div", { staticClass: "k-ftp-backup-view-backup-list" }, [_c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available ")])]) : _c("k-collection", { attrs: { "items": _vm.backups, "layout": "list" }, scopedSlots: _vm._u([{ key: "options", fn: function({ item }) {
       return [_c("k-button", { attrs: { "icon": "download" }, on: { "click": function($event) {
         return _vm.downloadBackup(item);
       } } })];
     } }]) })], 1), _c("k-dialog", { ref: "settingsDialog", attrs: { "size": "large" } }, [_c("div", { staticClass: "k-ftp-backup-dialog-content" }, [_c("h2", { staticClass: "k-ftp-backup-dialog-title" }, [_vm._v("FTP Backup Settings")]), _c("div", { staticClass: "k-ftp-backup-dialog-section" }, [_c("h3", [_vm._v("Configuration")]), _c("p", [_vm._v("FTP settings are managed through your site config file.")]), _c("p", [_vm._v("Add the following to your "), _c("code", [_vm._v("site/config/config.php")]), _vm._v(" file:")]), _c("div", { staticClass: "k-ftp-backup-dialog-code" }, [_c("pre", [_vm._v("'tearoom1.ftp-backup' => [\n    'ftpHost' => 'your-ftp-host.com',\n    'ftpPort' => 21,\n    'ftpUsername' => 'your-username',\n    'ftpPassword' => 'your-password',\n    'ftpDirectory' => 'backups',\n    'ftpSsl' => false,\n    'ftpPassive' => true\n]")])]), _vm._v(" Find more about those options in the Readme.md file ")]), _c("div", { staticClass: "k-ftp-backup-dialog-section" }, [_c("h3", [_vm._v("Automatic Backups")]), _c("p", [_vm._v("For automatic backups, set up a cron job to run:")]), _c("div", { staticClass: "k-ftp-backup-dialog-code" }, [_c("pre", [_vm._v("php /path/to/site/plugins/kirby-ftp-backup/run.php")])]), _c("p", { staticClass: "k-ftp-backup-dialog-hint" }, [_vm._v("Example crontab entry (daily at 2AM):")]), _c("div", { staticClass: "k-ftp-backup-dialog-code" }, [_c("pre", [_vm._v("0 2 * * * php /path/to/site/plugins/kirby-ftp-backup/run.php")])])])]), _c("k-button-group", { attrs: { "slot": "footer" }, slot: "footer" }, [_c("k-button", { attrs: { "icon": "check" }, on: { "click": function($event) {
       return _vm.$refs.settingsDialog.close();
+    } } }, [_vm._v(" Close ")])], 1)], 1), _c("k-dialog", { ref: "ftpStatsDialog", attrs: { "size": "large" } }, [_c("div", { staticClass: "k-ftp-backup-dialog-content" }, [_c("h2", { staticClass: "k-ftp-backup-dialog-title" }, [_vm._v("FTP Server Stats")]), _vm.isLoadingFtpStats ? _c("div", { staticClass: "k-ftp-backup-view-loading" }, [_c("k-loader")], 1) : _vm.ftpStatsError ? _c("div", { staticClass: "k-ftp-backup-error" }, [_c("k-box", { attrs: { "theme": "negative" } }, [_vm._v(" " + _vm._s(_vm.ftpStatsError) + " ")])], 1) : _vm.ftpStats ? _c("div", [_c("div", { staticClass: "k-ftp-backup-view-stats" }, [_c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Files on Server")]), _c("p", [_vm._v(_vm._s(_vm.ftpStats.count))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Total Size")]), _c("p", [_vm._v(_vm._s(_vm.ftpStats.formattedTotalSize))])]), _c("div", { staticClass: "k-ftp-backup-view-stats-card" }, [_c("h3", [_vm._v("Latest Backup")]), _c("p", [_vm._v(_vm._s(_vm.ftpStats.latestModified))])])]), _c("div", { staticClass: "k-ftp-backup-dialog-section" }, [_c("h3", [_vm._v("Files on FTP Server")]), _vm.ftpStats.files && _vm.ftpStats.files.length > 0 ? _c("div", [_c("table", { staticClass: "k-ftp-backup-files-table" }, [_c("thead", [_c("tr", [_c("th", [_vm._v("Filename")]), _c("th", [_vm._v("Size")]), _c("th", [_vm._v("Date")])])]), _c("tbody", _vm._l(_vm.ftpStats.files, function(file) {
+      return _c("tr", { key: file.filename }, [_c("td", [_vm._v(_vm._s(file.filename))]), _c("td", [_vm._v(_vm._s(file.formattedSize))]), _c("td", [_vm._v(_vm._s(file.formattedDate))])]);
+    }), 0)])]) : _c("div", { staticClass: "k-ftp-backup-view-backup-list-empty" }, [_vm._v(" No backups available on FTP server ")])])]) : _vm._e()]), _c("k-button-group", { attrs: { "slot": "footer" }, slot: "footer" }, [_c("k-button", { attrs: { "icon": "refresh", "disabled": _vm.isLoadingFtpStats, "progress": _vm.isLoadingFtpStats }, on: { "click": _vm.loadFtpServerStats } }, [_vm._v(" Refresh ")]), _c("k-button", { attrs: { "icon": "check" }, on: { "click": function($event) {
+      return _vm.$refs.ftpStatsDialog.close();
     } } }, [_vm._v(" Close ")])], 1)], 1)], 1);
   };
   var _sfc_staticRenderFns = [];

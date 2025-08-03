@@ -631,6 +631,93 @@ class BackupManager
     }
 
     /**
+     * Get stats and file list from the FTP server
+     */
+    public function getFtpServerStats(): array
+    {
+        try {
+            // Initialize FTP client
+            $ftpResult = $this->initFtpClient();
+            if (!$ftpResult['success']) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Failed to connect to FTP server: ' . $ftpResult['message']
+                ];
+            }
+
+            $ftpClient = $ftpResult['client'];
+            $settings = $this->getSettings();
+            $directory = $settings['ftpDirectory'] ?? '/';
+
+            // List files on the FTP server
+            $files = $ftpClient->listDirectory($directory);
+            
+            // Filter to only include .zip files and get their details
+            $backupFiles = [];
+            $totalSize = 0;
+            $latestModified = 0;
+            
+            foreach ($files as $file) {
+                if (substr($file, -4) === '.zip') {
+                    try {
+                        // Try to get file size and modified time
+                        $fileSize = $ftpClient->getFileSize($directory . '/' . $file);
+                        $fileModified = $ftpClient->getModifiedTime($directory . '/' . $file);
+                        
+                        $backupFiles[] = [
+                            'filename' => $file,
+                            'size' => $fileSize,
+                            'formattedSize' => BackupController::formatSize($fileSize),
+                            'modified' => $fileModified,
+                            'formattedDate' => date('Y-m-d H:i:s', $fileModified)
+                        ];
+                        
+                        $totalSize += $fileSize;
+                        if ($fileModified > $latestModified) {
+                            $latestModified = $fileModified;
+                        }
+                    } catch (\Exception $e) {
+                        // Skip files we can't get details for
+                        $backupFiles[] = [
+                            'filename' => $file,
+                            'size' => 0,
+                            'formattedSize' => 'Unknown',
+                            'modified' => 0,
+                            'formattedDate' => 'Unknown'
+                        ];
+                    }
+                }
+            }
+            
+            // Sort by modified date (newest first)
+            usort($backupFiles, function($a, $b) {
+                return $b['modified'] <=> $a['modified'];
+            });
+            
+            // Disconnect from FTP
+            $ftpClient->disconnect();
+            
+            // Return stats
+            return [
+                'status' => 'success',
+                'data' => [
+                    'files' => $backupFiles,
+                    'count' => count($backupFiles),
+                    'totalSize' => $totalSize,
+                    'formattedTotalSize' => BackupController::formatSize($totalSize),
+                    'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
+                ]
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Download a backup file
      */
     public function downloadBackup(string $filename, string $key): Response

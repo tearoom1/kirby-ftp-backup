@@ -86,6 +86,15 @@ Kirby::plugin('tearoom1/ftp-backup', [
                     ];
                 }
             ],
+            // Get FTP server stats and file list
+            [
+                'pattern' => 'ftp-backup/ftp-stats',
+                'method' => 'GET',
+                'action' => function () {
+                    $manager = new BackupManager();
+                    return $manager->getFtpServerStats();
+                }
+            ],
         ]
     ],
 

@@ -1,28 +1,27 @@
 .k-ftp-backup-view-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
 .k-ftp-backup-view-stats-card {
   background: var(--theme-color-back);
-  padding: 1rem;
   border-radius: 4px;
-  box-shadow: var(--shadow-card);
+  padding: 1rem;
+  flex: 1;
+  min-width: 150px;
 }
 
 .k-ftp-backup-view-stats-card h3 {
-  margin: 0 0 0.5rem;
-  font-size: var(--text-sm);
-  color: var(--theme-color-text-highlight);
+  font-size: 1rem;
+  color: var(--color-text-light);
+  margin-bottom: 0.5rem;
 }
 
 .k-ftp-backup-view-stats-card p {
-  font-size: var(--text-lg);
+  font-size: 1.25rem;
   font-weight: 600;
-  margin: 0;
-  color: var(--theme-color-text-highlight);
 }
 
 .k-ftp-backup-view-stats-card-latest {
@@ -64,9 +63,54 @@
 
 /* Dialog styling */
 .k-ftp-backup-dialog-content {
-  padding: 1rem;
+  padding: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.k-ftp-backup-dialog-title {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--theme-color-text);
+}
+
+.k-ftp-backup-dialog-section {
+  margin-top: 2rem;
+}
+
+.k-ftp-backup-dialog-section h3 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  color: var(--theme-color-text);
+}
+
+.k-ftp-backup-dialog-code {
+  background: var(--theme-color-back, var(--color-gray-100));
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  border-left: 3px solid var(--theme-color-border);
+  overflow-x: auto;
+}
+
+.k-ftp-backup-dialog-code pre {
+  font-family: var(--font-mono);
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--theme-color-text-highlight);
+}
+
+.k-ftp-backup-dialog-hint {
+  font-size: 0.9rem;
+  color: var(--theme-color-text-light, var(--color-text-light));
+}
+
+.k-ftp-backup-warning-dismiss {
+  margin-left: auto;
 }
 
 /* Warning panel styling */
@@ -94,41 +138,24 @@
   margin-left: 0.5rem;
 }
 
-.k-ftp-backup-dialog-title {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  color: var(--theme-color-text);
+.k-ftp-backup-files-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.k-ftp-backup-dialog-section {
-  margin-bottom: 2rem;
+.k-ftp-backup-files-table th,
+.k-ftp-backup-files-table td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.k-ftp-backup-dialog-section h3 {
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
-  color: var(--theme-color-text);
+.k-ftp-backup-files-table th {
+  font-weight: 600;
+  border-bottom-width: 2px;
 }
 
-.k-ftp-backup-dialog-code {
-  background: var(--theme-color-back, var(--color-gray-100));
-  padding: 1rem;
-  border-radius: 4px;
-  margin: 1rem 0;
-  border-left: 3px solid var(--theme-color-border);
-  overflow-x: auto;
+.k-ftp-backup-files-table tbody tr:hover {
+  background-color: var(--color-background);
 }
 
-.k-ftp-backup-dialog-code pre {
-  font-family: var(--font-mono);
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: var(--theme-color-text-highlight);
-}
-
-.k-ftp-backup-dialog-hint {
-  font-size: 0.9rem;
-  color: var(--theme-color-text-light, var(--color-text-light));
-}
