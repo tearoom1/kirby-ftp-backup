@@ -89,11 +89,9 @@
     'ftpPassword' => 'your-password',
     'ftpDirectory' => 'backups',
     'ftpSsl' => false,
-    'ftpPassive' => true,
-    'backupDirectory' => 'content/.backups',
-    'backupRetention' => 10,
-    'deleteFromFtp' => true
+    'ftpPassive' => true
 ]</pre>
+            See more in Readme.md file
           </div>
         </div>
 
