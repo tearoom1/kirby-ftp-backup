@@ -1,3 +1,11 @@
+## [0.4.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.4...v0.4.5) (2025-08-03)
+
+
+### Bug Fixes
+
+* added ftp server stats ([95f3a99](https://github.com/tearoom1/kirby-ftp-backup/commit/95f3a99cbfaa44d92772687bad406c9dbe2ee8b2))
+* added ftp settings warning / error panel. ([e68d075](https://github.com/tearoom1/kirby-ftp-backup/commit/e68d0753dd55da70aa951a9f0478a4cdaf61ba60))
+
 ## [0.4.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.3...v0.4.4) (2025-08-03)
 
 
@@ -25,11 +33,4 @@
 ### Bug Fixes
 
 * updated composer and autoloading ([945be92](https://github.com/tearoom1/kirby-ftp-backup/commit/945be923793da12c4371aa91cf5e283899274113))
-
-## [0.4.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.3.2...v0.4.0) (2025-07-31)
-
-
-### Features
-
-* allow custom file prefix ([cfc7e95](https://github.com/tearoom1/kirby-ftp-backup/commit/cfc7e95c5376b160b1096606d0052087b462f6f4))
 
