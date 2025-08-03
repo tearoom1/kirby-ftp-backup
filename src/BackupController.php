@@ -17,24 +17,24 @@ class BackupController
     public static function getStats(): array
     {
         $manager = new BackupManager();
-        $backups = $manager->listBackups();
-        
+        $backups = $manager->listBackupFiles();
+
         $totalSize = 0;
         $latestBackup = null;
         $count = 0;
-        
-        if (isset($backups['data']) && is_array($backups['data'])) {
-            $count = count($backups['data']);
-            
-            foreach ($backups['data'] as $backup) {
+
+        if (isset($backups) && is_array($backups)) {
+            $count = count($backups);
+
+            foreach ($backups as $backup) {
                 $totalSize += $backup['size'] ?? 0;
-                
+
                 if (!$latestBackup || ($backup['modified'] ?? 0) > ($latestBackup['modified'] ?? 0)) {
                     $latestBackup = $backup;
                 }
             }
         }
-        
+
         return [
             'count' => $count,
             'totalSize' => $totalSize,
@@ -47,23 +47,23 @@ class BackupController
             'formattedTotalSize' => self::formatSize($totalSize)
         ];
     }
-    
+
     /**
      * Format file size in human-readable format
      */
     public static function formatSize(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        
+
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
+
         $bytes /= pow(1024, $pow);
-        
+
         return round($bytes, 2) . ' ' . $units[$pow];
     }
-    
+
     /**
      * Get the cron command to be used in system crontab
      */
@@ -71,7 +71,7 @@ class BackupController
     {
         $php = PHP_BINARY;
         $script = kirby()->root('site') . '/plugins/kirby-ftp-backup/run.php';
-        
+
         return "{$php} {$script}";
     }
 }

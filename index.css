@@ -41,7 +41,6 @@
 }
 
 .k-ftp-backup-view-backup-list {
-  background: var(--color-white);
   border-radius: 4px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
@@ -68,6 +67,31 @@
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Warning panel styling */
+.k-ftp-backup-view-warning {
+  margin-bottom: 1.5rem;
+}
+
+.k-ftp-backup-view-warning-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.k-ftp-backup-view-warning-box .k-icon {
+  flex-shrink: 0;
+}
+
+.k-ftp-backup-view-warning-box span {
+  flex: 1;
+}
+
+.k-ftp-backup-view-warning-box .k-button {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 .k-ftp-backup-dialog-title {

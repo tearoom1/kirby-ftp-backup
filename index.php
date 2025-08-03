@@ -61,12 +61,29 @@ Kirby::plugin('tearoom1/ftp-backup', [
                     return $manager->createBackup();
                 }
             ],
-            // Get backup stats
+            // Check FTP settings status
             [
-                'pattern' => 'ftp-backup/stats',
+                'pattern' => 'ftp-backup/settings-status',
                 'method' => 'GET',
                 'action' => function () {
-                    return BackupController::getStats();
+                    $manager = new BackupManager();
+                    $settings = $manager->getSettings();
+
+                    // Check if essential FTP settings are configured
+                    $configured = !empty($settings['ftpHost']) &&
+                                  !empty($settings['ftpUsername']) &&
+                                  !empty($settings['ftpPassword']);
+
+                    return [
+                        'status' => 'success',
+                        'data' => [
+                            'configured' => $configured,
+                            // Don't include sensitive values like password
+                            'host' => !empty($settings['ftpHost']) ? $settings['ftpHost'] : null,
+                            'username' => !empty($settings['ftpUsername']) ? $settings['ftpUsername'] : null,
+                            'hasPassword' => !empty($settings['ftpPassword']),
+                        ]
+                    ];
                 }
             ],
         ]

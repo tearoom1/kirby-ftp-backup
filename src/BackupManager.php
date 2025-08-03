@@ -77,6 +77,18 @@ class BackupManager
      */
     public function listBackups(): array
     {
+        return [
+            'status' => 'success',
+            'stats' => BackupController::getStats(),
+            'data' => self::listBackupFiles()
+        ];
+    }
+
+    /**
+     * List available backups
+     */
+    public function listBackupFiles(): array
+    {
         $files = Dir::read($this->backupDir);
         $backups = [];
 
@@ -98,10 +110,7 @@ class BackupManager
             return $b['modified'] <=> $a['modified'];
         });
 
-        return [
-            'status' => 'success',
-            'data' => $backups
-        ];
+        return $backups;
     }
 
     /**
@@ -232,7 +241,7 @@ class BackupManager
         if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) || empty($settings['ftpPassword'])) {
             return [
                 'success' => false,
-                'message' => 'Incomplete FTP settings'
+                'message' => 'Incomplete FTP settings. Unable to perform FTP operations.'
             ];
         }
 
@@ -295,7 +304,7 @@ class BackupManager
     {
         $settings = $this->getSettings();
         $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
-        
+
         if ($retentionStrategy === 'tiered') {
             $this->applyTieredRetention();
         } else {
@@ -354,11 +363,11 @@ class BackupManager
             'weekly' => 4,
             'monthly' => 6
         ];
-        
+
         // Get all backup files
         $files = Dir::read($this->backupDir);
         $backups = [];
-        
+
         foreach ($files as $file) {
             if (F::extension($file) === 'zip') {
                 $path = $this->backupDir . '/' . $file;
@@ -374,19 +383,19 @@ class BackupManager
 
         // Apply tiered retention
         $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
-        
+
         // Delete backups that aren't in the keep list
         $keepFilenames = array_map(function($backup) {
             return $backup['filename'];
         }, $keepBackups);
-        
+
         foreach ($backups as $backup) {
             if (!in_array($backup['filename'], $keepFilenames)) {
                 F::remove($backup['path']);
             }
         }
     }
-    
+
     /**
      * Apply tiered retention strategy to a list of backups
      */
@@ -396,27 +405,27 @@ class BackupManager
         usort($backups, function($a, $b) {
             return $b['timestamp'] - $a['timestamp'];
         });
-        
+
         if (empty($backups)) {
             return [];
         }
-        
+
         // Calculate cutoff timestamps
         $now = time();
         $dailyCutoff = $now - ($tieredSettings['daily'] * 86400); // X days ago
         $weeklyCutoff = $dailyCutoff - ($tieredSettings['weekly'] * 7 * 86400); // X weeks after daily cutoff
         $monthlyCutoff = $weeklyCutoff - ($tieredSettings['monthly'] * 30 * 86400); // X months after weekly cutoff
-        
+
         // Determine which backups to keep
         $keepBackups = [];
         $keepDates = []; // Track dates we've already kept (for weekly/monthly)
         $keepWeeks = []; // Track weeks we've already kept
         $keepMonths = []; // Track months we've already kept
-        
+
         foreach ($backups as $backup) {
             $timestamp = $backup['timestamp'];
             $date = $backup['date'] ?? date('Y-m-d', $timestamp);
-            
+
             // Add week and month info if not already present
             if (!isset($backup['week'])) {
                 $backup['week'] = date('Y-W', $timestamp);
@@ -424,24 +433,24 @@ class BackupManager
             if (!isset($backup['month'])) {
                 $backup['month'] = date('Y-m', $timestamp);
             }
-            
+
             $week = $backup['week'];
             $month = $backup['month'];
-            
+
             // Keep all backups within daily retention period
             if ($timestamp >= $dailyCutoff) {
                 $keepBackups[] = $backup;
                 $keepDates[$date] = true;
                 continue;
             }
-            
+
             // Keep one backup per week within weekly retention period
             if ($timestamp >= $weeklyCutoff && !isset($keepWeeks[$week])) {
                 $keepBackups[] = $backup;
                 $keepWeeks[$week] = true;
                 continue;
             }
-            
+
             // Keep one backup per month within monthly retention period
             if ($timestamp >= $monthlyCutoff && !isset($keepMonths[$month])) {
                 $keepBackups[] = $backup;
@@ -449,7 +458,7 @@ class BackupManager
                 continue;
             }
         }
-        
+
         return $keepBackups;
     }
 
@@ -461,7 +470,7 @@ class BackupManager
         try {
             $settings = $this->getSettings();
             $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
-            
+
             // Initialize FTP client
             $ftpResult = $this->initFtpClient();
             if (!$ftpResult['success']) {
@@ -476,7 +485,7 @@ class BackupManager
 
             // List files on the FTP server
             $files = $ftpClient->listDirectory($directory);
-            
+
             // Filter to only include .zip files
             $backupFiles = [];
             foreach ($files as $file) {
@@ -484,10 +493,10 @@ class BackupManager
                     $backupFiles[] = $file;
                 }
             }
-            
+
             // Determine files to delete based on retention strategy
             $toDelete = [];
-            
+
             if ($retentionStrategy === 'tiered') {
                 $backups = $this->prepareFtpBackupsForTieredRetention($backupFiles);
                 $tieredSettings = $settings['tieredRetention'] ?? [
@@ -495,13 +504,13 @@ class BackupManager
                     'weekly' => 4,
                     'monthly' => 6
                 ];
-                
+
                 $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
-                
+
                 $keepFilenames = array_map(function($backup) {
                     return $backup['filename'];
                 }, $keepBackups);
-                
+
                 foreach ($backups as $backup) {
                     if (!in_array($backup['filename'], $keepFilenames)) {
                         $toDelete[] = $backup['filename'];
@@ -522,7 +531,7 @@ class BackupManager
                 'success' => true,
                 'message' => "Deleted {$deletedCount} old backups from FTP server"
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -530,7 +539,7 @@ class BackupManager
             ];
         }
     }
-    
+
     /**
      * Prepare FTP backup files for tiered retention by extracting dates from filenames
      */
@@ -538,22 +547,22 @@ class BackupManager
     {
         $backups = [];
         $now = time();
-        
+
         foreach ($files as $filename) {
             // Try to extract date from filename using regex
             if (preg_match('/(\d{4})[-_]?(\d{2})[-_]?(\d{2})[-_]?(\d{2})?[-_]?(\d{2})?[-_]?(\d{2})?/i', $filename, $matches)) {
                 $year = $matches[1];
                 $month = $matches[2];
                 $day = $matches[3];
-                
+
                 // Handle hour/minute/second if available
                 $hour = isset($matches[4]) ? $matches[4] : '00';
                 $minute = isset($matches[5]) ? $matches[5] : '00';
                 $second = isset($matches[6]) ? $matches[6] : '00';
-                
+
                 $dateString = "{$year}-{$month}-{$day} {$hour}:{$minute}:{$second}";
                 $timestamp = strtotime($dateString);
-                
+
                 // If we got a valid timestamp
                 if ($timestamp) {
                     $backups[] = [
@@ -576,7 +585,7 @@ class BackupManager
                 ];
             }
         }
-        
+
         return $backups;
     }
 
@@ -587,12 +596,12 @@ class BackupManager
     {
         $settings = $this->getSettings();
         $retention = $settings['backupRetention'] ?? 10;
-        
+
         // Sort files by name (assuming they contain dates/timestamps in format)
         usort($files, function($a, $b) {
             return strcmp($b, $a); // Sort in descending order (newest first)
         });
-        
+
         // Keep only the specified number of backups
         return array_slice($files, $retention);
     }
@@ -607,11 +616,11 @@ class BackupManager
         $date = date('Y-m-d');
         $host = kirby()->site()->url();
         $salt = 'ftp-backup-secure-key'; // Additional salt for security
-        
+
         // Create a hash that changes daily and is specific to this host and file
         return hash('sha256', $filename . $date . $host . $salt);
     }
-    
+
     /**
      * Validate a download key for a given filename
      */

@@ -1,5 +1,15 @@
 <template>
   <k-panel-inside class="k-ftp-backup-view">
+    <!-- Warning Panel for FTP Errors -->
+    <div v-if="ftpWarning.show" class="k-ftp-backup-view-warning">
+      <k-box theme="negative" class="k-ftp-backup-view-warning-box">
+        <k-icon type="alert" />
+        <span>{{ ftpWarning.message }}</span>
+        <k-button icon="settings" @click="showSettingsInfo" />
+        <k-button icon="cancel" @click="dismissWarning"/>
+      </k-box>
+    </div>
+
     <!-- Stats Section -->
     <div class="k-ftp-backup-view-stats">
       <div class="k-ftp-backup-view-stats-card">
@@ -91,8 +101,8 @@
     'ftpSsl' => false,
     'ftpPassive' => true
 ]</pre>
-            See more in Readme.md file
           </div>
+          Find more about those options in the Readme.md file
         </div>
 
         <div class="k-ftp-backup-dialog-section">
@@ -128,12 +138,18 @@ export default {
       isLoading: false,
       isCreatingBackup: false,
       isLoadingBackups: false,
-      backups: []
+      backups: [],
+      ftpWarning: {
+        show: false,
+        message: '',
+        isPersistent: false
+      }
     };
   },
 
   created() {
     this.loadBackups();
+    this.checkFtpSettings();
   },
 
   methods: {
@@ -156,6 +172,10 @@ export default {
         } else {
           this.backups = [];
         }
+
+        if (response.status === 'success' && response.stats) {
+          this.stats = response.stats;
+        }
       } catch (error) {
         window.panel.notification.error('Failed to load backups');
         this.backups = [];
@@ -173,11 +193,24 @@ export default {
         if (response.status === 'success') {
           window.panel.notification.success(response.message);
           this.loadBackups();
+
+          // Check if FTP upload failed
+          if (response.data && response.data.ftpResult && !response.data.ftpResult.uploaded) {
+            this.showFtpWarning(response.data.ftpResult.message || 'FTP upload failed', true);
+          } else {
+            this.dismissWarning();
+          }
         } else {
           window.panel.notification.error(response.message);
+
+          // Show warning if the error appears to be FTP-related
+          if (response.message && response.message.toLowerCase().includes('ftp')) {
+            this.showFtpWarning(response.message, true);
+          }
         }
       } catch (error) {
         window.panel.notification.error('Failed to create backup');
+        this.showFtpWarning('Error: Failed to create backup. FTP connection might have failed.', true);
       } finally {
         this.isCreatingBackup = false;
       }
@@ -185,6 +218,53 @@ export default {
 
     showSettingsInfo() {
       this.$refs.settingsDialog.open();
+    },
+
+    downloadBackup(item) {
+      window.open(item.url, '_blank');
+    },
+
+    // FTP Warning Panel Methods
+    showFtpWarning(message, isPersistent = false) {
+      this.ftpWarning = {
+        show: true,
+        message: message,
+        isPersistent: isPersistent
+      };
+
+      // Store in sessionStorage for persistence during the session
+      if (isPersistent) {
+        sessionStorage.setItem('ftpBackupWarning', JSON.stringify(this.ftpWarning));
+      }
+    },
+
+    dismissWarning() {
+      this.ftpWarning.show = false;
+      sessionStorage.removeItem('ftpBackupWarning');
+    },
+
+    checkFtpSettings() {
+      // Check if there's a persisted warning message
+      const savedWarning = sessionStorage.getItem('ftpBackupWarning');
+      if (savedWarning) {
+        try {
+          this.ftpWarning = JSON.parse(savedWarning);
+        } catch (e) {
+          // Invalid JSON, clear it
+          sessionStorage.removeItem('ftpBackupWarning');
+        }
+      }
+
+      // Always check if FTP settings are configured
+      this.$api.get('ftp-backup/settings-status')
+        .then(response => {
+          if (response.status === 'success' && !response.data.configured) {
+            this.showFtpWarning('FTP settings are not configured. Backups will be created locally only.', true);
+          }
+        })
+        .catch(() => {
+          // Silent failure, we don't want to show errors for this check
+        });
     },
 
     formatSize(bytes) {
@@ -198,9 +278,6 @@ export default {
       }
 
       return `${size.toFixed(2)} ${units[unitIndex]}`;
-    },
-    downloadBackup(item) {
-      window.open(item.url, '_blank');
     }
   }
 };
