@@ -1,9 +1,12 @@
 <?php
 
+@include_once __DIR__ . '/vendor/autoload.php';
+
 // Register autoloader
 load([
     'TearoomOne\\FtpBackup\\BackupManager' => 'src/BackupManager.php',
     'TearoomOne\\FtpBackup\\FtpClient' => 'src/FtpClient.php',
+    'TearoomOne\\FtpBackup\\SftpClient' => 'src/SftpClient.php',
     'TearoomOne\\FtpBackup\\BackupController' => 'src/BackupController.php',
 ], __DIR__);
 
@@ -16,17 +19,19 @@ Kirby::plugin('tearoom1/ftp-backup', [
 
     // Plugin options
     'options' => [
-        'backupDirectory' => kirby()->root('content') . '/.backups',
-        'backupRetention' => 10, // Number of backups to keep
-        'deleteFromFtp' => true, // Delete backups from FTP server
-        'filePrefix' => 'backup-', // Prefix for backup filenames
+        // FTP setup
+        'ftpProtocol' => 'ftp', // Connection type: 'ftp', 'ftps' or 'sftp'
         'ftpHost' => '', // FTP host
         'ftpPort' => 21, // FTP port
         'ftpUsername' => '', // FTP username
         'ftpPassword' => '', // FTP password
         'ftpDirectory' => '/', // FTP remote directory
-        'ftpSsl' => false, // Use SSL/TLS
         'ftpPassive' => true, // Use passive mode
+        // general settings
+        'backupDirectory' => kirby()->root('content') . '/.backups',
+        'backupRetention' => 10, // Number of backups to keep
+        'deleteFromFtp' => true, // Delete backups from FTP server
+        'filePrefix' => 'backup-', // Prefix for backup filenames
         'retentionStrategy' => 'simple', // 'simple' or 'tiered'
         'tieredRetention' => [
             'daily' => 10,    // Keep all backups for the first 10 days
@@ -71,17 +76,14 @@ Kirby::plugin('tearoom1/ftp-backup', [
 
                     // Check if essential FTP settings are configured
                     $configured = !empty($settings['ftpHost']) &&
-                                  !empty($settings['ftpUsername']) &&
-                                  !empty($settings['ftpPassword']);
+                        !empty($settings['ftpUsername']) &&
+                        !empty($settings['ftpPassword']);
 
                     return [
                         'status' => 'success',
                         'data' => [
                             'configured' => $configured,
-                            // Don't include sensitive values like password
-                            'host' => !empty($settings['ftpHost']) ? $settings['ftpHost'] : null,
-                            'username' => !empty($settings['ftpUsername']) ? $settings['ftpUsername'] : null,
-                            'hasPassword' => !empty($settings['ftpPassword']),
+                            'settings' => $settings,
                         ]
                     ];
                 }

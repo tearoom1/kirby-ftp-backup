@@ -34,13 +34,15 @@ All configuration is handled through Kirby's option system. Add the following to
 ```php
 'tearoom1.ftp-backup' => [
     // FTP Connection Settings
+    'ftpProtocol' => 'ftps',
     'ftpHost' => 'your-ftp-host.com',
     'ftpPort' => 21,
     'ftpUsername' => 'your-username',
     'ftpPassword' => 'your-password',
     'ftpDirectory' => 'backups',
-    'ftpSsl' => false,
     'ftpPassive' => true,
+    'ftpPrivateKey' => 'path/to/private/key.pem',
+    'ftpPassphrase' => 'your-passphrase',
 
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
@@ -58,21 +60,23 @@ All configuration is handled through Kirby's option system. Add the following to
 
 ### Configuration Options
 
-| Option | Type | Default | Description                                                        |
-|--------|------|---------|--------------------------------------------------------------------|
-| `ftpHost` | string | `''` | FTP server hostname                                                |
-| `ftpPort` | integer | `21` | FTP server port                                                    |
-| `ftpUsername` | string | `''` | FTP username                                                       |
-| `ftpPassword` | string | `''` | FTP password                                                       |
-| `ftpDirectory` | string | `'/'` | Remote directory to store backups                                  |
-| `ftpSsl` | boolean | `false` | Use SSL/TLS connection                                             |
-| `ftpPassive` | boolean | `true` | Use passive mode                                                   |
+| Option | Type | Default | Description                                                      |
+|--------|------|---------|------------------------------------------------------------------|
+| `ftpProtocol` | string | `'ftp'` | FTP protocol: 'ftp', 'ftps' or 'sftp'                            |
+| `ftpHost` | string | `''` | FTP server hostname                                              |
+| `ftpPort` | integer | `21` | FTP server port                                                  |
+| `ftpUsername` | string | `''` | FTP username                                                     |
+| `ftpPassword` | string | `''` | FTP password                                                     |
+| `ftpDirectory` | string | `'/'` | Remote directory to store backups                                |
+| `ftpPassive` | boolean | `true` | Use passive mode                                                 |
+| `ftpPrivateKey` | string | `''` | Path to private key file                                         |
+| `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
-| `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy  |
-| `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                      |
-| `filePrefix` | string | `'backup-'` | Prefix for backup filenames |
-| `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                |
-| `tieredRetention` | array | see below | Settings for tiered retention strategy                            |
+| `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
+| `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
+| `filePrefix` | string | `'backup-'` | Prefix for backup filenames                                      |
+| `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                  |
+| `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
 
 ### Retention Strategies
 

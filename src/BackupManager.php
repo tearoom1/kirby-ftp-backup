@@ -41,13 +41,17 @@ class BackupManager
     public function getSettings(): array
     {
         return [
+            // FTP settings
+            'ftpProtocol' => option('tearoom1.ftp-backup.ftpProtocol', 'ftp'),
             'ftpHost' => option('tearoom1.ftp-backup.ftpHost', ''),
             'ftpPort' => option('tearoom1.ftp-backup.ftpPort', 21),
             'ftpUsername' => option('tearoom1.ftp-backup.ftpUsername', ''),
             'ftpPassword' => option('tearoom1.ftp-backup.ftpPassword', ''),
             'ftpDirectory' => option('tearoom1.ftp-backup.ftpDirectory', ''),
-            'ftpSsl' => option('tearoom1.ftp-backup.ftpSsl', false),
             'ftpPassive' => option('tearoom1.ftp-backup.ftpPassive', true),
+            'ftpPrivateKey' => option('tearoom1.ftp-backup.ftpPrivateKey'),
+            'ftpPassphrase' => option('tearoom1.ftp-backup.ftpPassphrase'),
+            // General settings
             'backupDirectory' => option('tearoom1.ftp-backup.backupDirectory', kirby()->root('content') . '/.backups'),
             'backupRetention' => option('tearoom1.ftp-backup.backupRetention', 10),
             'deleteFromFtp' => option('tearoom1.ftp-backup.deleteFromFtp', true),
@@ -57,18 +61,6 @@ class BackupManager
                 'weekly' => option('tearoom1.ftp-backup.tieredRetention.weekly', 4),
                 'monthly' => option('tearoom1.ftp-backup.tieredRetention.monthly', 6)
             ]
-        ];
-    }
-
-    /**
-     * Save FTP settings
-     */
-    public function saveSettings(array $settings): array
-    {
-        // Settings are now managed via config options only
-        return [
-            'status' => 'error',
-            'message' => 'Settings are managed via site config options only.'
         ];
     }
 
@@ -236,7 +228,14 @@ class BackupManager
     private function initFtpClient(): array
     {
         $settings = $this->getSettings();
+        $ftpProtocol = $settings['ftpProtocol'] ?? 'ftp';
 
+        // Check which connection type to use
+        if ($ftpProtocol === 'sftp') {
+            return $this->initSftpClient();
+        }
+
+        // Default to regular FTP
         // Check if essential settings are available
         if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) || empty($settings['ftpPassword'])) {
             return [
@@ -251,7 +250,7 @@ class BackupManager
             (int)($settings['ftpPort'] ?? 21),
             $settings['ftpUsername'],
             $settings['ftpPassword'],
-            (bool)($settings['ftpSsl'] ?? false),
+            $ftpProtocol === 'ftps',
             (bool)($settings['ftpPassive'] ?? true)
         );
 
@@ -263,6 +262,54 @@ class BackupManager
             'client' => $ftpClient,
             'directory' => $directory
         ];
+    }
+
+    /**
+     * Initialize the SFTP client with settings
+     */
+    private function initSftpClient(): array
+    {
+        $settings = $this->getSettings();
+
+        // Check if essential settings are available
+        if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) ||
+            (empty($settings['ftpPassword']) && empty($settings['ftpPrivateKey']))) {
+            return [
+                'success' => false,
+                'message' => 'Incomplete SFTP settings. Unable to perform SFTP operations.'
+            ];
+        }
+
+        try {
+            // Create and connect SFTP client
+            $sftpClient = new SftpClient(
+                $settings['ftpHost'],
+                (int)($settings['ftpPort'] ?? 22),
+                $settings['ftpUsername'],
+                $settings['ftpPassword'] ?? '',
+                $settings['ftpPrivateKey'] ?? null,
+                $settings['ftpPassphrase'] ?? null
+            );
+            
+            $sftpClient->connect();
+            $directory = $settings['ftpDirectory'] ?? '/';
+            
+            return [
+                'success' => true,
+                'client' => $sftpClient,
+                'directory' => $directory
+            ];
+        } catch (\phpseclib3\Exception\NoKeyLoadedException $e) {
+            return [
+                'success' => false,
+                'message' => 'SFTP key error: ' . $e->getMessage()
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'SFTP connection failed: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**
@@ -481,7 +528,7 @@ class BackupManager
             }
 
             $ftpClient = $ftpResult['client'];
-            $directory = $settings['ftpDirectory'] ?? '';
+            $directory = $settings['ftpDirectory'] ?? '/';
 
             // List files on the FTP server
             $files = $ftpClient->listDirectory($directory);
