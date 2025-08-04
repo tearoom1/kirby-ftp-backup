@@ -25,7 +25,7 @@ class BackupManager
         $dir = option('tearoom1.ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
         // calculate backup directory from kirby root if not absolute
         if (strpos($dir, '/') !== 0) {
-            $dir = $kirby->root('base') . '/' . $dir;
+            $dir = dirname($kirby->root('site')) . '/' . $dir;
         }
         $this->backupDir = $dir;
 
@@ -651,19 +651,19 @@ class BackupManager
 
             // List files on the FTP server
             $files = $ftpClient->listDirectory($directory);
-            
+
             // Filter to only include .zip files and get their details
             $backupFiles = [];
             $totalSize = 0;
             $latestModified = 0;
-            
+
             foreach ($files as $file) {
                 if (substr($file, -4) === '.zip') {
                     try {
                         // Try to get file size and modified time
                         $fileSize = $ftpClient->getFileSize($directory . '/' . $file);
                         $fileModified = $ftpClient->getModifiedTime($directory . '/' . $file);
-                        
+
                         $backupFiles[] = [
                             'filename' => $file,
                             'size' => $fileSize,
@@ -671,7 +671,7 @@ class BackupManager
                             'modified' => $fileModified,
                             'formattedDate' => date('Y-m-d H:i:s', $fileModified)
                         ];
-                        
+
                         $totalSize += $fileSize;
                         if ($fileModified > $latestModified) {
                             $latestModified = $fileModified;
@@ -688,15 +688,15 @@ class BackupManager
                     }
                 }
             }
-            
+
             // Sort by modified date (newest first)
             usort($backupFiles, function($a, $b) {
                 return $b['modified'] <=> $a['modified'];
             });
-            
+
             // Disconnect from FTP
             $ftpClient->disconnect();
-            
+
             // Return stats
             return [
                 'status' => 'success',
@@ -708,7 +708,7 @@ class BackupManager
                     'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
                 ]
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
