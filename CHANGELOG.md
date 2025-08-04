@@ -1,3 +1,10 @@
+## [0.5.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.6...v0.5.0) (2025-08-04)
+
+
+### Features
+
+* added sftp capabilities [#2](https://github.com/tearoom1/kirby-ftp-backup/issues/2) ([dfb4269](https://github.com/tearoom1/kirby-ftp-backup/commit/dfb4269ddb6302c6c4da558284b303961cc4a81e))
+
 ## [0.4.6](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.5...v0.4.6) (2025-08-04)
 
 
@@ -26,11 +33,4 @@
 ### Bug Fixes
 
 * reverted to use class loading in index.php ([a0a0cf8](https://github.com/tearoom1/kirby-ftp-backup/commit/a0a0cf8233aba81ceb8ad9cc1135e27197c524af))
-
-## [0.4.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.1...v0.4.2) (2025-08-01)
-
-
-### Bug Fixes
-
-* updated src structure ([5b4c84e](https://github.com/tearoom1/kirby-ftp-backup/commit/5b4c84e0bd89e0f8833549e04c50dd744189d0d5))
 
