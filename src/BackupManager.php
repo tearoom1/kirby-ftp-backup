@@ -228,23 +228,68 @@ class BackupManager
     private function initFtpClient(): array
     {
         $settings = $this->getSettings();
-        $ftpProtocol = $settings['ftpProtocol'] ?? 'ftp';
-
-        // Check which connection type to use
-        if ($ftpProtocol === 'sftp') {
-            return $this->initSftpClient();
-        }
 
         // Default to regular FTP
+        $ftpProtocol = $settings['ftpProtocol'] ?? 'ftp';
+
         // Check if essential settings are available
-        if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) || empty($settings['ftpPassword'])) {
+        if (!in_array($ftpProtocol, ['ftp', 'ftps', 'sftp']) ||
+            empty($settings['ftpHost']) ||
+            !$this->hasCredentials($settings)) {
             return [
                 'success' => false,
                 'message' => 'Incomplete FTP settings. Unable to perform FTP operations.'
             ];
         }
 
-        // Create and connect FTP client
+        // Check which connection type to use
+        if ($ftpProtocol === 'sftp') {
+            return $this->initSftpClient($settings);
+        }
+        return $this->initStdFtpClient($settings, $ftpProtocol);
+
+    }
+
+    /**
+     * Initialize the SFTP client with settings
+     */
+    private function initSftpClient($settings): array
+    {
+        try {
+            // Create and connect SFTP client
+            $sftpClient = new SftpClient(
+                $settings['ftpHost'],
+                (int)($settings['ftpPort'] ?? 22),
+                $settings['ftpUsername'],
+                $settings['ftpPassword'] ?? '',
+                $settings['ftpPrivateKey'] ?? null,
+                $settings['ftpPassphrase'] ?? null
+            );
+
+            $sftpClient->connect();
+            $directory = $settings['ftpDirectory'] ?? '/';
+
+            return [
+                'success' => true,
+                'client' => $sftpClient,
+                'directory' => $directory
+            ];
+        } catch (\phpseclib3\Exception\NoKeyLoadedException $e) {
+            return [
+                'success' => false,
+                'message' => 'SFTP key error: ' . $e->getMessage()
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'SFTP connection failed: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    public function initStdFtpClient(array $settings, mixed $ftpProtocol): array
+    {
+// Create and connect FTP client
         $ftpClient = new FtpClient(
             $settings['ftpHost'],
             (int)($settings['ftpPort'] ?? 21),
@@ -262,54 +307,6 @@ class BackupManager
             'client' => $ftpClient,
             'directory' => $directory
         ];
-    }
-
-    /**
-     * Initialize the SFTP client with settings
-     */
-    private function initSftpClient(): array
-    {
-        $settings = $this->getSettings();
-
-        // Check if essential settings are available
-        if (empty($settings['ftpHost']) || empty($settings['ftpUsername']) ||
-            (empty($settings['ftpPassword']) && empty($settings['ftpPrivateKey']))) {
-            return [
-                'success' => false,
-                'message' => 'Incomplete SFTP settings. Unable to perform SFTP operations.'
-            ];
-        }
-
-        try {
-            // Create and connect SFTP client
-            $sftpClient = new SftpClient(
-                $settings['ftpHost'],
-                (int)($settings['ftpPort'] ?? 22),
-                $settings['ftpUsername'],
-                $settings['ftpPassword'] ?? '',
-                $settings['ftpPrivateKey'] ?? null,
-                $settings['ftpPassphrase'] ?? null
-            );
-            
-            $sftpClient->connect();
-            $directory = $settings['ftpDirectory'] ?? '/';
-            
-            return [
-                'success' => true,
-                'client' => $sftpClient,
-                'directory' => $directory
-            ];
-        } catch (\phpseclib3\Exception\NoKeyLoadedException $e) {
-            return [
-                'success' => false,
-                'message' => 'SFTP key error: ' . $e->getMessage()
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'SFTP connection failed: ' . $e->getMessage()
-            ];
-        }
     }
 
     /**
@@ -432,7 +429,7 @@ class BackupManager
         $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
 
         // Delete backups that aren't in the keep list
-        $keepFilenames = array_map(function($backup) {
+        $keepFilenames = array_map(function ($backup) {
             return $backup['filename'];
         }, $keepBackups);
 
@@ -449,7 +446,7 @@ class BackupManager
     private function applyTieredRetentionStrategy(array $backups, array $tieredSettings): array
     {
         // Sort by timestamp (newest first)
-        usort($backups, function($a, $b) {
+        usort($backups, function ($a, $b) {
             return $b['timestamp'] - $a['timestamp'];
         });
 
@@ -554,7 +551,7 @@ class BackupManager
 
                 $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
 
-                $keepFilenames = array_map(function($backup) {
+                $keepFilenames = array_map(function ($backup) {
                     return $backup['filename'];
                 }, $keepBackups);
 
@@ -645,7 +642,7 @@ class BackupManager
         $retention = $settings['backupRetention'] ?? 10;
 
         // Sort files by name (assuming they contain dates/timestamps in format)
-        usort($files, function($a, $b) {
+        usort($files, function ($a, $b) {
             return strcmp($b, $a); // Sort in descending order (newest first)
         });
 
@@ -737,7 +734,7 @@ class BackupManager
             }
 
             // Sort by modified date (newest first)
-            usort($backupFiles, function($a, $b) {
+            usort($backupFiles, function ($a, $b) {
                 return $b['modified'] <=> $a['modified'];
             });
 
@@ -786,5 +783,11 @@ class BackupManager
         }
 
         return Response::file($filepath);
+    }
+
+    private function hasCredentials(array $settings): bool
+    {
+        // do not check for password as it may be empty
+        return !empty($settings['ftpUsername']) || !empty($settings['ftpPrivateKey']);
     }
 }
