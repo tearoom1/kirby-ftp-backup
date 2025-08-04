@@ -159,12 +159,6 @@
   background-color: var(--color-background);
 }
 
-@media (prefers-color-scheme: dark) {
-  .k-ftp-backup-view-stats-card {
-    background-color: var(--color-dark);
-  }
-}
-
 /* Settings Dialog Tabs */
 .k-ftp-backup-dialog-tabs {
   display: flex;
