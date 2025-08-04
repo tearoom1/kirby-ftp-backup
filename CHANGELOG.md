@@ -1,3 +1,10 @@
+## [0.4.6](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.5...v0.4.6) (2025-08-04)
+
+
+### Bug Fixes
+
+* use path relative to parent of site folder ([f5ca92e](https://github.com/tearoom1/kirby-ftp-backup/commit/f5ca92e9a183d310c961396f8637907ecf7f62e8))
+
 ## [0.4.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.4...v0.4.5) (2025-08-03)
 
 
@@ -26,11 +33,4 @@
 ### Bug Fixes
 
 * updated src structure ([5b4c84e](https://github.com/tearoom1/kirby-ftp-backup/commit/5b4c84e0bd89e0f8833549e04c50dd744189d0d5))
-
-## [0.4.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.0...v0.4.1) (2025-08-01)
-
-
-### Bug Fixes
-
-* updated composer and autoloading ([945be92](https://github.com/tearoom1/kirby-ftp-backup/commit/945be923793da12c4371aa91cf5e283899274113))
 
