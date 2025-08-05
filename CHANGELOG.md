@@ -1,3 +1,10 @@
+## [0.5.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.2...v0.5.3) (2025-08-05)
+
+
+### Bug Fixes
+
+* allow a custom path for kirby in run.php and added some checks and output. ([3e56361](https://github.com/tearoom1/kirby-ftp-backup/commit/3e563613de5753e9a4862b1f7657f7400e2be12f))
+
 ## [0.5.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.1...v0.5.2) (2025-08-04)
 
 
@@ -25,12 +32,4 @@
 ### Bug Fixes
 
 * use path relative to parent of site folder ([f5ca92e](https://github.com/tearoom1/kirby-ftp-backup/commit/f5ca92e9a183d310c961396f8637907ecf7f62e8))
-
-## [0.4.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.4.4...v0.4.5) (2025-08-03)
-
-
-### Bug Fixes
-
-* added ftp server stats ([95f3a99](https://github.com/tearoom1/kirby-ftp-backup/commit/95f3a99cbfaa44d92772687bad406c9dbe2ee8b2))
-* added ftp settings warning / error panel. ([e68d075](https://github.com/tearoom1/kirby-ftp-backup/commit/e68d0753dd55da70aa951a9f0478a4cdaf61ba60))
 
