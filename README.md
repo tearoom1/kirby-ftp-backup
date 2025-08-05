@@ -128,6 +128,15 @@ To set up automatic backups, add a cron job to your server. The cron job should 
 php /path/to/site/plugins/kirby-ftp-backup/run.php
 ```
 
+Optionally the path to the kirby root directory can be passed as the first argument:
+
+```bash
+php /path/to/site/plugins/kirby-ftp-backup/run.php /path/to/root
+```
+
+The root directory is the one with the `kirby` folder inside.
+
+
 ### Example Crontab Entry
 
 To run a backup every day at 2 AM:
