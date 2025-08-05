@@ -14,7 +14,7 @@ if (php_sapi_name() !== 'cli') {
 }
 
 // Determine the Kirby root directory
-$rootDir = __DIR__ . '/../../../';
+$rootDir = dirname(__DIR__, 3);
 
 // check if a root path is passed as an argument, if so overwrite $rootDir
 if (count($argv) === 2) {
@@ -26,11 +26,12 @@ if (count($argv) === 2) {
 
 // Load Kirby
 $bootstrapFile = realpath($rootDir . '/kirby/bootstrap.php');
-require $bootstrapFile;
 
 if (!file_exists($bootstrapFile)) {
     die('Could not find bootstrap file: ' . $bootstrapFile);
 }
+
+require $bootstrapFile;
 
 echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
 
