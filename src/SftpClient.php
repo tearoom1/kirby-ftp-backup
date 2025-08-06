@@ -8,7 +8,7 @@ use phpseclib3\Crypt\RSA;
 /**
  * SFTP client for handling SFTP operations using phpseclib
  */
-class SftpClient
+class SftpClient implements FtpClientInterface
 {
     const TIMEOUT = 60;
     private string $host;

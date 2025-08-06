@@ -110,6 +110,7 @@ class BackupManager
      */
     public function createBackup(bool $uploadToFtp = true): array
     {
+        $ftpClient = null;
         try {
             // Generate filename with date
             $date = date('Y-m-d-His');
@@ -129,14 +130,17 @@ class BackupManager
             $this->addDirToZip($contentDir, $zip, '', '/.backups/');
             $zip->close();
 
+            $settings = $this->getSettings();
+            $ftpClient = $this->initFtpClient();
+
             // Upload to FTP if requested
             $ftpResult = ['uploaded' => false];
             if ($uploadToFtp) {
-                $ftpResult = $this->uploadToFtp($filepath, $filename);
+                $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename);
             }
 
             // Cleanup old backups
-            $this->cleanupOldBackups();
+            $this->cleanupOldBackups($ftpClient, $settings);
 
             return [
                 'status' => 'success',
@@ -153,29 +157,22 @@ class BackupManager
                 'status' => 'error',
                 'message' => 'Backup failed: ' . $e->getMessage()
             ];
+        } finally {
+            if ($ftpClient) {
+                $ftpClient->disconnect();
+            }
         }
     }
 
     /**
      * Upload a backup file to the FTP server
      */
-    private function uploadToFtp(string $localFile, string $remoteFilename): array
+    private function uploadToFtp(FtpClientInterface $ftpClient, array $settings, string $localFile, string $remoteFilename): array
     {
         try {
-            $ftpResult = $this->initFtpClient();
 
-            if (!$ftpResult['success']) {
-                return [
-                    'uploaded' => false,
-                    'message' => $ftpResult['message']
-                ];
-            }
-
-            $ftpClient = $ftpResult['client'];
-            $directory = $ftpResult['directory'];
-
+            $directory = $settings['ftpDirectory'] ?? '/';
             $ftpClient->upload($localFile, $directory . '/' . $remoteFilename);
-            $ftpClient->disconnect();
 
             return [
                 'uploaded' => true,
@@ -192,23 +189,13 @@ class BackupManager
     /**
      * Remove a backup file from the FTP server
      */
-    private function removeFromFtp(string $filename): array
+    private function removeFromFtp(FtpClientInterface $ftpClient, array $settings, string $filename): array
     {
         try {
-            $ftpResult = $this->initFtpClient();
 
-            if (!$ftpResult['success']) {
-                return [
-                    'deleted' => false,
-                    'message' => $ftpResult['message']
-                ];
-            }
 
-            $ftpClient = $ftpResult['client'];
-            $directory = $ftpResult['directory'];
-
+            $directory = $settings['ftpDirectory'] ?? '/';
             $ftpClient->delete($directory . '/' . $filename);
-            $ftpClient->disconnect();
 
             return [
                 'deleted' => true,
@@ -225,7 +212,7 @@ class BackupManager
     /**
      * Initialize the FTP client with settings
      */
-    private function initFtpClient(): array
+    private function initFtpClient(): FtpClientInterface
     {
         $settings = $this->getSettings();
 
@@ -236,10 +223,7 @@ class BackupManager
         if (!in_array($ftpProtocol, ['ftp', 'ftps', 'sftp']) ||
             empty($settings['ftpHost']) ||
             !$this->hasCredentials($settings)) {
-            return [
-                'success' => false,
-                'message' => 'Incomplete FTP settings. Unable to perform FTP operations.'
-            ];
+            throw new \Exception('Invalid FTP settings');
         }
 
         // Check which connection type to use
@@ -253,41 +237,24 @@ class BackupManager
     /**
      * Initialize the SFTP client with settings
      */
-    private function initSftpClient($settings): array
+    private function initSftpClient($settings): SftpClient
     {
-        try {
-            // Create and connect SFTP client
-            $sftpClient = new SftpClient(
-                $settings['ftpHost'],
-                (int)($settings['ftpPort'] ?? 22),
-                $settings['ftpUsername'],
-                $settings['ftpPassword'] ?? '',
-                $settings['ftpPrivateKey'] ?? null,
-                $settings['ftpPassphrase'] ?? null
-            );
+        // Create and connect SFTP client
+        $sftpClient = new SftpClient(
+            $settings['ftpHost'],
+            (int)($settings['ftpPort'] ?? 22),
+            $settings['ftpUsername'],
+            $settings['ftpPassword'] ?? '',
+            $settings['ftpPrivateKey'] ?? null,
+            $settings['ftpPassphrase'] ?? null
+        );
 
-            $sftpClient->connect();
-            $directory = $settings['ftpDirectory'] ?? '/';
+        $sftpClient->connect();
 
-            return [
-                'success' => true,
-                'client' => $sftpClient,
-                'directory' => $directory
-            ];
-        } catch (\phpseclib3\Exception\NoKeyLoadedException $e) {
-            return [
-                'success' => false,
-                'message' => 'SFTP key error: ' . $e->getMessage()
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'SFTP connection failed: ' . $e->getMessage()
-            ];
-        }
+        return $sftpClient;
     }
 
-    public function initStdFtpClient(array $settings, mixed $ftpProtocol): array
+    public function initStdFtpClient(array $settings, mixed $ftpProtocol): FtpClient
     {
 // Create and connect FTP client
         $ftpClient = new FtpClient(
@@ -300,13 +267,8 @@ class BackupManager
         );
 
         $ftpClient->connect();
-        $directory = $settings['ftpDirectory'] ?? '/';
 
-        return [
-            'success' => true,
-            'client' => $ftpClient,
-            'directory' => $directory
-        ];
+        return $ftpClient;
     }
 
     /**
@@ -344,9 +306,8 @@ class BackupManager
     /**
      * Clean up old backups based on retention settings
      */
-    public function cleanupOldBackups(): void
+    public function cleanupOldBackups(FtpClientInterface $ftpClient, array $settings): void
     {
-        $settings = $this->getSettings();
         $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
 
         if ($retentionStrategy === 'tiered') {
@@ -357,7 +318,7 @@ class BackupManager
 
         if ($settings['deleteFromFtp']) {
             // Also clean up FTP backups directly
-            $this->cleanupFtpBackups();
+            $this->cleanupFtpBackups($ftpClient, $settings);
         }
     }
 
@@ -509,22 +470,10 @@ class BackupManager
     /**
      * Clean up old backups from FTP server based on retention setting
      */
-    public function cleanupFtpBackups(): array
+    public function cleanupFtpBackups($ftpClient, $settings): array
     {
         try {
-            $settings = $this->getSettings();
             $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
-
-            // Initialize FTP client
-            $ftpResult = $this->initFtpClient();
-            if (!$ftpResult['success']) {
-                return [
-                    'success' => false,
-                    'message' => 'Failed to connect to FTP server: ' . $ftpResult['message']
-                ];
-            }
-
-            $ftpClient = $ftpResult['client'];
             $directory = $settings['ftpDirectory'] ?? '/';
 
             // List files on the FTP server
@@ -567,7 +516,7 @@ class BackupManager
             // Delete files from FTP
             $deletedCount = 0;
             foreach ($toDelete as $file) {
-                $this->removeFromFtp($file);
+                $this->removeFromFtp($ftpClient, $settings, $file);
                 $deletedCount++;
             }
 
@@ -679,18 +628,11 @@ class BackupManager
      */
     public function getFtpServerStats(): array
     {
+        $ftpClient = null;
         try {
-            // Initialize FTP client
-            $ftpResult = $this->initFtpClient();
-            if (!$ftpResult['success']) {
-                return [
-                    'status' => 'error',
-                    'message' => 'Failed to connect to FTP server: ' . $ftpResult['message']
-                ];
-            }
-
-            $ftpClient = $ftpResult['client'];
             $settings = $this->getSettings();
+            $ftpClient = $this->initFtpClient();
+
             $directory = $settings['ftpDirectory'] ?? '/';
 
             // List files on the FTP server
@@ -758,6 +700,10 @@ class BackupManager
                 'status' => 'error',
                 'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
             ];
+        } finally {
+            if ($ftpClient) {
+                $ftpClient->disconnect();
+            }
         }
     }
 
