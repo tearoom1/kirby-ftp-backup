@@ -32,7 +32,7 @@ composer require tearoom1/kirby-ftp-backup
 All configuration is handled through Kirby's option system. Add the following to your `site/config/config.php` file:
 
 ```php
-'tearoom1.ftp-backup' => [
+'tearoom1.kirby-ftp-backup' => [
     // FTP Connection Settings
     'ftpProtocol' => 'ftps',
     'ftpHost' => 'your-ftp-host.com',

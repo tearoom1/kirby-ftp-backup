@@ -22,7 +22,7 @@ class BackupManager
     {
         $kirby = App::instance();
 
-        $dir = option('tearoom1.ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
+        $dir = option('tearoom1.kirby-ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
         // calculate backup directory from kirby root if not absolute
         if (strpos($dir, '/') !== 0) {
             $dir = dirname($kirby->root('site')) . '/' . $dir;
@@ -42,24 +42,24 @@ class BackupManager
     {
         return [
             // FTP settings
-            'ftpProtocol' => option('tearoom1.ftp-backup.ftpProtocol', 'ftp'),
-            'ftpHost' => option('tearoom1.ftp-backup.ftpHost', ''),
-            'ftpPort' => option('tearoom1.ftp-backup.ftpPort', 21),
-            'ftpUsername' => option('tearoom1.ftp-backup.ftpUsername', ''),
-            'ftpPassword' => option('tearoom1.ftp-backup.ftpPassword', ''),
-            'ftpDirectory' => option('tearoom1.ftp-backup.ftpDirectory', ''),
-            'ftpPassive' => option('tearoom1.ftp-backup.ftpPassive', true),
-            'ftpPrivateKey' => option('tearoom1.ftp-backup.ftpPrivateKey'),
-            'ftpPassphrase' => option('tearoom1.ftp-backup.ftpPassphrase'),
+            'ftpProtocol' => option('tearoom1.kirby-ftp-backup.ftpProtocol', 'ftp'),
+            'ftpHost' => option('tearoom1.kirby-ftp-backup.ftpHost', ''),
+            'ftpPort' => option('tearoom1.kirby-ftp-backup.ftpPort', 21),
+            'ftpUsername' => option('tearoom1.kirby-ftp-backup.ftpUsername', ''),
+            'ftpPassword' => option('tearoom1.kirby-ftp-backup.ftpPassword', ''),
+            'ftpDirectory' => option('tearoom1.kirby-ftp-backup.ftpDirectory', ''),
+            'ftpPassive' => option('tearoom1.kirby-ftp-backup.ftpPassive', true),
+            'ftpPrivateKey' => option('tearoom1.kirby-ftp-backup.ftpPrivateKey'),
+            'ftpPassphrase' => option('tearoom1.kirby-ftp-backup.ftpPassphrase'),
             // General settings
-            'backupDirectory' => option('tearoom1.ftp-backup.backupDirectory', kirby()->root('content') . '/.backups'),
-            'backupRetention' => option('tearoom1.ftp-backup.backupRetention', 10),
-            'deleteFromFtp' => option('tearoom1.ftp-backup.deleteFromFtp', true),
-            'retentionStrategy' => option('tearoom1.ftp-backup.retentionStrategy', 'simple'),
+            'backupDirectory' => option('tearoom1.kirby-ftp-backup.backupDirectory', kirby()->root('content') . '/.backups'),
+            'backupRetention' => option('tearoom1.kirby-ftp-backup.backupRetention', 10),
+            'deleteFromFtp' => option('tearoom1.kirby-ftp-backup.deleteFromFtp', true),
+            'retentionStrategy' => option('tearoom1.kirby-ftp-backup.retentionStrategy', 'simple'),
             'tieredRetention' => [
-                'daily' => option('tearoom1.ftp-backup.tieredRetention.daily', 10),
-                'weekly' => option('tearoom1.ftp-backup.tieredRetention.weekly', 4),
-                'monthly' => option('tearoom1.ftp-backup.tieredRetention.monthly', 6)
+                'daily' => option('tearoom1.kirby-ftp-backup.tieredRetention.daily', 10),
+                'weekly' => option('tearoom1.kirby-ftp-backup.tieredRetention.weekly', 4),
+                'monthly' => option('tearoom1.kirby-ftp-backup.tieredRetention.monthly', 6)
             ]
         ];
     }
@@ -113,7 +113,7 @@ class BackupManager
         try {
             // Generate filename with date
             $date = date('Y-m-d-His');
-            $filePrefix = option('tearoom1.ftp-backup.filePrefix', 'backup-');
+            $filePrefix = option('tearoom1.kirby-ftp-backup.filePrefix', 'backup-');
             $filename = "{$filePrefix}{$date}.zip";
             $filepath = $this->backupDir . '/' . $filename;
 

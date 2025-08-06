@@ -99,7 +99,7 @@
           <p>Add the following to your <code>site/config/config.php</code> file:</p>
 
           <div class="k-ftp-backup-dialog-code">
-<pre>'tearoom1.ftp-backup' => [
+<pre>'tearoom1.kirby-ftp-backup' => [
     'ftpProtocol' => 'ftp', // ftp, ftps or sftp
     'ftpHost' => 'your-ftp-host.com',
     'ftpPort' => 21,

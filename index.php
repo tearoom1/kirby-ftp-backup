@@ -12,7 +12,7 @@ load([
 
 use TearoomOne\FtpBackup\BackupManager;
 
-Kirby::plugin('tearoom1/ftp-backup', [
+Kirby::plugin('tearoom1/kirby-ftp-backup', [
     // Plugin information
     'name' => 'FTP Backup',
     'description' => 'Plugin to create and manage site backups with FTP functionality',
