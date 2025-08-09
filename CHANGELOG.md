@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.0...v1.0.1) (2025-08-09)
+
+
+### Bug Fixes
+
+* fixed retention period behaviour ([4b6a991](https://github.com/tearoom1/kirby-ftp-backup/commit/4b6a9915cb920bfd29c6131fdde87650a54d0558))
+
 ## [1.0.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.4...v1.0.0) (2025-08-06)
 
 
@@ -30,11 +37,4 @@
 ### Bug Fixes
 
 * added vendor files to support manual installation ([35ed2a3](https://github.com/tearoom1/kirby-ftp-backup/commit/35ed2a3fbb7eacc3215d37e67bc3020c5e68bf08))
-
-## [0.5.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.0...v0.5.1) (2025-08-04)
-
-
-### Bug Fixes
-
-* code cleanup ([362936b](https://github.com/tearoom1/kirby-ftp-backup/commit/362936be789026c4eb9c9cb6e068fcf155c60933))
 
