@@ -172,7 +172,12 @@ class BackupManager
         try {
 
             $directory = $settings['ftpDirectory'] ?? '/';
-            $ftpClient->upload($localFile, $directory . '/' . $remoteFilename);
+
+            if ($this->isLocalDev()) {
+                echo "Would upload: {$localFile} to " .$directory . '/' . $remoteFilename. "\n";
+            } else {
+                $ftpClient->upload($localFile, $directory . '/' . $remoteFilename);
+            }
 
             return [
                 'uploaded' => true,
@@ -349,7 +354,11 @@ class BackupManager
             $toDelete = array_slice(array_keys($backups), 0, $count - $retention);
 
             foreach ($toDelete as $file) {
-                F::remove($this->backupDir . '/' . $file);
+                if ($this->isLocalDev()) {
+                    echo "Would delete from local: {$file}\n";
+                } else {
+                    F::remove($this->backupDir . '/' . $file);
+                }
             }
         }
     }
@@ -396,7 +405,12 @@ class BackupManager
 
         foreach ($backups as $backup) {
             if (!in_array($backup['filename'], $keepFilenames)) {
-                F::remove($backup['path']);
+
+                if ($this->isLocalDev()) {
+                    echo "Would delete from local: {$file}\n";
+                } else {
+                    F::remove($backup['path']);
+                }
             }
         }
     }
@@ -464,6 +478,13 @@ class BackupManager
             }
         }
 
+        if ($this->isLocalDev()) {
+            echo "Keeping the following backups:\n";
+            foreach ($keepBackups as $backup) {
+                echo "- {$backup['filename']}\n";
+            }
+        }
+
         return $keepBackups;
     }
 
@@ -516,7 +537,11 @@ class BackupManager
             // Delete files from FTP
             $deletedCount = 0;
             foreach ($toDelete as $file) {
-                $this->removeFromFtp($ftpClient, $settings, $file);
+                if ($this->isLocalDev()) {
+                    echo "Would delete from FTP: {$file}\n";
+                } else {
+                    $this->removeFromFtp($ftpClient, $settings, $file);
+                }
                 $deletedCount++;
             }
 
@@ -735,5 +760,13 @@ class BackupManager
     {
         // do not check for password as it may be empty
         return !empty($settings['ftpUsername']) || !empty($settings['ftpPrivateKey']);
+    }
+
+    /**
+     * @return bool
+     */
+    public function isLocalDev(): bool
+    {
+        return option('debug', false) && defined('STDIN');
     }
 }
