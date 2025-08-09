@@ -366,8 +366,8 @@ class BackupManager
     /**
      * Apply tiered retention strategy:
      * - Keep all daily backups for X days
-     * - Then keep one backup per week for X weeks
-     * - Then keep one backup per month for X months
+     * - Then keep one backup per 7-day period for Y periods
+     * - Then keep one backup per 30-day period for Z periods
      */
     private function applyTieredRetention(): void
     {
@@ -417,6 +417,9 @@ class BackupManager
 
     /**
      * Apply tiered retention strategy to a list of backups
+     * - Keep all backups from the last X days (daily)
+     * - Then keep one backup per 7-day period for Y periods
+     * - Then keep one backup per 30-day period for Z periods
      */
     private function applyTieredRetentionStrategy(array $backups, array $tieredSettings): array
     {
@@ -429,59 +432,119 @@ class BackupManager
             return [];
         }
 
-        // Calculate cutoff timestamps
+        // Calculate cutoff timestamps from now
         $now = time();
-        $dailyCutoff = $now - ($tieredSettings['daily'] * 86400); // X days ago
-        $weeklyCutoff = $dailyCutoff - ($tieredSettings['weekly'] * 7 * 86400); // X weeks after daily cutoff
-        $monthlyCutoff = $weeklyCutoff - ($tieredSettings['monthly'] * 30 * 86400); // X months after weekly cutoff
 
-        // Determine which backups to keep
+        // Daily cutoff: X days ago from now
+        $dailyDays = max(1, intval($tieredSettings['daily']));
+        $dailyCutoff = $now - ($dailyDays * 86400);
+
+        // Weekly cutoff: After daily period + X weeks
+        $weeklyWeeks = max(1, intval($tieredSettings['weekly']));
+        $weeklyCutoff = $dailyCutoff - ($weeklyWeeks * 7 * 86400);
+
+        // Monthly cutoff: After weekly period + X months
+        $monthlyMonths = max(1, intval($tieredSettings['monthly']));
+        $monthlyCutoff = $weeklyCutoff - ($monthlyMonths * 30 * 86400);
+
+        // Prepare result arrays
         $keepBackups = [];
-        $keepDates = []; // Track dates we've already kept (for weekly/monthly)
-        $keepWeeks = []; // Track weeks we've already kept
-        $keepMonths = []; // Track months we've already kept
+        $toDeleteBackups = [];
 
-        foreach ($backups as $backup) {
+        // Always keep the newest backup
+        if (!empty($backups)) {
+            $newestBackup = $backups[0];
+            $newestBackup['retention'] = 'newest';
+            $keepBackups[] = $newestBackup;
+        }
+
+        // Initialize time buckets for 7-day periods and 30-day periods
+        $weeklyBuckets = [];
+        $monthlyBuckets = [];
+
+        // First pass: Keep all daily backups and place others in appropriate buckets
+        foreach ($backups as $index => $backup) {
+            // Skip the newest backup we already added
+            if ($index === 0 && !empty($keepBackups)) {
+                continue;
+            }
+
             $timestamp = $backup['timestamp'];
-            $date = $backup['date'] ?? date('Y-m-d', $timestamp);
 
-            // Add week and month info if not already present
-            if (!isset($backup['week'])) {
-                $backup['week'] = date('Y-W', $timestamp);
-            }
-            if (!isset($backup['month'])) {
-                $backup['month'] = date('Y-m', $timestamp);
-            }
-
-            $week = $backup['week'];
-            $month = $backup['month'];
-
-            // Keep all backups within daily retention period
+            // Category 1: Keep all backups within daily retention period
             if ($timestamp >= $dailyCutoff) {
+                $backup['retention'] = 'daily';
                 $keepBackups[] = $backup;
-                $keepDates[$date] = true;
                 continue;
             }
 
-            // Keep one backup per week within weekly retention period
-            if ($timestamp >= $weeklyCutoff && !isset($keepWeeks[$week])) {
-                $keepBackups[] = $backup;
-                $keepWeeks[$week] = true;
+            // Category 2: Put into weekly buckets (7-day periods)
+            if ($timestamp >= $weeklyCutoff) {
+                // Calculate which 7-day period this belongs to (counting backward from dailyCutoff)
+                $periodIndex = floor(($dailyCutoff - $timestamp) / (7 * 86400));
+
+                // Store this backup in the appropriate bucket if it's the newest we've seen for this period
+                if (!isset($weeklyBuckets[$periodIndex]) || $timestamp > $weeklyBuckets[$periodIndex]['timestamp']) {
+                    $backup['retention'] = 'weekly-period-' . $periodIndex;
+                    $weeklyBuckets[$periodIndex] = $backup;
+                } else {
+                    $backup['retention'] = 'weekly-duplicate';
+                    $toDeleteBackups[] = $backup;
+                }
                 continue;
             }
 
-            // Keep one backup per month within monthly retention period
-            if ($timestamp >= $monthlyCutoff && !isset($keepMonths[$month])) {
-                $keepBackups[] = $backup;
-                $keepMonths[$month] = true;
+            // Category 3: Put into monthly buckets (30-day periods)
+            if ($timestamp >= $monthlyCutoff) {
+                // Calculate which 30-day period this belongs to (counting backward from weeklyCutoff)
+                $periodIndex = floor(($weeklyCutoff - $timestamp) / (30 * 86400));
+
+                // Store this backup in the appropriate bucket if it's the newest we've seen for this period
+                if (!isset($monthlyBuckets[$periodIndex]) || $timestamp > $monthlyBuckets[$periodIndex]['timestamp']) {
+                    $backup['retention'] = 'monthly-period-' . $periodIndex;
+                    $monthlyBuckets[$periodIndex] = $backup;
+                } else {
+                    $backup['retention'] = 'monthly-duplicate';
+                    $toDeleteBackups[] = $backup;
+                }
                 continue;
             }
+
+            // Category 4: Too old, don't keep
+            $backup['retention'] = 'too-old';
+            $toDeleteBackups[] = $backup;
+        }
+
+        // Add the selected weekly and monthly backups to our keep list
+        foreach ($weeklyBuckets as $backup) {
+            $keepBackups[] = $backup;
+        }
+
+        foreach ($monthlyBuckets as $backup) {
+            $keepBackups[] = $backup;
         }
 
         if ($this->isLocalDev()) {
-            echo "Keeping the following backups:\n";
+            echo "=============== TIERED RETENTION STRATEGY ===============\n";
+            echo "Settings: {$dailyDays} days daily, {$weeklyWeeks} 7-day periods, {$monthlyMonths} 30-day periods\n";
+            echo "Current time: " . date('Y-m-d H:i:s', $now) . "\n";
+            echo "Cutoffs:\n";
+            echo "- Daily cutoff: " . date('Y-m-d H:i:s', $dailyCutoff) . "\n";
+            echo "- Weekly cutoff: " . date('Y-m-d H:i:s', $weeklyCutoff) . "\n";
+            echo "- Monthly cutoff: " . date('Y-m-d H:i:s', $monthlyCutoff) . "\n\n";
+
+            echo "Keeping " . count($keepBackups) . " of " . count($backups) . " backups:\n";
             foreach ($keepBackups as $backup) {
-                echo "- {$backup['filename']}\n";
+                echo "- [{$backup['retention']}] {$backup['filename']} (" .
+                     date('Y-m-d H:i:s', $backup['timestamp']) . ")\n";
+            }
+
+            if (!empty($toDeleteBackups)) {
+                echo "\nDeleting " . count($toDeleteBackups) . " backups:\n";
+                foreach ($toDeleteBackups as $backup) {
+                    echo "- [{$backup['retention']}] {$backup['filename']} (" .
+                         date('Y-m-d H:i:s', $backup['timestamp']) . ")\n";
+                }
             }
         }
 
@@ -555,6 +618,90 @@ class BackupManager
                 'success' => false,
                 'message' => 'Error cleaning up FTP backups: ' . $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Get stats and file list from the FTP server
+     */
+    public function getFtpServerStats(): array
+    {
+        $ftpClient = null;
+        try {
+            $settings = $this->getSettings();
+            $ftpClient = $this->initFtpClient();
+
+            $directory = $settings['ftpDirectory'] ?? '/';
+
+            // List files on the FTP server
+            $files = $ftpClient->listDirectory($directory);
+
+            // Filter to only include .zip files and get their details
+            $backupFiles = [];
+            $totalSize = 0;
+            $latestModified = 0;
+
+            foreach ($files as $file) {
+                if (substr($file, -4) === '.zip') {
+                    try {
+                        // Try to get file size and modified time
+                        $fileSize = $ftpClient->getFileSize($directory . '/' . $file);
+                        $fileModified = $ftpClient->getModifiedTime($directory . '/' . $file);
+
+                        $backupFiles[] = [
+                            'filename' => $file,
+                            'size' => $fileSize,
+                            'formattedSize' => BackupController::formatSize($fileSize),
+                            'modified' => $fileModified,
+                            'formattedDate' => date('Y-m-d H:i:s', $fileModified)
+                        ];
+
+                        $totalSize += $fileSize;
+                        if ($fileModified > $latestModified) {
+                            $latestModified = $fileModified;
+                        }
+                    } catch (\Exception $e) {
+                        // Skip files we can't get details for
+                        $backupFiles[] = [
+                            'filename' => $file,
+                            'size' => 0,
+                            'formattedSize' => 'Unknown',
+                            'modified' => 0,
+                            'formattedDate' => 'Unknown'
+                        ];
+                    }
+                }
+            }
+
+            // Sort by modified date (newest first)
+            usort($backupFiles, function ($a, $b) {
+                return $b['modified'] <=> $a['modified'];
+            });
+
+            // Disconnect from FTP
+            $ftpClient->disconnect();
+
+            // Return stats
+            return [
+                'status' => 'success',
+                'data' => [
+                    'files' => $backupFiles,
+                    'count' => count($backupFiles),
+                    'totalSize' => $totalSize,
+                    'formattedTotalSize' => BackupController::formatSize($totalSize),
+                    'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
+            ];
+        } finally {
+            if ($ftpClient) {
+                $ftpClient->disconnect();
+            }
         }
     }
 
@@ -649,90 +796,6 @@ class BackupManager
     }
 
     /**
-     * Get stats and file list from the FTP server
-     */
-    public function getFtpServerStats(): array
-    {
-        $ftpClient = null;
-        try {
-            $settings = $this->getSettings();
-            $ftpClient = $this->initFtpClient();
-
-            $directory = $settings['ftpDirectory'] ?? '/';
-
-            // List files on the FTP server
-            $files = $ftpClient->listDirectory($directory);
-
-            // Filter to only include .zip files and get their details
-            $backupFiles = [];
-            $totalSize = 0;
-            $latestModified = 0;
-
-            foreach ($files as $file) {
-                if (substr($file, -4) === '.zip') {
-                    try {
-                        // Try to get file size and modified time
-                        $fileSize = $ftpClient->getFileSize($directory . '/' . $file);
-                        $fileModified = $ftpClient->getModifiedTime($directory . '/' . $file);
-
-                        $backupFiles[] = [
-                            'filename' => $file,
-                            'size' => $fileSize,
-                            'formattedSize' => BackupController::formatSize($fileSize),
-                            'modified' => $fileModified,
-                            'formattedDate' => date('Y-m-d H:i:s', $fileModified)
-                        ];
-
-                        $totalSize += $fileSize;
-                        if ($fileModified > $latestModified) {
-                            $latestModified = $fileModified;
-                        }
-                    } catch (\Exception $e) {
-                        // Skip files we can't get details for
-                        $backupFiles[] = [
-                            'filename' => $file,
-                            'size' => 0,
-                            'formattedSize' => 'Unknown',
-                            'modified' => 0,
-                            'formattedDate' => 'Unknown'
-                        ];
-                    }
-                }
-            }
-
-            // Sort by modified date (newest first)
-            usort($backupFiles, function ($a, $b) {
-                return $b['modified'] <=> $a['modified'];
-            });
-
-            // Disconnect from FTP
-            $ftpClient->disconnect();
-
-            // Return stats
-            return [
-                'status' => 'success',
-                'data' => [
-                    'files' => $backupFiles,
-                    'count' => count($backupFiles),
-                    'totalSize' => $totalSize,
-                    'formattedTotalSize' => BackupController::formatSize($totalSize),
-                    'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
-                ]
-            ];
-
-        } catch (\Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
-            ];
-        } finally {
-            if ($ftpClient) {
-                $ftpClient->disconnect();
-            }
-        }
-    }
-
-    /**
      * Download a backup file
      */
     public function downloadBackup(string $filename, string $key): Response
@@ -767,6 +830,6 @@ class BackupManager
      */
     public function isLocalDev(): bool
     {
-        return option('debug', false) && defined('STDIN');
+        return false && option('debug', false) && defined('STDIN');
     }
 }
