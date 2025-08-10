@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.1...v1.0.2) (2025-08-10)
+
+
+### Bug Fixes
+
+* fixed class import ([e42f1db](https://github.com/tearoom1/kirby-ftp-backup/commit/e42f1db0086fb286cf3663ed58eb2207fa896114))
+
 ## [1.0.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.0...v1.0.1) (2025-08-09)
 
 
@@ -30,11 +37,4 @@
 ### Bug Fixes
 
 * allow a custom path for kirby in run.php and added some checks and output. ([3e56361](https://github.com/tearoom1/kirby-ftp-backup/commit/3e563613de5753e9a4862b1f7657f7400e2be12f))
-
-## [0.5.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.1...v0.5.2) (2025-08-04)
-
-
-### Bug Fixes
-
-* added vendor files to support manual installation ([35ed2a3](https://github.com/tearoom1/kirby-ftp-backup/commit/35ed2a3fbb7eacc3215d37e67bc3020c5e68bf08))
 
