@@ -5,6 +5,7 @@
 // Register autoloader
 load([
     'TearoomOne\\FtpBackup\\BackupManager' => 'src/BackupManager.php',
+    'TearoomOne\\FtpBackup\\FtpClientInterface' => 'src/FtpClientInterface.php',
     'TearoomOne\\FtpBackup\\FtpClient' => 'src/FtpClient.php',
     'TearoomOne\\FtpBackup\\SftpClient' => 'src/SftpClient.php',
     'TearoomOne\\FtpBackup\\BackupController' => 'src/BackupController.php',
