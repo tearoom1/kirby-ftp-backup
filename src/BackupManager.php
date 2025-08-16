@@ -524,6 +524,12 @@ class BackupManager
             $keepBackups[] = $backup;
         }
 
+        // as long monthlyBuckets are not full count = monthlyMonths()
+        // keep the oldest backup
+        if (count($backups) > 0 && count($monthlyBuckets) < $monthlyMonths) {
+            $keepBackups[] = $backups[count($backups) - 1];
+        }
+
         if ($this->isLocalDev()) {
             echo "=============== TIERED RETENTION STRATEGY ===============\n";
             echo "Settings: {$dailyDays} days daily, {$weeklyWeeks} 7-day periods, {$monthlyMonths} 30-day periods\n";
