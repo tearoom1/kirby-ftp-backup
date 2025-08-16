@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.2...v1.0.3) (2025-08-16)
+
+
+### Bug Fixes
+
+* keep oldest backup as long as we do not have one for every period. ([af43186](https://github.com/tearoom1/kirby-ftp-backup/commit/af43186104b0500ed354fc694c78187492c155b4))
+
 ## [1.0.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.1...v1.0.2) (2025-08-10)
 
 
@@ -30,11 +37,4 @@
 ### Bug Fixes
 
 * allow a custom path for kirby in run.php and added some checks and output. [#3](https://github.com/tearoom1/kirby-ftp-backup/issues/3) ([a512a67](https://github.com/tearoom1/kirby-ftp-backup/commit/a512a6729078263a27e43b9e6f3f58f08cfe0843))
-
-## [0.5.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.2...v0.5.3) (2025-08-05)
-
-
-### Bug Fixes
-
-* allow a custom path for kirby in run.php and added some checks and output. ([3e56361](https://github.com/tearoom1/kirby-ftp-backup/commit/3e563613de5753e9a4862b1f7657f7400e2be12f))
 
