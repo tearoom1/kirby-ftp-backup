@@ -524,10 +524,24 @@ class BackupManager
             $keepBackups[] = $backup;
         }
 
-        // as long monthlyBuckets are not full count = monthlyMonths()
-        // keep the oldest backup
-        if (count($backups) > 0 && count($monthlyBuckets) < $monthlyMonths) {
-            $keepBackups[] = $backups[count($backups) - 1];
+        // Always keep the oldest backup to ensure monthly buckets can be filled
+        // This provides a historical anchor point for retention
+        if (count($backups) > 0) {
+            $oldestBackup = $backups[count($backups) - 1]; // Last item is oldest due to sorting
+            $oldestBackup['retention'] = 'oldest-anchor';
+
+            // Check if oldest backup is already in our keep list
+            $alreadyKept = false;
+            foreach ($keepBackups as $kept) {
+                if ($kept['filename'] === $oldestBackup['filename']) {
+                    $alreadyKept = true;
+                    break;
+                }
+            }
+
+            if (!$alreadyKept) {
+                $keepBackups[] = $oldestBackup;
+            }
         }
 
         if ($this->isLocalDev()) {
