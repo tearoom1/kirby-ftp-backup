@@ -19,3 +19,7 @@ CHANGELOG.md export-ignore
 # Source files (if you use build process)
 /js/ export-ignore
 /scss/ export-ignore
+
+# Tests
+/tests/ export-ignore
+test-runner.php export-ignore
