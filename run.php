@@ -26,17 +26,15 @@ if (count($argv) === 2) {
 
 // Load Kirby
 $bootstrapFile = realpath($rootDir . '/kirby/bootstrap.php');
-
 if (!file_exists($bootstrapFile)) {
     die('Could not find bootstrap file: ' . $bootstrapFile);
 }
-
 require $bootstrapFile;
-
-echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
 
 // Initialize Kirby
 $kirby = new Kirby\Cms\App();
+
+echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
 
 // Initialize the backup manager and create a backup
 try {
