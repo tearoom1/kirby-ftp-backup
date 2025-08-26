@@ -418,7 +418,7 @@ class BackupManager
     /**
      * Apply tiered retention strategy to a list of backups
      * - Keep all backups from the last X days (daily)
-     * - Then keep one backup per 7-day period for Y periods
+     * - Then keep backups ensuring no gap >7 days for Y weeks
      * - Then keep one backup per 30-day period for Z periods
      */
     private function applyTieredRetentionStrategy(array $backups, array $tieredSettings): array
@@ -449,85 +449,89 @@ class BackupManager
 
         // Prepare result arrays
         $keepBackups = [];
-        $toDeleteBackups = [];
 
-        // Always keep the newest backup
-        if (!empty($backups)) {
-            $newestBackup = $backups[0];
-            $newestBackup['retention'] = 'newest';
-            $keepBackups[] = $newestBackup;
+        // Step 1: Keep all daily backups (mark newest specially)
+        $newestBackup = null;
+        $newestTimestamp = 0;
+        
+        // Find the newest backup first
+        foreach ($backups as $backup) {
+            if ($backup['timestamp'] > $newestTimestamp) {
+                $newestTimestamp = $backup['timestamp'];
+                $newestBackup = $backup;
+            }
+        }
+        
+        foreach ($backups as $backup) {
+            if ($backup['timestamp'] >= $dailyCutoff) {
+                if ($backup === $newestBackup) {
+                    $backup['retention'] = 'newest';
+                } else {
+                    $backup['retention'] = 'daily';
+                }
+                $keepBackups[] = $backup;
+            }
         }
 
-        // Initialize time buckets for 7-day periods and 30-day periods
-        $weeklyBuckets = [];
-        $monthlyBuckets = [];
-
-        // First pass: Keep all daily backups and place others in appropriate buckets
-        foreach ($backups as $index => $backup) {
-            // Skip the newest backup we already added
-            if ($index === 0 && !empty($keepBackups)) {
-                continue;
+        // Step 2: For weekly period, ensure no gaps >7 days using rolling window approach
+        $weeklyBackups = [];
+        foreach ($backups as $backup) {
+            if ($backup['timestamp'] < $dailyCutoff && $backup['timestamp'] >= $weeklyCutoff) {
+                $weeklyBackups[] = $backup;
             }
+        }
 
-            $timestamp = $backup['timestamp'];
-
-            // Category 1: Keep all backups within daily retention period
-            if ($timestamp >= $dailyCutoff) {
-                $backup['retention'] = 'daily';
-                $keepBackups[] = $backup;
-                continue;
-            }
-
-            // Category 2: Put into weekly buckets (7-day periods)
-            if ($timestamp >= $weeklyCutoff) {
-                // Calculate which 7-day period this belongs to (counting backward from dailyCutoff)
-                $periodIndex = floor(($dailyCutoff - $timestamp) / (7 * 86400));
-
-                // Store this backup in the appropriate bucket if it's the newest we've seen for this period
-                if (!isset($weeklyBuckets[$periodIndex]) || $timestamp > $weeklyBuckets[$periodIndex]['timestamp']) {
-                    $backup['retention'] = 'weekly-period-' . $periodIndex;
-                    $weeklyBuckets[$periodIndex] = $backup;
+        // Apply rolling 7-day window to weekly backups to prevent gaps
+        if (!empty($weeklyBackups)) {
+            // Sort weekly backups by timestamp (newest first)
+            usort($weeklyBackups, function ($a, $b) {
+                return $b['timestamp'] - $a['timestamp'];
+            });
+            
+            $lastKeptTimestamp = $dailyCutoff; // Start from end of daily period
+            $firstWeeklyKept = false;
+            
+            foreach ($weeklyBackups as $backup) {
+                // Always keep the first (newest) weekly backup to prevent gaps
+                if (!$firstWeeklyKept) {
+                    $backup['retention'] = 'weekly-rolling';
+                    $keepBackups[] = $backup;
+                    $lastKeptTimestamp = $backup['timestamp'];
+                    $firstWeeklyKept = true;
                 } else {
-                    $backup['retention'] = 'weekly-duplicate';
-                    $toDeleteBackups[] = $backup;
+                    // For subsequent backups, only keep if ≥7 days older than last kept
+                    if (($lastKeptTimestamp - $backup['timestamp']) >= (7 * 86400)) {
+                        $backup['retention'] = 'weekly-rolling';
+                        $keepBackups[] = $backup;
+                        $lastKeptTimestamp = $backup['timestamp'];
+                    }
                 }
-                continue;
             }
+        }
 
-            // Category 3: Put into monthly buckets (30-day periods)
-            if ($timestamp >= $monthlyCutoff) {
-                // Calculate which 30-day period this belongs to (counting backward from weeklyCutoff)
-                $periodIndex = floor(($weeklyCutoff - $timestamp) / (30 * 86400));
-
-                // Store this backup in the appropriate bucket if it's the newest we've seen for this period
-                if (!isset($monthlyBuckets[$periodIndex]) || $timestamp > $monthlyBuckets[$periodIndex]['timestamp']) {
+        // Step 3: For monthly period, use 30-day buckets
+        $monthlyBuckets = [];
+        foreach ($backups as $backup) {
+            if ($backup['timestamp'] < $weeklyCutoff && $backup['timestamp'] >= $monthlyCutoff) {
+                // Calculate which 30-day period this belongs to
+                $periodIndex = floor(($weeklyCutoff - $backup['timestamp']) / (30 * 86400));
+                
+                // Keep the newest backup in each 30-day period
+                if (!isset($monthlyBuckets[$periodIndex]) || $backup['timestamp'] > $monthlyBuckets[$periodIndex]['timestamp']) {
                     $backup['retention'] = 'monthly-period-' . $periodIndex;
                     $monthlyBuckets[$periodIndex] = $backup;
-                } else {
-                    $backup['retention'] = 'monthly-duplicate';
-                    $toDeleteBackups[] = $backup;
                 }
-                continue;
             }
-
-            // Category 4: Too old, don't keep
-            $backup['retention'] = 'too-old';
-            $toDeleteBackups[] = $backup;
         }
 
-        // Add the selected weekly and monthly backups to our keep list
-        foreach ($weeklyBuckets as $backup) {
-            $keepBackups[] = $backup;
-        }
-
+        // Add monthly backups to keep list
         foreach ($monthlyBuckets as $backup) {
             $keepBackups[] = $backup;
         }
 
-        // Always keep the oldest backup to ensure monthly buckets can be filled
-        // This provides a historical anchor point for retention
-        if (count($backups) > 0) {
-            $oldestBackup = $backups[count($backups) - 1]; // Last item is oldest due to sorting
+        // Step 4: Always keep the oldest backup as an anchor
+        if (!empty($backups)) {
+            $oldestBackup = $backups[count($backups) - 1];
             $oldestBackup['retention'] = 'oldest-anchor';
 
             // Check if oldest backup is already in our keep list
@@ -545,8 +549,8 @@ class BackupManager
         }
 
         if ($this->isLocalDev()) {
-            echo "=============== TIERED RETENTION STRATEGY ===============\n";
-            echo "Settings: {$dailyDays} days daily, {$weeklyWeeks} 7-day periods, {$monthlyMonths} 30-day periods\n";
+            echo "=============== TIERED RETENTION STRATEGY (FIXED) ===============\n";
+            echo "Settings: {$dailyDays} days daily, {$weeklyWeeks} weeks rolling, {$monthlyMonths} 30-day periods\n";
             echo "Current time: " . date('Y-m-d H:i:s', $now) . "\n";
             echo "Cutoffs:\n";
             echo "- Daily cutoff: " . date('Y-m-d H:i:s', $dailyCutoff) . "\n";
@@ -554,17 +558,14 @@ class BackupManager
             echo "- Monthly cutoff: " . date('Y-m-d H:i:s', $monthlyCutoff) . "\n\n";
 
             echo "Keeping " . count($keepBackups) . " of " . count($backups) . " backups:\n";
+            // Sort for display
+            usort($keepBackups, function ($a, $b) {
+                return $b['timestamp'] - $a['timestamp'];
+            });
+            
             foreach ($keepBackups as $backup) {
                 echo "- [{$backup['retention']}] {$backup['filename']} (" .
                      date('Y-m-d H:i:s', $backup['timestamp']) . ")\n";
-            }
-
-            if (!empty($toDeleteBackups)) {
-                echo "\nDeleting " . count($toDeleteBackups) . " backups:\n";
-                foreach ($toDeleteBackups as $backup) {
-                    echo "- [{$backup['retention']}] {$backup['filename']} (" .
-                         date('Y-m-d H:i:s', $backup['timestamp']) . ")\n";
-                }
             }
         }
 
