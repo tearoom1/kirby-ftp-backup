@@ -415,101 +415,97 @@ class BackupManager
     }
 
     /**
-     * Apply tiered retention strategy to a list of backups - simplified approach
+     * Apply tiered retention strategy - keep newest, daily, weekly, monthly, and oldest backups
      */
-    private function applyTieredRetentionStrategy(array $backups, array $tieredSettings): array
+    private function applyTieredRetentionStrategy(array $backups, array $settings): array
     {
-        if (empty($backups)) {
-            return [];
-        }
+        if (empty($backups)) return [];
 
-        // Sort backups by timestamp (newest first)
-        usort($backups, function ($a, $b) {
-            return $b['timestamp'] - $a['timestamp'];
-        });
+        // Sort newest first
+        usort($backups, fn($a, $b) => $b['timestamp'] - $a['timestamp']);
 
         $now = time();
-        $dailyDays = max(1, intval($tieredSettings['daily']));
-        $weeklyWeeks = max(1, intval($tieredSettings['weekly']));
-        $monthlyMonths = max(1, intval($tieredSettings['monthly']));
-
-        $dailyCutoff = $now - ($dailyDays * 86400);
-        $weeklyCutoff = $dailyCutoff - ($weeklyWeeks * 7 * 86400);
-        $monthlyCutoff = $weeklyCutoff - ($monthlyMonths * 30 * 86400);
+        $dailyDays = max(1, intval($settings['daily']));
+        $weeklyWeeks = max(1, intval($settings['weekly']));
+        $monthlyMonths = max(1, intval($settings['monthly']));
 
         $keepBackups = [];
-        $weeklyKept = [];
-        $monthlyKept = [];
+        $weeklySlots = [];
+        $monthlySlots = [];
 
         foreach ($backups as $i => $backup) {
-            $age = $now - $backup['timestamp'];
-            $ageDays = $age / 86400;
+            $ageDays = ($now - $backup['timestamp']) / 86400;
 
-            // Always keep newest backup
+            // Always keep newest
             if ($i === 0) {
-                $backup['retention'] = 'newest';
-                $keepBackups[] = $backup;
+                $keepBackups[] = $this->markBackup($backup, 'newest');
                 continue;
             }
 
-            // Keep all backups within daily period
-            if ($backup['timestamp'] >= $dailyCutoff) {
-                $backup['retention'] = 'daily';
-                $keepBackups[] = $backup;
+            // Keep all within daily period
+            if ($ageDays <= $dailyDays) {
+                $keepBackups[] = $this->markBackup($backup, 'daily');
                 continue;
             }
 
-            // Weekly retention: keep one per 7-day period
-            if ($backup['timestamp'] >= $weeklyCutoff) {
-                $weekNumber = floor($ageDays / 7);
-                if (!isset($weeklyKept[$weekNumber])) {
-                    $backup['retention'] = 'weekly';
-                    $keepBackups[] = $backup;
-                    $weeklyKept[$weekNumber] = true;
+            // Keep one per week
+            if ($ageDays <= $dailyDays + ($weeklyWeeks * 7)) {
+                $week = floor($ageDays / 7);
+                if (!isset($weeklySlots[$week])) {
+                    $weeklySlots[$week] = true;
+                    $keepBackups[] = $this->markBackup($backup, 'weekly');
                 }
                 continue;
             }
 
-            // Monthly retention: keep one per 30-day period
-            if ($backup['timestamp'] >= $monthlyCutoff) {
-                $monthNumber = floor($ageDays / 30);
-                if (!isset($monthlyKept[$monthNumber])) {
-                    $backup['retention'] = 'monthly';
-                    $keepBackups[] = $backup;
-                    $monthlyKept[$monthNumber] = true;
-                }
-                continue;
-            }
-        }
-
-        // Always keep oldest backup as anchor
-        if (!empty($backups)) {
-            $oldestBackup = end($backups);
-            $oldestBackup['retention'] = 'oldest-anchor';
-
-            // Check if not already kept
-            $alreadyKept = false;
-            foreach ($keepBackups as $kept) {
-                if ($kept['filename'] === $oldestBackup['filename']) {
-                    $alreadyKept = true;
-                    break;
+            // Keep one per month
+            if ($ageDays <= $dailyDays + ($weeklyWeeks * 7) + ($monthlyMonths * 30)) {
+                $month = floor($ageDays / 30);
+                if (!isset($monthlySlots[$month])) {
+                    $monthlySlots[$month] = true;
+                    $keepBackups[] = $this->markBackup($backup, 'monthly');
                 }
             }
-            if (!$alreadyKept) {
-                $keepBackups[] = $oldestBackup;
-            }
         }
 
-        if ($this->isLocalDev()) {
-            echo "=== SIMPLE TIERED RETENTION ===\n";
-            echo "Settings: {$dailyDays}d daily, {$weeklyWeeks}w weekly, {$monthlyMonths}m monthly\n";
-            echo "Keeping " . count($keepBackups) . " of " . count($backups) . " backups:\n";
-            foreach ($keepBackups as $backup) {
-                echo "- [{$backup['retention']}] {$backup['filename']}\n";
-            }
-        }
+        // Always keep oldest as anchor
+        $this->ensureOldestBackup($backups, $keepBackups);
+
+        $this->debugRetention($backups, $keepBackups, $dailyDays, $weeklyWeeks, $monthlyMonths);
 
         return $keepBackups;
+    }
+
+    private function markBackup(array $backup, string $type): array
+    {
+        $backup['retention'] = $type;
+        return $backup;
+    }
+
+    private function ensureOldestBackup(array $allBackups, array &$keepBackups): void
+    {
+        if (empty($allBackups)) return;
+
+        $oldest = end($allBackups);
+        $oldest['retention'] = 'oldest-anchor';
+
+        // Add if not already kept
+        $filenames = array_column($keepBackups, 'filename');
+        if (!in_array($oldest['filename'], $filenames)) {
+            $keepBackups[] = $oldest;
+        }
+    }
+
+    private function debugRetention(array $all, array $keep, int $daily, int $weekly, int $monthly): void
+    {
+        if (!$this->isLocalDev()) return;
+
+        echo "=== TIERED RETENTION ===\n";
+        echo "Settings: {$daily}d daily, {$weekly}w weekly, {$monthly}m monthly\n";
+        echo "Keeping " . count($keep) . " of " . count($all) . " backups:\n";
+        foreach ($keep as $backup) {
+            echo "- [{$backup['retention']}] {$backup['filename']}\n";
+        }
     }
 
 
