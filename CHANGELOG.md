@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.4...v1.0.5) (2025-08-26)
+
+
+### Bug Fixes
+
+* Improved 7 day retention period ([f3951a6](https://github.com/tearoom1/kirby-ftp-backup/commit/f3951a627e50c90e7711eb37f9cfa5dfab9e0c4b))
+
 ## [1.0.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.3...v1.0.4) (2025-08-16)
 
 
@@ -25,16 +32,4 @@
 ### Bug Fixes
 
 * fixed retention period behaviour ([4b6a991](https://github.com/tearoom1/kirby-ftp-backup/commit/4b6a9915cb920bfd29c6131fdde87650a54d0558))
-
-## [1.0.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v0.5.4...v1.0.0) (2025-08-06)
-
-
-### ⚠ BREAKING CHANGES
-
-* Changed the name for options by adding the kirby- prefix to match the plugin name properly.
-
-### Bug Fixes
-
-* Changed the name for options by adding the kirby- prefix to match the plugin name properly. ([65a651a](https://github.com/tearoom1/kirby-ftp-backup/commit/65a651a3a6c12144435a4257bad7c70a1191357c))
-* refactoring, improved ftp connection usage. ([8ef0456](https://github.com/tearoom1/kirby-ftp-backup/commit/8ef0456e79e3cb22eb929f7c62ae7a9a3b2e623e))
 
