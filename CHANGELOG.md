@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.5...v1.0.6) (2025-08-29)
+
+
+### Bug Fixes
+
+* update composer after version bump ([8fa686e](https://github.com/tearoom1/kirby-ftp-backup/commit/8fa686e87342f32015d7ce9cdf5ec833d9923845))
+
 ## [1.0.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.4...v1.0.5) (2025-08-26)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * fixed class import ([e42f1db](https://github.com/tearoom1/kirby-ftp-backup/commit/e42f1db0086fb286cf3663ed58eb2207fa896114))
-
-## [1.0.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.0...v1.0.1) (2025-08-09)
-
-
-### Bug Fixes
-
-* fixed retention period behaviour ([4b6a991](https://github.com/tearoom1/kirby-ftp-backup/commit/4b6a9915cb920bfd29c6131fdde87650a54d0558))
 
