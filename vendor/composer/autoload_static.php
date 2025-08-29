@@ -68,6 +68,7 @@ class ComposerStaticInitb907e975110595eb37f8fce6c424e313
         'TearoomOne\\FtpBackup\\BackupController' => __DIR__ . '/../..' . '/src/BackupController.php',
         'TearoomOne\\FtpBackup\\BackupManager' => __DIR__ . '/../..' . '/src/BackupManager.php',
         'TearoomOne\\FtpBackup\\FtpClient' => __DIR__ . '/../..' . '/src/FtpClient.php',
+        'TearoomOne\\FtpBackup\\FtpClientInterface' => __DIR__ . '/../..' . '/src/FtpClientInterface.php',
         'TearoomOne\\FtpBackup\\SftpClient' => __DIR__ . '/../..' . '/src/SftpClient.php',
         'phpseclib3\\Common\\Functions\\Strings' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/Common/Functions/Strings.php',
         'phpseclib3\\Crypt\\AES' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/Crypt/AES.php',

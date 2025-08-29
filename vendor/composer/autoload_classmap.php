@@ -25,6 +25,7 @@ return array(
     'TearoomOne\\FtpBackup\\BackupController' => $baseDir . '/src/BackupController.php',
     'TearoomOne\\FtpBackup\\BackupManager' => $baseDir . '/src/BackupManager.php',
     'TearoomOne\\FtpBackup\\FtpClient' => $baseDir . '/src/FtpClient.php',
+    'TearoomOne\\FtpBackup\\FtpClientInterface' => $baseDir . '/src/FtpClientInterface.php',
     'TearoomOne\\FtpBackup\\SftpClient' => $baseDir . '/src/SftpClient.php',
     'phpseclib3\\Common\\Functions\\Strings' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Common/Functions/Strings.php',
     'phpseclib3\\Crypt\\AES' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Crypt/AES.php',
