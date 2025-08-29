@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.6...v1.0.7) (2025-08-29)
+
+
+### Bug Fixes
+
+* updated workflow ([4fafb50](https://github.com/tearoom1/kirby-ftp-backup/commit/4fafb5002d9f2266ba9f18dfa36a40b7e04a4236))
+
 ## [1.0.6](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.5...v1.0.6) (2025-08-29)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * keep oldest backup as long as we do not have one for every period. ([af43186](https://github.com/tearoom1/kirby-ftp-backup/commit/af43186104b0500ed354fc694c78187492c155b4))
-
-## [1.0.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.1...v1.0.2) (2025-08-10)
-
-
-### Bug Fixes
-
-* fixed class import ([e42f1db](https://github.com/tearoom1/kirby-ftp-backup/commit/e42f1db0086fb286cf3663ed58eb2207fa896114))
 
