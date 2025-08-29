@@ -21,6 +21,14 @@ jobs:
           git-user-email: "wunderbar@mailbox.org"
           version-file: "composer.json"
 
+      - name: Update composer
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        run: |
+          composer update --no-dev --optimize-autoloader
+          git add *
+          git commit -m "chore: update composer.lock after version bump" || exit 0
+          git push
+
       - name: create release
         uses: actions/create-release@v1
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
