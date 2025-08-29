@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.7...v1.0.8) (2025-08-29)
+
+
+### Bug Fixes
+
+* updated workflow to use softprops/action-gh-release@v2 ([15fe35b](https://github.com/tearoom1/kirby-ftp-backup/commit/15fe35bf828762e13a8bcb6bdbcd4f222c5f175a))
+
 ## [1.0.7](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.6...v1.0.7) (2025-08-29)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * improved keep oldest and added tests ([cf8f865](https://github.com/tearoom1/kirby-ftp-backup/commit/cf8f8654d8b55f0e62fb88e552e8890241b7ed0b))
-
-## [1.0.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.2...v1.0.3) (2025-08-16)
-
-
-### Bug Fixes
-
-* keep oldest backup as long as we do not have one for every period. ([af43186](https://github.com/tearoom1/kirby-ftp-backup/commit/af43186104b0500ed354fc694c78187492c155b4))
 
