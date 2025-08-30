@@ -22,4 +22,4 @@ CHANGELOG.md export-ignore
 
 # Tests
 /tests/ export-ignore
-test-runner.php export-ignore
+phpunit.xml export-ignore
