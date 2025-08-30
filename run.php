@@ -32,7 +32,7 @@ if (!file_exists($bootstrapFile)) {
 require $bootstrapFile;
 
 // Initialize Kirby
-$kirby = new Kirby\Cms\App();
+$kirby = new Kirby\Cms\App(['options' => ['url' => '/']]);
 
 echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
 
