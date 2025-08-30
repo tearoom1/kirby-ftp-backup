@@ -28,9 +28,10 @@
 /vendor/**/php4/*
 /vendor/getkirby/composer-installer
 
-# phpunit dependencies that are not needed for the plugin
+# phpunit dependencies that are only needed for testing
 /vendor/bin/php-parse
 /vendor/bin/phpunit
+/vendor/bin/yaml-lint
 /vendor/myclabs/deep-copy/
 /vendor/nikic/php-parser/
 /vendor/phar-io/manifest/
@@ -39,3 +40,15 @@
 /vendor/theseer/
 
 /.phpunit.result.cache
+
+# kirby dependencies that are only needed for testing
+/vendor/christian-riesen
+/vendor/claviska
+/vendor/composer/semver
+/vendor/filp
+/vendor/laminas
+/vendor/league
+/vendor/michelf
+/vendor/phpmailer
+/vendor/psr
+/vendor/symfony
