@@ -7,7 +7,7 @@ namespace TearoomOne\FtpBackup;
  */
 class FtpClient implements FtpClientInterface
 {
-    const TIMEOUT = 60;
+    public const TIMEOUT = 60;
     private string $host;
     private int $port;
     private string $username;

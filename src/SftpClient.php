@@ -10,7 +10,7 @@ use phpseclib3\Crypt\RSA;
  */
 class SftpClient implements FtpClientInterface
 {
-    const TIMEOUT = 60;
+    public const TIMEOUT = 60;
     private string $host;
     private int $port;
     private string $username;
@@ -156,7 +156,7 @@ class SftpClient implements FtpClientInterface
         }
 
         // Filter out . and .. entries
-        return array_values(array_filter($listing, function($item) {
+        return array_values(array_filter($listing, function ($item) {
             return $item !== '.' && $item !== '..';
         }));
     }

@@ -184,7 +184,14 @@ If you encounter issues:
 The tests can be run with:
 
 ```bash
+composer update
 composer test
+```
+
+Make sure to cleanup the vendor after running tests, to remove dev dependencies.
+
+```bash
+composer dist
 ```
 
 ## License

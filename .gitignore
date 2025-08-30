@@ -52,3 +52,10 @@
 /vendor/phpmailer
 /vendor/psr
 /vendor/symfony
+
+# other dependencies that are only needed for development
+/vendor/bin/phpstan*
+/vendor/bin/php-cs-fixer
+/vendor/phpstan
+/vendor/php-cs-fixer
+/.php-cs-fixer.cache

@@ -416,7 +416,7 @@ class BackupManager
 
     /**
      * Apply tiered retention strategy - simple and obvious approach
-     * 
+     *
      * Strategy:
      * 1. Keep X daily backups (one per day)
      * 2. Keep 1 backup per 7-day period for X weeks (max 7 days between)
@@ -425,10 +425,12 @@ class BackupManager
      */
     private function applyTieredRetentionStrategy(array $backups, array $settings): array
     {
-        if (empty($backups)) return [];
+        if (empty($backups)) {
+            return [];
+        }
 
         // Sort newest first
-        usort($backups, fn($a, $b) => $b['timestamp'] - $a['timestamp']);
+        usort($backups, fn ($a, $b) => $b['timestamp'] - $a['timestamp']);
 
         $now = time();
         $dailyDays = max(1, intval($settings['daily']));
@@ -484,19 +486,23 @@ class BackupManager
 
     private function ensureOldestBackup(array $allBackups, array &$keepBackups): void
     {
-        if (empty($allBackups)) return;
+        if (empty($allBackups)) {
+            return;
+        }
 
         // Check if we have any monthly backups already kept
-        $monthlyBackups = array_filter($keepBackups, fn($backup) => 
+        $monthlyBackups = array_filter(
+            $keepBackups,
+            fn ($backup) =>
             isset($backup['retention']) && $backup['retention'] === 'monthly'
         );
 
         // If we have monthly backups, the oldest monthly backup is our anchor
         if (!empty($monthlyBackups)) {
             // Sort monthly backups by timestamp (oldest first)
-            usort($monthlyBackups, fn($a, $b) => $a['timestamp'] - $b['timestamp']);
+            usort($monthlyBackups, fn ($a, $b) => $a['timestamp'] - $b['timestamp']);
             $oldestMonthly = $monthlyBackups[0];
-            
+
             // Update the oldest monthly backup to be the anchor
             foreach ($keepBackups as &$backup) {
                 if ($backup['filename'] === $oldestMonthly['filename']) {
@@ -520,7 +526,9 @@ class BackupManager
 
     private function debugRetention(array $all, array $keep, int $daily, int $weekly, int $monthly): void
     {
-        if (!$this->isLocalDev()) return;
+        if (!$this->isLocalDev()) {
+            return;
+        }
 
         echo "=== TIERED RETENTION ===\n";
         echo "Settings: {$daily}d daily, {$weekly}w weekly, {$monthly}m monthly\n";
@@ -541,7 +549,7 @@ class BackupManager
             $files = $ftpClient->listDirectory($directory);
 
             // Filter to .zip files only
-            $backupFiles = array_filter($files, fn($file) => substr($file, -4) === '.zip');
+            $backupFiles = array_filter($files, fn ($file) => substr($file, -4) === '.zip');
 
             $toDelete = $this->determineFilesToDelete($backupFiles, $settings);
             $deletedCount = $this->deleteFilesFromFtp($toDelete, $ftpClient, $settings);
@@ -588,7 +596,7 @@ class BackupManager
         $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
         $keepFilenames = array_column($keepBackups, 'filename');
 
-        return array_filter($backupFiles, fn($file) => !in_array($file, $keepFilenames));
+        return array_filter($backupFiles, fn ($file) => !in_array($file, $keepFilenames));
     }
 
     /**
@@ -599,7 +607,7 @@ class BackupManager
         $retention = $settings['backupRetention'] ?? 10;
 
         // Sort files by name (assuming they contain dates/timestamps)
-        usort($backupFiles, fn($a, $b) => strcmp($b, $a));
+        usort($backupFiles, fn ($a, $b) => strcmp($b, $a));
 
         return array_slice($backupFiles, $retention);
     }
