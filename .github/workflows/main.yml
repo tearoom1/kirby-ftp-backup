@@ -20,14 +20,13 @@ jobs:
           github-token: ${{ secrets.github_token }}
           git-user-email: "wunderbar@mailbox.org"
           version-file: "composer.json"
-          skip-commit: 'true'
 
       - name: Update composer
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
         run: |
           composer update --no-dev --optimize-autoloader
           git add *
-          git commit -m "chore(release): ${{steps.changelog.outputs.tag}} [skip ci]" || exit 0
+          git commit -m "chore: update composer after version bump" || exit 0
           git push
 
       - name: create release
