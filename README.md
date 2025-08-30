@@ -178,6 +178,15 @@ If you encounter issues:
 - PHP 7.4+
 - PHP ZIP extension
 - PHP FTP extension
+
+## Tests
+
+The tests can be run with:
+
+```bash
+composer test
+```
+
 ## License
 
 This plugin is licensed under the [MIT License](LICENSE)
