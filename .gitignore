@@ -28,6 +28,9 @@
 /vendor/**/php4/*
 /vendor/getkirby/composer-installer
 
+# do not include the installed.php file, as it will mix up the version display in kirby
+/vendor/composer/installed.php
+
 # phpunit dependencies that are only needed for testing
 /vendor/bin/php-parse
 /vendor/bin/phpunit

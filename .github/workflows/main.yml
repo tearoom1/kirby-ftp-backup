@@ -21,17 +21,6 @@ jobs:
           git-user-email: "wunderbar@mailbox.org"
           version-file: "composer.json"
 
-      # As we use third party libs, and deliver a vendor directory,
-      # we need to update composer.json to update the version of the plugin
-      # in vendor/composer/installed.php so that kirby shows the right version
-      - name: Update composer
-        if: ${{ steps.changelog.outputs.skipped == 'false' }}
-        run: |
-          composer update --no-dev --optimize-autoloader
-          git add *
-          git commit -m "chore: update composer after version bump" || exit 0
-          git push
-
       - name: create release
         uses: softprops/action-gh-release@v2
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
