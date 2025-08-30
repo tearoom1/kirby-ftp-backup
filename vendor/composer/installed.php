@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'tearoom1/kirby-ftp-backup',
-        'pretty_version' => '1.0.14',
-        'version' => '1.0.14.0',
+        'pretty_version' => '1.0.15',
+        'version' => '1.0.15.0',
         'reference' => null,
         'type' => 'kirby-plugin',
         'install_path' => __DIR__ . '/../../',
@@ -47,8 +47,8 @@
             'dev_requirement' => false,
         ),
         'tearoom1/kirby-ftp-backup' => array(
-            'pretty_version' => '1.0.14',
-            'version' => '1.0.14.0',
+            'pretty_version' => '1.0.15',
+            'version' => '1.0.15.0',
             'reference' => null,
             'type' => 'kirby-plugin',
             'install_path' => __DIR__ . '/../../',
