@@ -415,7 +415,13 @@ class BackupManager
     }
 
     /**
-     * Apply tiered retention strategy - keep newest, daily, weekly, monthly, and oldest backups
+     * Apply tiered retention strategy - simple and obvious approach
+     * 
+     * Strategy:
+     * 1. Keep X daily backups (one per day)
+     * 2. Keep 1 backup per 7-day period for X weeks (max 7 days between)
+     * 3. Keep 1 backup per 30-day period for X months (max 30 days between)
+     * 4. Always keep the oldest backup as anchor
      */
     private function applyTieredRetentionStrategy(array $backups, array $settings): array
     {
@@ -430,45 +436,39 @@ class BackupManager
         $monthlyMonths = max(1, intval($settings['monthly']));
 
         $keepBackups = [];
-        $weeklySlots = [];
-        $monthlySlots = [];
+        $lastKeptTimestamp = $now;
 
         foreach ($backups as $i => $backup) {
             $ageDays = ($now - $backup['timestamp']) / 86400;
 
-            // Always keep newest
-            if ($i === 0) {
-                $keepBackups[] = $this->markBackup($backup, 'newest');
-                continue;
-            }
-
-            // Keep all within daily period
+            // 1. DAILY PERIOD: Keep all backups within X days (one per day)
             if ($ageDays <= $dailyDays) {
-                $keepBackups[] = $this->markBackup($backup, 'daily');
+                $keepBackups[] = $this->markBackup($backup, $i === 0 ? 'newest' : 'daily');
+                $lastKeptTimestamp = $backup['timestamp'];
                 continue;
             }
 
-            // Keep one per week
+            // 2. WEEKLY PERIOD: Keep 1 per 7-day period for X weeks
             if ($ageDays <= $dailyDays + ($weeklyWeeks * 7)) {
-                $week = floor($ageDays / 7);
-                if (!isset($weeklySlots[$week])) {
-                    $weeklySlots[$week] = true;
+                $daysSinceLastKept = ($lastKeptTimestamp - $backup['timestamp']) / 86400;
+                if ($daysSinceLastKept >= 7) {
                     $keepBackups[] = $this->markBackup($backup, 'weekly');
+                    $lastKeptTimestamp = $backup['timestamp'];
                 }
                 continue;
             }
 
-            // Keep one per month
+            // 3. MONTHLY PERIOD: Keep 1 per 30-day period for X months
             if ($ageDays <= $dailyDays + ($weeklyWeeks * 7) + ($monthlyMonths * 30)) {
-                $month = floor($ageDays / 30);
-                if (!isset($monthlySlots[$month])) {
-                    $monthlySlots[$month] = true;
+                $daysSinceLastKept = ($lastKeptTimestamp - $backup['timestamp']) / 86400;
+                if ($daysSinceLastKept >= 30) {
                     $keepBackups[] = $this->markBackup($backup, 'monthly');
+                    $lastKeptTimestamp = $backup['timestamp'];
                 }
             }
         }
 
-        // Always keep oldest as anchor
+        // 4. ALWAYS KEEP OLDEST as anchor
         $this->ensureOldestBackup($backups, $keepBackups);
 
         $this->debugRetention($backups, $keepBackups, $dailyDays, $weeklyWeeks, $monthlyMonths);
@@ -486,6 +486,28 @@ class BackupManager
     {
         if (empty($allBackups)) return;
 
+        // Check if we have any monthly backups already kept
+        $monthlyBackups = array_filter($keepBackups, fn($backup) => 
+            isset($backup['retention']) && $backup['retention'] === 'monthly'
+        );
+
+        // If we have monthly backups, the oldest monthly backup is our anchor
+        if (!empty($monthlyBackups)) {
+            // Sort monthly backups by timestamp (oldest first)
+            usort($monthlyBackups, fn($a, $b) => $a['timestamp'] - $b['timestamp']);
+            $oldestMonthly = $monthlyBackups[0];
+            
+            // Update the oldest monthly backup to be the anchor
+            foreach ($keepBackups as &$backup) {
+                if ($backup['filename'] === $oldestMonthly['filename']) {
+                    $backup['retention'] = 'oldest-anchor';
+                    break;
+                }
+            }
+            return;
+        }
+
+        // If no monthly backups, keep the very oldest as anchor (fallback for new setups)
         $oldest = end($allBackups);
         $oldest['retention'] = 'oldest-anchor';
 

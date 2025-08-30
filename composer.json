@@ -4,7 +4,7 @@
   "type": "kirby-plugin",
   "license": "MIT",
   "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
-  "version": "1.0.8",
+  "version": "1.0.7",
   "keywords": [
     "kirby",
     "panel",
@@ -30,6 +30,9 @@
   "require": {
     "getkirby/composer-installer": "^1.2",
     "phpseclib/phpseclib": "^3.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0"
   },
   "autoload": {
     "psr-4": {

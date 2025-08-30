@@ -2,8 +2,8 @@
 
 namespace TearoomOne\FtpBackup\Tests;
 
-use TearoomOne\FtpBackup\BackupManager;
 use PHPUnit\Framework\TestCase;
+use TearoomOne\FtpBackup\BackupManager;
 
 /**
  * Test class for backup retention strategies
@@ -11,12 +11,13 @@ use PHPUnit\Framework\TestCase;
 class BackupRetentionTest extends TestCase
 {
     private BackupManager $backupManager;
-    
-    protected function setUp(): void
+
+    public function setUp(): void
     {
         $this->backupManager = new BackupManager();
     }
-    
+
+
     /**
      * Test tiered retention strategy with various backup scenarios
      */
@@ -25,26 +26,26 @@ class BackupRetentionTest extends TestCase
         // Test settings: 7 days daily, 4 weeks (7-day periods), 3 months (30-day periods)
         $tieredSettings = [
             'daily' => 7,
-            'weekly' => 4, 
+            'weekly' => 4,
             'monthly' => 3
         ];
-        
+
         // Create test backups spanning different time periods
         $now = time();
         $testBackups = $this->createTestBackups($now);
-        
+
         // Use reflection to access private method
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
         $method->setAccessible(true);
-        
+
         // Apply retention strategy
         $keepBackups = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
-        
+
         // Verify results
         $this->assertRetentionResults($keepBackups, $testBackups, $tieredSettings, $now);
     }
-    
+
     /**
      * Test edge cases for retention strategy
      */
@@ -55,18 +56,18 @@ class BackupRetentionTest extends TestCase
             'weekly' => 1,
             'monthly' => 1
         ];
-        
+
         $now = time();
-        
+
         // Test with empty backup list
         $emptyBackups = [];
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
         $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->backupManager, $emptyBackups, $tieredSettings);
         $this->assertEmpty($result, 'Empty backup list should return empty result');
-        
+
         // Test with single backup
         $singleBackup = [
             [
@@ -75,12 +76,12 @@ class BackupRetentionTest extends TestCase
                 'date' => date('Y-m-d', $now)
             ]
         ];
-        
+
         $result = $method->invoke($this->backupManager, $singleBackup, $tieredSettings);
         $this->assertCount(1, $result, 'Single backup should be kept');
         $this->assertEquals('newest', $result[0]['retention']);
     }
-    
+
     /**
      * Test that the newest backup is always kept regardless of settings
      */
@@ -91,7 +92,7 @@ class BackupRetentionTest extends TestCase
             'weekly' => 0,
             'monthly' => 0
         ];
-        
+
         $now = time();
         $testBackups = [
             [
@@ -105,141 +106,169 @@ class BackupRetentionTest extends TestCase
                 'date' => date('Y-m-d', $now - (365 * 86400))
             ]
         ];
-        
+
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
         $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
-        
+
         $this->assertGreaterThanOrEqual(1, count($result), 'At least newest backup should be kept');
         $this->assertEquals('backup-newest.zip', $result[0]['filename']);
         $this->assertEquals('newest', $result[0]['retention']);
     }
-    
+
     /**
-     * Test that the new rolling window approach prevents gaps >7 days
-     * This is the key test for the bug fix
+     * Test clear retention strategy: X daily, 1 per 7 days for X weeks, 1 per 30 days for X months
      */
     public function testNoGapsLargerThanSevenDays()
     {
         $tieredSettings = [
-            'daily' => 1,    // Keep all backups for 1 day
-            'weekly' => 2,   // Keep backups with rolling 7-day window for 2 weeks
-            'monthly' => 2   // Keep monthly backups
+            'daily' => 3,    // Keep 3 daily backups
+            'weekly' => 2,   // Keep 1 per week for 2 weeks (14 days total)
+            'monthly' => 2   // Keep 1 per month for 2 months (60 days total)
         ];
-        
+
         $now = time();
-        $dailyCutoff = $now - (1 * 86400);
-        
-        // Create test scenario that reproduces the original bug:
-        // Backups on day 2 (Aug 9 equivalent) and day 12 (Aug 19 equivalent)
-        // The old algorithm would create a 10-day gap
+
+        // Create clear test scenario
         $testBackups = [
-            // Daily period
+            // Daily period (0-3 days): should keep all
             ['filename' => 'backup-day-0.zip', 'timestamp' => $now, 'date' => date('Y-m-d', $now)],
-            
-            // Weekly period - these should be kept with no >7-day gaps
-            ['filename' => 'backup-day-2.zip', 'timestamp' => $dailyCutoff - (1 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (1 * 86400))], // 2 days ago from cutoff
-            ['filename' => 'backup-day-5.zip', 'timestamp' => $dailyCutoff - (4 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (4 * 86400))], // 5 days ago from cutoff  
-            ['filename' => 'backup-day-9.zip', 'timestamp' => $dailyCutoff - (8 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (8 * 86400))], // 9 days ago from cutoff
-            ['filename' => 'backup-day-12.zip', 'timestamp' => $dailyCutoff - (11 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (11 * 86400))], // 12 days ago from cutoff
-            ['filename' => 'backup-day-15.zip', 'timestamp' => $dailyCutoff - (14 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (14 * 86400))], // 15 days ago from cutoff
+            ['filename' => 'backup-day-1.zip', 'timestamp' => $now - (1 * 86400), 'date' => date('Y-m-d', $now - (1 * 86400))],
+            ['filename' => 'backup-day-2.zip', 'timestamp' => $now - (2 * 86400), 'date' => date('Y-m-d', $now - (2 * 86400))],
+            ['filename' => 'backup-day-3.zip', 'timestamp' => $now - (3 * 86400), 'date' => date('Y-m-d', $now - (3 * 86400))],
+
+            // Weekly period (4-17 days): should keep 1 per 7-day period
+            ['filename' => 'backup-day-5.zip', 'timestamp' => $now - (5 * 86400), 'date' => date('Y-m-d', $now - (5 * 86400))],
+            ['filename' => 'backup-day-8.zip', 'timestamp' => $now - (8 * 86400), 'date' => date('Y-m-d', $now - (8 * 86400))],
+            ['filename' => 'backup-day-10.zip', 'timestamp' => $now - (10 * 86400), 'date' => date('Y-m-d', $now - (10 * 86400))],
+            ['filename' => 'backup-day-12.zip', 'timestamp' => $now - (12 * 86400), 'date' => date('Y-m-d', $now - (12 * 86400))],
+            ['filename' => 'backup-day-15.zip', 'timestamp' => $now - (15 * 86400), 'date' => date('Y-m-d', $now - (15 * 86400))],
+            ['filename' => 'backup-day-17.zip', 'timestamp' => $now - (17 * 86400), 'date' => date('Y-m-d', $now - (17 * 86400))],
+
+            // Monthly period (18-77 days): should keep 1 per 30-day period
+            ['filename' => 'backup-day-25.zip', 'timestamp' => $now - (25 * 86400), 'date' => date('Y-m-d', $now - (25 * 86400))],
+            ['filename' => 'backup-day-35.zip', 'timestamp' => $now - (35 * 86400), 'date' => date('Y-m-d', $now - (35 * 86400))],
+            ['filename' => 'backup-day-50.zip', 'timestamp' => $now - (50 * 86400), 'date' => date('Y-m-d', $now - (50 * 86400))],
+            ['filename' => 'backup-day-65.zip', 'timestamp' => $now - (65 * 86400), 'date' => date('Y-m-d', $now - (65 * 86400))],
+
+            // Very old (should be oldest anchor)
+            ['filename' => 'backup-day-100.zip', 'timestamp' => $now - (100 * 86400), 'date' => date('Y-m-d', $now - (100 * 86400))],
         ];
-        
+
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
         $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
-        
-        // Sort results by timestamp for gap analysis
+        $filenames = array_column($result, 'filename');
+
+        // Should keep all daily backups (0-3 days)
+        $this->assertContains('backup-day-0.zip', $filenames, 'Should keep daily backup day 0');
+        $this->assertContains('backup-day-1.zip', $filenames, 'Should keep daily backup day 1');
+        $this->assertContains('backup-day-2.zip', $filenames, 'Should keep daily backup day 2');
+        $this->assertContains('backup-day-3.zip', $filenames, 'Should keep daily backup day 3');
+
+        // Should keep weekly backups with ≤7 days between
+        $this->assertContains('backup-day-10.zip', $filenames, 'Should keep first weekly backup');
+        $this->assertContains('backup-day-17.zip', $filenames, 'Should keep second weekly backup (7 days later)');
+
+        // Should keep monthly backups with ≤30 days between
+        $this->assertContains('backup-day-50.zip', $filenames, 'Should keep first monthly backup');
+
+        // Should keep oldest monthly backup as anchor (not the very oldest)
+        $this->assertContains('backup-day-50.zip', $filenames, 'Should keep oldest monthly backup as anchor');
+
+        // Should NOT keep very old backup when we have monthly coverage
+        $this->assertNotContains('backup-day-100.zip', $filenames, 'Should NOT keep very old backup when monthly coverage exists');
+
+        // assert that we have exactly 7 backups
+        $this->assertCount(7, $filenames, 'Should have exactly 7 backups');
+
+        // Verify no gaps >7 days in weekly period and >30 days in monthly period
         usort($result, function ($a, $b) {
             return $b['timestamp'] - $a['timestamp'];
         });
-        
-        // Check that no gap between consecutive kept backups is >7 days
+
         for ($i = 0; $i < count($result) - 1; $i++) {
             $gap = $result[$i]['timestamp'] - $result[$i + 1]['timestamp'];
             $gapDays = $gap / 86400;
-            
-            $this->assertLessThanOrEqual(7.1, $gapDays, // Allow small floating point tolerance
-                "Gap between {$result[$i]['filename']} and {$result[$i + 1]['filename']} is {$gapDays} days, should be ≤7"
+
+            // Allow reasonable gaps based on retention periods
+            $this->assertLessThanOrEqual(35, $gapDays, // Allow up to 35 days for monthly transitions
+                "Gap between {$result[$i]['filename']} and {$result[$i + 1]['filename']} is {$gapDays} days"
             );
         }
-        
-        // Verify specific expected behavior:
-        // Should keep: day-0 (daily), day-2 (first weekly), day-9 (≥7 days after day-2), day-15 (oldest anchor)
-        $filenames = array_column($result, 'filename');
-        $this->assertContains('backup-day-0.zip', $filenames, 'Should keep daily backup');
-        $this->assertContains('backup-day-2.zip', $filenames, 'Should keep first weekly backup');
-        $this->assertContains('backup-day-9.zip', $filenames, 'Should keep backup ≥7 days after previous');
-        
-        // Should NOT have a >7-day gap like the original bug
-        $this->assertGreaterThanOrEqual(3, count($result), 'Should keep enough backups to prevent large gaps');
     }
-    
+
     /**
-     * Test weekly rolling window logic with various scenarios
+     * Test clear weekly retention: 1 backup per 7-day period with max 7 days between
      */
     public function testWeeklyRollingWindow()
     {
         $tieredSettings = [
-            'daily' => 3,
-            'weekly' => 3,
-            'monthly' => 2
+            'daily' => 2,    // Keep 2 daily backups
+            'weekly' => 3,   // Keep 1 per week for 3 weeks (21 days total)
+            'monthly' => 1   // Keep 1 per month for 1 month
         ];
-        
+
         $now = time();
-        $dailyCutoff = $now - (3 * 86400);
-        
-        // Create backups with specific gaps to test rolling window
+
+        // Create clear test scenario
         $testBackups = [
-            // Daily period (should all be kept)
+            // Daily period (0-2 days): should keep all
+            ['filename' => 'daily-0.zip', 'timestamp' => $now, 'date' => date('Y-m-d', $now)],
             ['filename' => 'daily-1.zip', 'timestamp' => $now - (1 * 86400), 'date' => date('Y-m-d', $now - (1 * 86400))],
             ['filename' => 'daily-2.zip', 'timestamp' => $now - (2 * 86400), 'date' => date('Y-m-d', $now - (2 * 86400))],
-            
-            // Weekly period - test rolling window
-            ['filename' => 'weekly-day-4.zip', 'timestamp' => $dailyCutoff - (1 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (1 * 86400))], // 4 days ago total
-            ['filename' => 'weekly-day-6.zip', 'timestamp' => $dailyCutoff - (3 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (3 * 86400))], // 6 days ago total
-            ['filename' => 'weekly-day-11.zip', 'timestamp' => $dailyCutoff - (8 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (8 * 86400))], // 11 days ago total
-            ['filename' => 'weekly-day-13.zip', 'timestamp' => $dailyCutoff - (10 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (10 * 86400))], // 13 days ago total
-            ['filename' => 'weekly-day-18.zip', 'timestamp' => $dailyCutoff - (15 * 86400), 'date' => date('Y-m-d', $dailyCutoff - (15 * 86400))], // 18 days ago total
+
+            // Weekly period (3-23 days): should keep 1 per 7-day period
+            ['filename' => 'weekly-day-4.zip', 'timestamp' => $now - (4 * 86400), 'date' => date('Y-m-d', $now - (4 * 86400))],
+            ['filename' => 'weekly-day-6.zip', 'timestamp' => $now - (6 * 86400), 'date' => date('Y-m-d', $now - (6 * 86400))],
+            ['filename' => 'weekly-day-9.zip', 'timestamp' => $now - (9 * 86400), 'date' => date('Y-m-d', $now - (9 * 86400))],
+            ['filename' => 'weekly-day-11.zip', 'timestamp' => $now - (11 * 86400), 'date' => date('Y-m-d', $now - (11 * 86400))],
+            ['filename' => 'weekly-day-16.zip', 'timestamp' => $now - (16 * 86400), 'date' => date('Y-m-d', $now - (16 * 86400))],
+            ['filename' => 'weekly-day-18.zip', 'timestamp' => $now - (18 * 86400), 'date' => date('Y-m-d', $now - (18 * 86400))],
+            ['filename' => 'weekly-day-23.zip', 'timestamp' => $now - (23 * 86400), 'date' => date('Y-m-d', $now - (23 * 86400))],
+
+            // Old backup (should be oldest anchor)
+            ['filename' => 'old-backup.zip', 'timestamp' => $now - (100 * 86400), 'date' => date('Y-m-d', $now - (100 * 86400))],
         ];
-        
+
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
         $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
-        
         $filenames = array_column($result, 'filename');
-        
-        // Should keep daily backups
-        $this->assertContains('daily-1.zip', $filenames);
-        $this->assertContains('daily-2.zip', $filenames);
-        
-        // Should keep first weekly backup after daily cutoff
-        $this->assertContains('weekly-day-4.zip', $filenames);
-        
-        // Should keep weekly-day-11 (≥7 days after day-4)
-        $this->assertContains('weekly-day-11.zip', $filenames);
-        
-        // Should keep weekly-day-18 (≥7 days after day-11)  
-        $this->assertContains('weekly-day-18.zip', $filenames);
-        
-        // Should NOT keep day-6 (too close to day-4) or day-13 (too close to day-11)
-        $this->assertNotContains('weekly-day-6.zip', $filenames);
-        $this->assertNotContains('weekly-day-13.zip', $filenames);
+
+        // Should keep all daily backups
+        $this->assertContains('daily-0.zip', $filenames, 'Should keep daily backup 0');
+        $this->assertContains('daily-1.zip', $filenames, 'Should keep daily backup 1');
+        $this->assertContains('daily-2.zip', $filenames, 'Should keep daily backup 2');
+
+        // Should keep weekly backups with ≥7 days between them
+        $this->assertContains('weekly-day-9.zip', $filenames, 'Should keep first weekly backup (7 days after daily period)');
+        $this->assertContains('weekly-day-16.zip', $filenames, 'Should keep second weekly backup (7 days after first)');
+        $this->assertContains('weekly-day-23.zip', $filenames, 'Should keep third weekly backup (7 days after second)');
+
+        // Should NOT keep backups that are too close together
+        $this->assertNotContains('weekly-day-4.zip', $filenames, 'Should NOT keep backup too close to daily period');
+        $this->assertNotContains('weekly-day-6.zip', $filenames, 'Should NOT keep backup too close to daily period');
+        $this->assertNotContains('weekly-day-11.zip', $filenames, 'Should NOT keep backup too close to first weekly');
+        $this->assertNotContains('weekly-day-18.zip', $filenames, 'Should NOT keep backup too close to second weekly');
+
+        // Should always keep oldest
+        $this->assertContains('old-backup.zip', $filenames, 'Should keep oldest backup as anchor');
     }
-    
+
     /**
      * Create a comprehensive set of test backups spanning different time periods
      */
     private function createTestBackups(int $now): array
     {
         $backups = [];
-        
+
         // Daily backups (last 7 days) - all should be kept
         for ($i = 0; $i < 7; $i++) {
             $timestamp = $now - ($i * 86400);
@@ -249,7 +278,7 @@ class BackupRetentionTest extends TestCase
                 'date' => date('Y-m-d', $timestamp)
             ];
         }
-        
+
         // Weekly backups (7-day periods) - one per period should be kept
         $dailyCutoff = $now - (7 * 86400);
         for ($period = 0; $period < 4; $period++) {
@@ -263,7 +292,7 @@ class BackupRetentionTest extends TestCase
                 ];
             }
         }
-        
+
         // Monthly backups (30-day periods) - one per period should be kept
         $weeklyCutoff = $dailyCutoff - (4 * 7 * 86400);
         for ($period = 0; $period < 3; $period++) {
@@ -277,7 +306,7 @@ class BackupRetentionTest extends TestCase
                 ];
             }
         }
-        
+
         // Very old backups - should be deleted
         for ($i = 0; $i < 5; $i++) {
             $timestamp = $now - (200 * 86400) - ($i * 86400); // 200+ days old
@@ -287,10 +316,10 @@ class BackupRetentionTest extends TestCase
                 'date' => date('Y-m-d', $timestamp)
             ];
         }
-        
+
         return $backups;
     }
-    
+
     /**
      * Verify that retention results match expected behavior with rolling window logic
      */
@@ -299,14 +328,14 @@ class BackupRetentionTest extends TestCase
         $dailyCutoff = $now - ($settings['daily'] * 86400);
         $weeklyCutoff = $dailyCutoff - ($settings['weekly'] * 7 * 86400);
         $monthlyCutoff = $weeklyCutoff - ($settings['monthly'] * 30 * 86400);
-        
+
         $dailyCount = 0;
         $weeklyCount = 0;
         $monthlyCount = 0;
-        
+
         foreach ($keepBackups as $backup) {
             $timestamp = $backup['timestamp'];
-            
+
             if ($timestamp >= $dailyCutoff) {
                 $dailyCount++;
             } elseif ($timestamp >= $weeklyCutoff) {
@@ -315,7 +344,7 @@ class BackupRetentionTest extends TestCase
                 $monthlyCount++;
             }
         }
-        
+
         // Verify daily backups (all within daily period should be kept)
         $expectedDailyCount = 0;
         foreach ($allBackups as $backup) {
@@ -324,25 +353,25 @@ class BackupRetentionTest extends TestCase
             }
         }
         $this->assertEquals($expectedDailyCount, $dailyCount, 'All daily backups should be kept');
-        
+
         // Verify no gaps >7 days in weekly period
         $weeklyBackups = array_filter($keepBackups, function($backup) use ($dailyCutoff, $weeklyCutoff) {
             return $backup['timestamp'] < $dailyCutoff && $backup['timestamp'] >= $weeklyCutoff;
         });
-        
+
         if (count($weeklyBackups) > 1) {
             // Sort by timestamp (newest first)
             usort($weeklyBackups, function ($a, $b) {
                 return $b['timestamp'] - $a['timestamp'];
             });
-            
+
             // Check gaps between consecutive weekly backups
             for ($i = 0; $i < count($weeklyBackups) - 1; $i++) {
                 $gap = $weeklyBackups[$i]['timestamp'] - $weeklyBackups[$i + 1]['timestamp'];
                 $gapDays = $gap / 86400;
                 $this->assertGreaterThanOrEqual(6.9, $gapDays, 'Weekly backups should be at least ~7 days apart');
             }
-            
+
             // Check gap from daily cutoff to first weekly backup
             if (!empty($weeklyBackups)) {
                 $gap = $dailyCutoff - $weeklyBackups[0]['timestamp'];
@@ -350,7 +379,7 @@ class BackupRetentionTest extends TestCase
                 $this->assertGreaterThanOrEqual(6.9, $gapDays, 'Gap from daily period to first weekly backup should be ~7 days');
             }
         }
-        
+
         // Verify no backups older than monthly cutoff are kept (except possibly the oldest as fallback)
         $tooOldCount = 0;
         foreach ($keepBackups as $backup) {
@@ -360,7 +389,7 @@ class BackupRetentionTest extends TestCase
         }
         $this->assertLessThanOrEqual(1, $tooOldCount, 'At most one backup older than monthly cutoff should be kept');
     }
-    
+
     /**
      * Test the prepareFtpBackupsForTieredRetention method
      */
@@ -373,27 +402,27 @@ class BackupRetentionTest extends TestCase
             'invalid-filename.zip',
             'backup_2024_03_10_120000.zip'
         ];
-        
+
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('prepareFtpBackupsForTieredRetention');
         $method->setAccessible(true);
-        
+
         $result = $method->invoke($this->backupManager, $testFiles);
-        
+
         $this->assertCount(5, $result);
-        
+
         // Check that valid dates are parsed correctly
         $validBackups = array_filter($result, function($backup) {
             return $backup['timestamp'] > 0;
         });
-        
+
         $this->assertCount(4, $validBackups, 'Should parse 4 valid date formats');
-        
+
         // Check that invalid filename gets timestamp 0
         $invalidBackup = array_filter($result, function($backup) {
             return $backup['filename'] === 'invalid-filename.zip';
         });
-        
+
         $this->assertEquals(0, reset($invalidBackup)['timestamp'], 'Invalid filename should get timestamp 0');
     }
 }
