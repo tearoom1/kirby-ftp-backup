@@ -4,7 +4,7 @@
   "type": "kirby-plugin",
   "license": "MIT",
   "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
-  "version": "1.0.14",
+  "version": "1.0.12",
   "keywords": [
     "kirby",
     "panel",
