@@ -1,3 +1,10 @@
+## [1.0.13](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.12...v1.0.13) (2025-08-30)
+
+
+### Bug Fixes
+
+* fix no-dev vendor ([0e4351d](https://github.com/tearoom1/kirby-ftp-backup/commit/0e4351d5094cc2267b7ccfb89afca79c73f2163b))
+
 ## [1.0.12](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.11...v1.0.12) (2025-08-30)
 
 
@@ -31,11 +38,4 @@
 * updated composer ([f892723](https://github.com/tearoom1/kirby-ftp-backup/commit/f8927237a86be107619576796ceab8d9a5f5d1b2))
 * updated composer ([d2be2b9](https://github.com/tearoom1/kirby-ftp-backup/commit/d2be2b9365fd73ec196d659b7d8b953074ebe0e9))
 * updated composer ([a464082](https://github.com/tearoom1/kirby-ftp-backup/commit/a46408291e87d42f23f3ceaaf3a7debd55ab4835))
-
-## [1.0.8](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.7...v1.0.8) (2025-08-29)
-
-
-### Bug Fixes
-
-* updated workflow to use softprops/action-gh-release@v2 ([15fe35b](https://github.com/tearoom1/kirby-ftp-backup/commit/15fe35bf828762e13a8bcb6bdbcd4f222c5f175a))
 
