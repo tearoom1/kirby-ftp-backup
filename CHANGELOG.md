@@ -1,3 +1,10 @@
+## [1.0.17](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.16...v1.0.17) (2025-08-30)
+
+
+### Bug Fixes
+
+* add / as url when bootstrapping kirby for cron run.php [#3](https://github.com/tearoom1/kirby-ftp-backup/issues/3) ([44a344d](https://github.com/tearoom1/kirby-ftp-backup/commit/44a344dcfab308d10ce4750667103f18c0061f45))
+
 ## [1.0.16](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.15...v1.0.16) (2025-08-30)
 
 
@@ -28,11 +35,4 @@
 * fix no-dev vendor ([0e4351d](https://github.com/tearoom1/kirby-ftp-backup/commit/0e4351d5094cc2267b7ccfb89afca79c73f2163b))
 * working on workflow issues ([1501fb6](https://github.com/tearoom1/kirby-ftp-backup/commit/1501fb6b9b9bc3fd1cad2358b80ec31b070c497a))
 * working on workflow issues ([9c57d70](https://github.com/tearoom1/kirby-ftp-backup/commit/9c57d700fa9e26942d55251e420a5403d0fbe167))
-
-## [1.0.12](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.11...v1.0.12) (2025-08-30)
-
-
-### Bug Fixes
-
-* nullable param ([41c8c3f](https://github.com/tearoom1/kirby-ftp-backup/commit/41c8c3f54e780c08eb5341f01f0dd3ef76ca2bd0))
 
