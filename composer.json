@@ -4,7 +4,7 @@
     "type": "kirby-plugin",
     "license": "MIT",
     "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "keywords": [
         "kirby",
         "panel",
@@ -22,10 +22,6 @@
     "support": {
         "docs": "https://github.com/tearoom1/kirby-ftp-backup/blob/main/README.md",
         "source": "https://github.com/tearoom1/kirby-ftp-backup"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/tearoom1/kirby-ftp-backup.git"
     },
     "require": {
         "getkirby/composer-installer": "^1.2",
