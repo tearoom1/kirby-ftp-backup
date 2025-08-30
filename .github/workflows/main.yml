@@ -25,11 +25,7 @@ jobs:
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
         run: |
           composer update --no-dev --optimize-autoloader
-          git add composer.json
-          git add composer.lock
-          git add CHANGELOG.md
-          git add vendor/autoload.php
-          git add vendor/composer
+          git add * 2> /dev/null
           git commit -m "chore: update composer.lock after version bump" || exit 0
           git push
 
