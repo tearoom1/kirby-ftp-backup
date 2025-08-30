@@ -1,3 +1,10 @@
+## [1.0.16](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.15...v1.0.16) (2025-08-30)
+
+
+### Bug Fixes
+
+* testing removal of installed.php ([ef8dcde](https://github.com/tearoom1/kirby-ftp-backup/commit/ef8dcde2e9a9540e51f1c8931843c12300efc95d))
+
 ## [1.0.15](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.14...v1.0.15) (2025-08-30)
 
 
@@ -28,11 +35,4 @@
 ### Bug Fixes
 
 * nullable param ([41c8c3f](https://github.com/tearoom1/kirby-ftp-backup/commit/41c8c3f54e780c08eb5341f01f0dd3ef76ca2bd0))
-
-## [1.0.11](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.10...v1.0.11) (2025-08-30)
-
-
-### Bug Fixes
-
-* ignore phpunit.xml ([3ec95da](https://github.com/tearoom1/kirby-ftp-backup/commit/3ec95da3fcdb7c2527c6f0077f7868540f40b503))
 
