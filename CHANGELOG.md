@@ -3,6 +3,7 @@
 
 ### Bug Fixes
 
+* single commit not working ([c9d3e5f](https://github.com/tearoom1/kirby-ftp-backup/commit/c9d3e5f5937aff7ca2ba0b57dd3cbed402f77580))
 * testing single commit for release ([3441fd1](https://github.com/tearoom1/kirby-ftp-backup/commit/3441fd1e07613dc1019854d490a105f715327ad1))
 
 ## [1.0.14](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.13...v1.0.14) (2025-08-30)
