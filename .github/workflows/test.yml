@@ -24,12 +24,6 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
 
-      - name: Install dependencies
-        run: composer update --no-progress
-
-      - name: Validate composer.json and composer.lock
-        run: composer validate
-
       - name: Cache Composer packages
         id: composer-cache
         uses: actions/cache@v3
@@ -38,6 +32,12 @@ jobs:
           key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
             ${{ runner.os }}-php-
+
+      - name: Install dependencies
+        run: composer update --no-progress
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate
 
       # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
       # Docs: https://getcomposer.org/doc/articles/scripts.md
