@@ -1,3 +1,10 @@
+## [1.0.14](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.13...v1.0.14) (2025-08-30)
+
+
+### Bug Fixes
+
+* working on workflow issues ([9c57d70](https://github.com/tearoom1/kirby-ftp-backup/commit/9c57d700fa9e26942d55251e420a5403d0fbe167))
+
 ## [1.0.13](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.12...v1.0.13) (2025-08-30)
 
 
@@ -25,17 +32,4 @@
 ### Bug Fixes
 
 * fixing workflow ([c924497](https://github.com/tearoom1/kirby-ftp-backup/commit/c92449742f57acc740c2f8d9deb1da053e49787b))
-
-## [1.0.9](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.8...v1.0.9) (2025-08-30)
-
-
-### Bug Fixes
-
-* fixing workflow ([db2e546](https://github.com/tearoom1/kirby-ftp-backup/commit/db2e546c1bef7ed7d339c63c54a8fdf0cabc3de8))
-* fixing workflow ([89a74d5](https://github.com/tearoom1/kirby-ftp-backup/commit/89a74d576ad63a8906b1bcff068ad4c4701aab99))
-* improved retention algorithm and tests ([bcff353](https://github.com/tearoom1/kirby-ftp-backup/commit/bcff353af258ac30704a43f2d5754d9c2a9d4af0))
-* updated composer ([04b5113](https://github.com/tearoom1/kirby-ftp-backup/commit/04b51134b93a0e55553b04d94c62a9a9e8b5aa17))
-* updated composer ([f892723](https://github.com/tearoom1/kirby-ftp-backup/commit/f8927237a86be107619576796ceab8d9a5f5d1b2))
-* updated composer ([d2be2b9](https://github.com/tearoom1/kirby-ftp-backup/commit/d2be2b9365fd73ec196d659b7d8b953074ebe0e9))
-* updated composer ([a464082](https://github.com/tearoom1/kirby-ftp-backup/commit/a46408291e87d42f23f3ceaaf3a7debd55ab4835))
 
