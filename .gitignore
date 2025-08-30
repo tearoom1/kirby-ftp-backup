@@ -8,7 +8,7 @@
 /kirby
 
 # files of Composer dependencies that are not needed for the plugin
-/vendor/
+/vendor
 !/vendor/autoload.php
 !/vendor/composer
 !/vendor/phpseclib
