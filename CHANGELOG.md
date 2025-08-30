@@ -1,3 +1,10 @@
+## [1.0.10](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.9...v1.0.10) (2025-08-30)
+
+
+### Bug Fixes
+
+* fixing workflow ([c924497](https://github.com/tearoom1/kirby-ftp-backup/commit/c92449742f57acc740c2f8d9deb1da053e49787b))
+
 ## [1.0.9](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.8...v1.0.9) (2025-08-30)
 
 
@@ -31,11 +38,4 @@
 ### Bug Fixes
 
 * update composer after version bump ([8fa686e](https://github.com/tearoom1/kirby-ftp-backup/commit/8fa686e87342f32015d7ce9cdf5ec833d9923845))
-
-## [1.0.5](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.4...v1.0.5) (2025-08-26)
-
-
-### Bug Fixes
-
-* Improved 7 day retention period ([f3951a6](https://github.com/tearoom1/kirby-ftp-backup/commit/f3951a627e50c90e7711eb37f9cfa5dfab9e0c4b))
 
