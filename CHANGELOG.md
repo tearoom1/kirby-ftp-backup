@@ -1,3 +1,10 @@
+## [1.0.15](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.14...v1.0.15) (2025-08-30)
+
+
+### Bug Fixes
+
+* testing single commit for release ([3441fd1](https://github.com/tearoom1/kirby-ftp-backup/commit/3441fd1e07613dc1019854d490a105f715327ad1))
+
 ## [1.0.14](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.13...v1.0.14) (2025-08-30)
 
 
@@ -27,11 +34,4 @@
 ### Bug Fixes
 
 * ignore phpunit.xml ([3ec95da](https://github.com/tearoom1/kirby-ftp-backup/commit/3ec95da3fcdb7c2527c6f0077f7868540f40b503))
-
-## [1.0.10](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.9...v1.0.10) (2025-08-30)
-
-
-### Bug Fixes
-
-* fixing workflow ([c924497](https://github.com/tearoom1/kirby-ftp-backup/commit/c92449742f57acc740c2f8d9deb1da053e49787b))
 
