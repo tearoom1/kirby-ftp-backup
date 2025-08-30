@@ -25,8 +25,9 @@ jobs:
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
         run: |
           composer update --no-dev --optimize-autoloader
-          git config set advice.addIgnoredFile false
-          git add *
+          git add composer.json
+          git add composer.lock
+          git add CHANGELOG.md
           git commit -m "chore: update composer.lock after version bump" || exit 0
           git push
 
