@@ -24,8 +24,8 @@ class SftpClient implements FtpClientInterface
         int $port = 22,
         string $username = '',
         string $password = '',
-        string $privateKey = null,
-        string $passphrase = null
+        string|null $privateKey = null,
+        string|null $passphrase = null
     ) {
         $this->host = $host;
         $this->port = $port;
