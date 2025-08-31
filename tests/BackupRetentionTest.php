@@ -118,6 +118,68 @@ class BackupRetentionTest extends TestCase
         $this->assertEquals('newest', $result[0]['retention']);
     }
 
+
+    /**
+     * Test clear retention strategy: X daily, 1 per 7 days for X weeks, 1 per 30 days for X months
+     */
+    public function testRetentionWorksWithGaps()
+    {
+        $tieredSettings = [
+            'daily' => 3,    // Keep 3 daily backups
+            'weekly' => 2,   // Keep 1 per week for 2 weeks (14 days total)
+            'monthly' => 2   // Keep 1 per month for 2 months (60 days total)
+        ];
+
+        $now = time();
+
+        // Create clear test scenario
+        $testBackups = [
+            // Daily period (0-3 days): should keep all
+            ['filename' => 'backup-day-0.zip', 'timestamp' => $now],
+            ['filename' => 'backup-day-1.zip', 'timestamp' => $now - (1 * 86400)],
+            ['filename' => 'backup-day-2.zip', 'timestamp' => $now - (2 * 86400)],
+            ['filename' => 'backup-day-3.zip', 'timestamp' => $now - (3 * 86400)],
+            ['filename' => 'backup-day-4.zip', 'timestamp' => $now - (4 * 86400)],
+
+            // Weekly period (4-17 days): should keep 1 per 7-day period
+            ['filename' => 'backup-day-15.zip', 'timestamp' => $now - (15 * 86400)],
+        ];
+
+        $reflection = new \ReflectionClass($this->backupManager);
+        $method = $reflection->getMethod('applyTieredRetentionStrategy');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
+        $filenames = array_column($result, 'filename');
+
+        // Should keep all daily backups (0-3 days)
+        $this->assertContains('backup-day-0.zip', $filenames, 'Should keep daily backup day 0');
+        $this->assertContains('backup-day-1.zip', $filenames, 'Should keep daily backup day 1');
+        $this->assertContains('backup-day-2.zip', $filenames, 'Should keep daily backup day 2');
+        $this->assertContains('backup-day-3.zip', $filenames, 'Should keep daily backup day 3');
+
+        // should keep as first weekly backup
+        $this->assertContains('backup-day-4.zip', $filenames, 'Should keep weekly backup day 4');
+
+        // Should keep as second weekly backup
+        $this->assertContains('backup-day-15.zip', $filenames, 'Should keep only weekly backup');
+
+        // Verify no gaps >7 days in weekly period and >30 days in monthly period
+        usort($result, function ($a, $b) {
+            return $b['timestamp'] - $a['timestamp'];
+        });
+
+        for ($i = 0; $i < count($result) - 1; $i++) {
+            $gap = $result[$i]['timestamp'] - $result[$i + 1]['timestamp'];
+            $gapDays = $gap / 86400;
+
+            // Allow reasonable gaps based on retention periods
+            $this->assertLessThanOrEqual(35, $gapDays, // Allow up to 35 days for monthly transitions
+                "Gap between {$result[$i]['filename']} and {$result[$i + 1]['filename']} is {$gapDays} days"
+            );
+        }
+    }
+
     /**
      * Test clear retention strategy: X daily, 1 per 7 days for X weeks, 1 per 30 days for X months
      */
@@ -134,27 +196,27 @@ class BackupRetentionTest extends TestCase
         // Create clear test scenario
         $testBackups = [
             // Daily period (0-3 days): should keep all
-            ['filename' => 'backup-day-0.zip', 'timestamp' => $now, 'date' => date('Y-m-d', $now)],
-            ['filename' => 'backup-day-1.zip', 'timestamp' => $now - (1 * 86400), 'date' => date('Y-m-d', $now - (1 * 86400))],
-            ['filename' => 'backup-day-2.zip', 'timestamp' => $now - (2 * 86400), 'date' => date('Y-m-d', $now - (2 * 86400))],
-            ['filename' => 'backup-day-3.zip', 'timestamp' => $now - (3 * 86400), 'date' => date('Y-m-d', $now - (3 * 86400))],
+            ['filename' => 'backup-day-0.zip', 'timestamp' => $now],
+            ['filename' => 'backup-day-1.zip', 'timestamp' => $now - (1 * 86400)],
+            ['filename' => 'backup-day-2.zip', 'timestamp' => $now - (2 * 86400)],
+            ['filename' => 'backup-day-3.zip', 'timestamp' => $now - (3 * 86400)],
 
             // Weekly period (4-17 days): should keep 1 per 7-day period
-            ['filename' => 'backup-day-5.zip', 'timestamp' => $now - (5 * 86400), 'date' => date('Y-m-d', $now - (5 * 86400))],
-            ['filename' => 'backup-day-8.zip', 'timestamp' => $now - (8 * 86400), 'date' => date('Y-m-d', $now - (8 * 86400))],
-            ['filename' => 'backup-day-10.zip', 'timestamp' => $now - (10 * 86400), 'date' => date('Y-m-d', $now - (10 * 86400))],
-            ['filename' => 'backup-day-12.zip', 'timestamp' => $now - (12 * 86400), 'date' => date('Y-m-d', $now - (12 * 86400))],
-            ['filename' => 'backup-day-15.zip', 'timestamp' => $now - (15 * 86400), 'date' => date('Y-m-d', $now - (15 * 86400))],
-            ['filename' => 'backup-day-17.zip', 'timestamp' => $now - (17 * 86400), 'date' => date('Y-m-d', $now - (17 * 86400))],
+            ['filename' => 'backup-day-5.zip', 'timestamp' => $now - (5 * 86400)],
+            ['filename' => 'backup-day-8.zip', 'timestamp' => $now - (8 * 86400)],
+            ['filename' => 'backup-day-10.zip', 'timestamp' => $now - (10 * 86400)],
+            ['filename' => 'backup-day-12.zip', 'timestamp' => $now - (12 * 86400)],
+            ['filename' => 'backup-day-15.zip', 'timestamp' => $now - (15 * 86400)],
+            ['filename' => 'backup-day-17.zip', 'timestamp' => $now - (17 * 86400)],
 
             // Monthly period (18-77 days): should keep 1 per 30-day period
-            ['filename' => 'backup-day-25.zip', 'timestamp' => $now - (25 * 86400), 'date' => date('Y-m-d', $now - (25 * 86400))],
-            ['filename' => 'backup-day-35.zip', 'timestamp' => $now - (35 * 86400), 'date' => date('Y-m-d', $now - (35 * 86400))],
-            ['filename' => 'backup-day-50.zip', 'timestamp' => $now - (50 * 86400), 'date' => date('Y-m-d', $now - (50 * 86400))],
-            ['filename' => 'backup-day-65.zip', 'timestamp' => $now - (65 * 86400), 'date' => date('Y-m-d', $now - (65 * 86400))],
+            ['filename' => 'backup-day-25.zip', 'timestamp' => $now - (25 * 86400)],
+            ['filename' => 'backup-day-35.zip', 'timestamp' => $now - (35 * 86400)],
+            ['filename' => 'backup-day-50.zip', 'timestamp' => $now - (50 * 86400)],
+            ['filename' => 'backup-day-65.zip', 'timestamp' => $now - (65 * 86400)],
 
             // Very old (should be oldest anchor)
-            ['filename' => 'backup-day-100.zip', 'timestamp' => $now - (100 * 86400), 'date' => date('Y-m-d', $now - (100 * 86400))],
+            ['filename' => 'backup-day-100.zip', 'timestamp' => $now - (100 * 86400)],
         ];
 
         $reflection = new \ReflectionClass($this->backupManager);
@@ -218,21 +280,21 @@ class BackupRetentionTest extends TestCase
         // Create clear test scenario
         $testBackups = [
             // Daily period (0-2 days): should keep all
-            ['filename' => 'daily-0.zip', 'timestamp' => $now, 'date' => date('Y-m-d', $now)],
-            ['filename' => 'daily-1.zip', 'timestamp' => $now - (1 * 86400), 'date' => date('Y-m-d', $now - (1 * 86400))],
-            ['filename' => 'daily-2.zip', 'timestamp' => $now - (2 * 86400), 'date' => date('Y-m-d', $now - (2 * 86400))],
+            ['filename' => 'daily-0.zip', 'timestamp' => $now],
+            ['filename' => 'daily-1.zip', 'timestamp' => $now - (1 * 86400)],
+            ['filename' => 'daily-2.zip', 'timestamp' => $now - (2 * 86400)],
 
             // Weekly period (3-23 days): should keep 1 per 7-day period
-            ['filename' => 'weekly-day-4.zip', 'timestamp' => $now - (4 * 86400), 'date' => date('Y-m-d', $now - (4 * 86400))],
-            ['filename' => 'weekly-day-6.zip', 'timestamp' => $now - (6 * 86400), 'date' => date('Y-m-d', $now - (6 * 86400))],
-            ['filename' => 'weekly-day-9.zip', 'timestamp' => $now - (9 * 86400), 'date' => date('Y-m-d', $now - (9 * 86400))],
-            ['filename' => 'weekly-day-11.zip', 'timestamp' => $now - (11 * 86400), 'date' => date('Y-m-d', $now - (11 * 86400))],
-            ['filename' => 'weekly-day-16.zip', 'timestamp' => $now - (16 * 86400), 'date' => date('Y-m-d', $now - (16 * 86400))],
-            ['filename' => 'weekly-day-18.zip', 'timestamp' => $now - (18 * 86400), 'date' => date('Y-m-d', $now - (18 * 86400))],
-            ['filename' => 'weekly-day-23.zip', 'timestamp' => $now - (23 * 86400), 'date' => date('Y-m-d', $now - (23 * 86400))],
+            ['filename' => 'weekly-day-4.zip', 'timestamp' => $now - (4 * 86400)],
+            ['filename' => 'weekly-day-6.zip', 'timestamp' => $now - (6 * 86400)],
+            ['filename' => 'weekly-day-9.zip', 'timestamp' => $now - (9 * 86400)],
+            ['filename' => 'weekly-day-11.zip', 'timestamp' => $now - (11 * 86400)],
+            ['filename' => 'weekly-day-16.zip', 'timestamp' => $now - (16 * 86400)],
+            ['filename' => 'weekly-day-18.zip', 'timestamp' => $now - (18 * 86400)],
+            ['filename' => 'weekly-day-23.zip', 'timestamp' => $now - (23 * 86400)],
 
             // Old backup (should be oldest anchor)
-            ['filename' => 'old-backup.zip', 'timestamp' => $now - (100 * 86400), 'date' => date('Y-m-d', $now - (100 * 86400))],
+            ['filename' => 'old-backup.zip', 'timestamp' => $now - (100 * 86400)],
         ];
 
         $reflection = new \ReflectionClass($this->backupManager);
