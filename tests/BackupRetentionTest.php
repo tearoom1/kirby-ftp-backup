@@ -206,6 +206,7 @@ class BackupRetentionTest extends TestCase
             ['filename' => 'backup-day-8.zip', 'timestamp' => $now - (8 * 86400)],
             ['filename' => 'backup-day-10.zip', 'timestamp' => $now - (10 * 86400)],
             ['filename' => 'backup-day-12.zip', 'timestamp' => $now - (12 * 86400)],
+            ['filename' => 'backup-day-13.zip', 'timestamp' => $now - (13 * 86400)],
             ['filename' => 'backup-day-15.zip', 'timestamp' => $now - (15 * 86400)],
             ['filename' => 'backup-day-17.zip', 'timestamp' => $now - (17 * 86400)],
 
@@ -232,21 +233,19 @@ class BackupRetentionTest extends TestCase
         $this->assertContains('backup-day-2.zip', $filenames, 'Should keep daily backup day 2');
         $this->assertContains('backup-day-3.zip', $filenames, 'Should keep daily backup day 3');
 
-        // Should keep weekly backups with ≤7 days between
-        $this->assertContains('backup-day-10.zip', $filenames, 'Should keep first weekly backup');
-        $this->assertContains('backup-day-17.zip', $filenames, 'Should keep second weekly backup (7 days later)');
+        // Should keep weekly backups (oldest in each period)
+        $this->assertContains('backup-day-10.zip', $filenames, 'Should keep oldest in first weekly period');
+        $this->assertContains('backup-day-17.zip', $filenames, 'Should keep oldest in second weekly period');
 
-        // Should keep monthly backups with ≤30 days between
-        $this->assertContains('backup-day-50.zip', $filenames, 'Should keep first monthly backup');
-
-        // Should keep oldest monthly backup as anchor (not the very oldest)
-        $this->assertContains('backup-day-50.zip', $filenames, 'Should keep oldest monthly backup as anchor');
+        // Should keep monthly backups (oldest in each period)
+        $this->assertContains('backup-day-35.zip', $filenames, 'Should keep oldest in first monthly period');
+        $this->assertContains('backup-day-65.zip', $filenames, 'Should keep oldest in second monthly period');
 
         // Should NOT keep very old backup when we have monthly coverage
         $this->assertNotContains('backup-day-100.zip', $filenames, 'Should NOT keep very old backup when monthly coverage exists');
 
-        // assert that we have exactly 7 backups
-        $this->assertCount(7, $filenames, 'Should have exactly 7 backups');
+        // assert that we have exactly 8 backups (4 daily + 2 weekly + 2 monthly)
+        $this->assertCount(8, $filenames, 'Should have exactly 8 backups');
 
         // Verify no gaps >7 days in weekly period and >30 days in monthly period
         usort($result, function ($a, $b) {
@@ -309,16 +308,16 @@ class BackupRetentionTest extends TestCase
         $this->assertContains('daily-1.zip', $filenames, 'Should keep daily backup 1');
         $this->assertContains('daily-2.zip', $filenames, 'Should keep daily backup 2');
 
-        // Should keep weekly backups with ≥7 days between them
-        $this->assertContains('weekly-day-9.zip', $filenames, 'Should keep first weekly backup (7 days after daily period)');
-        $this->assertContains('weekly-day-16.zip', $filenames, 'Should keep second weekly backup (7 days after first)');
-        $this->assertContains('weekly-day-23.zip', $filenames, 'Should keep third weekly backup (7 days after second)');
+        // Should keep weekly backups (oldest in each period)
+        $this->assertContains('weekly-day-9.zip', $filenames, 'Should keep oldest in first weekly period');
+        $this->assertContains('weekly-day-16.zip', $filenames, 'Should keep oldest in second weekly period');
+        $this->assertContains('weekly-day-23.zip', $filenames, 'Should keep oldest in third weekly period');
 
-        // Should NOT keep backups that are too close together
-        $this->assertNotContains('weekly-day-4.zip', $filenames, 'Should NOT keep backup too close to daily period');
-        $this->assertNotContains('weekly-day-6.zip', $filenames, 'Should NOT keep backup too close to daily period');
-        $this->assertNotContains('weekly-day-11.zip', $filenames, 'Should NOT keep backup too close to first weekly');
-        $this->assertNotContains('weekly-day-18.zip', $filenames, 'Should NOT keep backup too close to second weekly');
+        // Should NOT keep backups that are not the oldest in their periods
+        $this->assertNotContains('weekly-day-4.zip', $filenames, 'Should NOT keep newer backup in first weekly period');
+        $this->assertNotContains('weekly-day-6.zip', $filenames, 'Should NOT keep newer backup in first weekly period');
+        $this->assertNotContains('weekly-day-11.zip', $filenames, 'Should NOT keep newer backup in second weekly period');
+        $this->assertNotContains('weekly-day-18.zip', $filenames, 'Should NOT keep newer backup in third weekly period');
 
         // Should always keep oldest
         $this->assertContains('old-backup.zip', $filenames, 'Should keep oldest backup as anchor');
@@ -434,11 +433,11 @@ class BackupRetentionTest extends TestCase
                 $this->assertGreaterThanOrEqual(6.9, $gapDays, 'Weekly backups should be at least ~7 days apart');
             }
 
-            // Check gap from daily cutoff to first weekly backup
+            // Check gap from daily cutoff to first weekly backup (should be immediate transition)
             if (!empty($weeklyBackups)) {
                 $gap = $dailyCutoff - $weeklyBackups[0]['timestamp'];
                 $gapDays = $gap / 86400;
-                $this->assertGreaterThanOrEqual(6.9, $gapDays, 'Gap from daily period to first weekly backup should be ~7 days');
+                $this->assertGreaterThanOrEqual(0, $gapDays, 'Weekly period should start immediately after daily period');
             }
         }
 

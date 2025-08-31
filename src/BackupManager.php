@@ -438,35 +438,50 @@ class BackupManager
         $monthlyMonths = max(1, intval($settings['monthly']));
 
         $keepBackups = [];
-        $lastKeptTimestamp = $now;
 
+        // 1. DAILY PERIOD: Keep all backups within X days
         foreach ($backups as $i => $backup) {
             $ageDays = ($now - $backup['timestamp']) / 86400;
-
-            // 1. DAILY PERIOD: Keep all backups within X days (one per day)
             if ($ageDays <= $dailyDays) {
                 $keepBackups[] = $this->markBackup($backup, $i === 0 ? 'newest' : 'daily');
-                $lastKeptTimestamp = $backup['timestamp'];
-                continue;
             }
+        }
 
-            // 2. WEEKLY PERIOD: Keep 1 per 7-day period for X weeks
-            if ($ageDays <= $dailyDays + ($weeklyWeeks * 7)) {
-                $daysSinceLastKept = ($lastKeptTimestamp - $backup['timestamp']) / 86400;
-                if ($daysSinceLastKept >= 7) {
-                    $keepBackups[] = $this->markBackup($backup, 'weekly');
-                    $lastKeptTimestamp = $backup['timestamp'];
-                }
-                continue;
+        // 2. WEEKLY PERIOD: Keep oldest backup in each 7-day period
+        for ($week = 0; $week < $weeklyWeeks; $week++) {
+            $weekStart = $dailyDays + ($week * 7);
+            $weekEnd = $dailyDays + (($week + 1) * 7);
+            
+            $weeklyBackups = array_filter($backups, function($backup) use ($now, $weekStart, $weekEnd) {
+                $ageDays = ($now - $backup['timestamp']) / 86400;
+                return $ageDays > $weekStart && $ageDays <= $weekEnd;
+            });
+            
+            if (!empty($weeklyBackups)) {
+                // Keep the oldest backup in this week (furthest timestamp)
+                $oldestWeekly = array_reduce($weeklyBackups, function($oldest, $current) {
+                    return ($oldest === null || $current['timestamp'] < $oldest['timestamp']) ? $current : $oldest;
+                });
+                $keepBackups[] = $this->markBackup($oldestWeekly, 'weekly');
             }
+        }
 
-            // 3. MONTHLY PERIOD: Keep 1 per 30-day period for X months
-            if ($ageDays <= $dailyDays + ($weeklyWeeks * 7) + ($monthlyMonths * 30)) {
-                $daysSinceLastKept = ($lastKeptTimestamp - $backup['timestamp']) / 86400;
-                if ($daysSinceLastKept >= 30) {
-                    $keepBackups[] = $this->markBackup($backup, 'monthly');
-                    $lastKeptTimestamp = $backup['timestamp'];
-                }
+        // 3. MONTHLY PERIOD: Keep oldest backup in each 30-day period
+        for ($month = 0; $month < $monthlyMonths; $month++) {
+            $monthStart = $dailyDays + ($weeklyWeeks * 7) + ($month * 30);
+            $monthEnd = $dailyDays + ($weeklyWeeks * 7) + (($month + 1) * 30);
+            
+            $monthlyBackups = array_filter($backups, function($backup) use ($now, $monthStart, $monthEnd) {
+                $ageDays = ($now - $backup['timestamp']) / 86400;
+                return $ageDays > $monthStart && $ageDays <= $monthEnd;
+            });
+            
+            if (!empty($monthlyBackups)) {
+                // Keep the oldest backup in this month (furthest timestamp)
+                $oldestMonthly = array_reduce($monthlyBackups, function($oldest, $current) {
+                    return ($oldest === null || $current['timestamp'] < $oldest['timestamp']) ? $current : $oldest;
+                });
+                $keepBackups[] = $this->markBackup($oldestMonthly, 'monthly');
             }
         }
 
