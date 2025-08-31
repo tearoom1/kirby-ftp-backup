@@ -1,3 +1,10 @@
+## [1.0.18](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.17...v1.0.18) (2025-08-31)
+
+
+### Bug Fixes
+
+* another fix for the retention strategy ([92a7f91](https://github.com/tearoom1/kirby-ftp-backup/commit/92a7f917b5d389f7efd63bec86cdd97f43f9279a))
+
 ## [1.0.17](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.16...v1.0.17) (2025-08-30)
 
 
@@ -26,13 +33,4 @@
 ### Bug Fixes
 
 * working on workflow issues ([7bcabf4](https://github.com/tearoom1/kirby-ftp-backup/commit/7bcabf45ebc7d65425e9f374b8477c65b616c88f))
-
-## [1.0.13](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.12...v1.0.13) (2025-08-30)
-
-
-### Bug Fixes
-
-* fix no-dev vendor ([0e4351d](https://github.com/tearoom1/kirby-ftp-backup/commit/0e4351d5094cc2267b7ccfb89afca79c73f2163b))
-* working on workflow issues ([1501fb6](https://github.com/tearoom1/kirby-ftp-backup/commit/1501fb6b9b9bc3fd1cad2358b80ec31b070c497a))
-* working on workflow issues ([9c57d70](https://github.com/tearoom1/kirby-ftp-backup/commit/9c57d700fa9e26942d55251e420a5403d0fbe167))
 
