@@ -196,8 +196,8 @@ https://yoursite.com/ftp-backup/execute?token=your-secure-random-token-here
 
 On success:
 ```
-Backup created successfully: backup-20231201-143022.zip
-Backup uploaded to FTP server: Upload completed successfully
+Backup created successfully: backup-2025-09-26-140236.zip
+File uploaded to FTP server
 ```
 
 On error:
