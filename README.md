@@ -77,6 +77,8 @@ All configuration is handled through Kirby's option system. Add the following to
 | `filePrefix` | string | `'backup-'` | Prefix for backup filenames                                      |
 | `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                  |
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
+| `urlExecutionEnabled` | boolean | `false` | Enable URL-based backup execution                                |
+| `urlExecutionToken` | string | `''` | Security token required for URL-based backup execution          |
 
 ### Retention Strategies
 
@@ -154,6 +156,54 @@ The `run.php` script handles:
 - Uploading the backup to the configured FTP server
 - Cleaning up old backups based on the retention setting
 - Outputs logs to the console
+
+## URL-Based Backup Execution
+
+As an alternative to cron jobs, you can trigger backups via HTTP requests. This is useful for:
+- External monitoring services
+- Webhook-based automation
+- Manual triggering from remote systems
+- URL based cronjob execution
+
+### Configuration
+
+First, enable URL execution and set a secure token in your `config.php`:
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    // ... other settings ...
+    'urlExecutionEnabled' => true,
+    'urlExecutionToken' => 'your-secure-random-token-here',
+]
+```
+
+### Usage
+
+Once configured, you can trigger a backup by making a GET request to:
+
+```
+https://yoursite.com/ftp-backup/execute?token=your-secure-random-token-here
+```
+
+### Security Features
+
+- **Token Authentication**: Requires a matching token to execute
+- **Enable/Disable Toggle**: Can be completely disabled via configuration
+- **Timing-Safe Comparison**: Uses `hash_equals()` to prevent timing attacks
+- **Plain Text Response**: Returns simple status messages for easy monitoring
+
+### Example Response
+
+On success:
+```
+Backup created successfully: backup-20231201-143022.zip
+Backup uploaded to FTP server: Upload completed successfully
+```
+
+On error:
+```
+Error creating backup: FTP connection failed
+```
 
 ## Security Considerations
 

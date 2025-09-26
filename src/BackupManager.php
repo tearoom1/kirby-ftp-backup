@@ -451,12 +451,12 @@ class BackupManager
         for ($week = 0; $week < $weeklyWeeks; $week++) {
             $weekStart = $dailyDays + ($week * 7);
             $weekEnd = $dailyDays + (($week + 1) * 7);
-            
+
             $weeklyBackups = array_filter($backups, function($backup) use ($now, $weekStart, $weekEnd) {
                 $ageDays = ($now - $backup['timestamp']) / 86400;
                 return $ageDays > $weekStart && $ageDays <= $weekEnd;
             });
-            
+
             if (!empty($weeklyBackups)) {
                 // Keep the oldest backup in this week (furthest timestamp)
                 $oldestWeekly = array_reduce($weeklyBackups, function($oldest, $current) {
@@ -470,12 +470,12 @@ class BackupManager
         for ($month = 0; $month < $monthlyMonths; $month++) {
             $monthStart = $dailyDays + ($weeklyWeeks * 7) + ($month * 30);
             $monthEnd = $dailyDays + ($weeklyWeeks * 7) + (($month + 1) * 30);
-            
+
             $monthlyBackups = array_filter($backups, function($backup) use ($now, $monthStart, $monthEnd) {
                 $ageDays = ($now - $backup['timestamp']) / 86400;
                 return $ageDays > $monthStart && $ageDays <= $monthEnd;
             });
-            
+
             if (!empty($monthlyBackups)) {
                 // Keep the oldest backup in this month (furthest timestamp)
                 $oldestMonthly = array_reduce($monthlyBackups, function($oldest, $current) {
@@ -856,5 +856,47 @@ class BackupManager
     public function isLocalDev(): bool
     {
         return false && option('debug', false) && defined('STDIN');
+    }
+
+    /**
+     * Execute backup and format result message
+     * Unified method for both CLI and URL execution
+     *
+     * @param bool $uploadToFtp Whether to upload to FTP server
+     * @return array ['success' => bool, 'message' => string, 'exitCode' => int]
+     */
+    public function executeBackupWithFormatting(bool $uploadToFtp = true): array
+    {
+        try {
+            $result = $this->createBackup($uploadToFtp);
+
+            if ($result['status'] === 'success') {
+                $message = "Backup created successfully: " . ($result['data']['filename'] ?? 'unknown');
+
+                if (isset($result['data']['ftpResult']) && $result['data']['ftpResult']['uploaded']) {
+                    $message .= "\n" . ($result['data']['ftpResult']['message'] ?? '');
+                } else {
+                    $message .= "\nBackup not uploaded to FTP: " . ($result['data']['ftpResult']['message'] ?? 'Unknown error');
+                }
+
+                return [
+                    'success' => true,
+                    'message' => $message,
+                    'exitCode' => 0
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Error creating backup: ' . ($result['message'] ?? 'Unknown error'),
+                    'exitCode' => 1
+                ];
+            }
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Fatal error: ' . $e->getMessage(),
+                'exitCode' => 1
+            ];
+        }
     }
 }

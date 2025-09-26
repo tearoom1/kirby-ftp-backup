@@ -38,7 +38,10 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'daily' => 10,    // Keep all backups for the first 10 days
             'weekly' => 4,    // Then keep 1 per week for 4 weeks
             'monthly' => 6    // Then keep 1 per month for 6 months
-        ]
+        ],
+        // URL execution settings
+        'urlExecutionToken' => '', // Token required for URL-based backup execution
+        'urlExecutionEnabled' => false, // Enable/disable URL-based backup execution
     ],
 
     // Panel areas registration
@@ -111,6 +114,38 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 $key = get('key');
                 $manager = new BackupManager();
                 return $manager->downloadBackup($filename, $key);
+            }
+        ],
+        // Execute backup via URL (with token authentication)
+        [
+            'pattern' => 'ftp-backup/execute',
+            'method' => 'GET',
+            'action' => function () {
+                // Check if URL execution is enabled
+                $enabled = option('tearoom1.kirby-ftp-backup.urlExecutionEnabled', false);
+                if (!$enabled) {
+                    return new Kirby\Http\Response('URL execution is disabled', 'text/plain', 403);
+                }
+
+                // Get and validate token
+                $providedToken = get('token');
+                $configuredToken = option('tearoom1.kirby-ftp-backup.urlExecutionToken', '');
+
+                if (empty($configuredToken)) {
+                    return new Kirby\Http\Response('No token configured', 'text/plain', 403);
+                }
+
+                if (empty($providedToken) || !hash_equals($configuredToken, $providedToken)) {
+                    return new Kirby\Http\Response('Invalid or missing token', 'text/plain', 403);
+                }
+
+                // Execute backup
+                $manager = new BackupManager();
+                $result = $manager->executeBackupWithFormatting(true);
+                
+                // Return appropriate HTTP response
+                $statusCode = $result['success'] ? 200 : 500;
+                return new Kirby\Http\Response($result['message'], 'text/plain', $statusCode);
             }
         ],
     ],

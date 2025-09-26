@@ -37,26 +37,11 @@ $kirby = new Kirby\Cms\App(['options' => ['url' => '/']]);
 echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
 
 // Initialize the backup manager and create a backup
-try {
-    // Use namespaced class
-    $backupManager = new TearoomOne\FtpBackup\BackupManager();
-    $result = $backupManager->createBackup(true);
+$backupManager = new TearoomOne\FtpBackup\BackupManager();
+$result = $backupManager->executeBackupWithFormatting(true);
 
-    // Log the result
-    if ($result['status'] === 'success') {
-        echo "Backup created successfully: " . ($result['data']['filename'] ?? 'unknown') . PHP_EOL;
+// Output the result message
+echo $result['message'] . PHP_EOL;
 
-        if (isset($result['data']['ftpResult']) && $result['data']['ftpResult']['uploaded']) {
-            echo "Backup uploaded to FTP server: " . ($result['data']['ftpResult']['message'] ?? '') . PHP_EOL;
-        } else {
-            echo "Backup not uploaded to FTP: " . ($result['data']['ftpResult']['message'] ?? 'Unknown error') . PHP_EOL;
-        }
-    } else {
-        echo "Error creating backup: " . ($result['message'] ?? 'Unknown error') . PHP_EOL;
-    }
-} catch (Exception $e) {
-    echo "Fatal error: " . $e->getMessage() . PHP_EOL;
-    exit(1);
-}
-
-exit(0);
+// Exit with appropriate code
+exit($result['exitCode']);
