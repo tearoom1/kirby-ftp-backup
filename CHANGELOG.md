@@ -1,3 +1,10 @@
+## [1.1.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.18...v1.1.0) (2025-09-26)
+
+
+### Features
+
+* added route to allow cronjob execution via URL ([a820138](https://github.com/tearoom1/kirby-ftp-backup/commit/a8201386c88638a1a05b0ab86b0189fc7c78de08))
+
 ## [1.0.18](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.17...v1.0.18) (2025-08-31)
 
 
@@ -26,11 +33,4 @@
 
 * single commit not working ([c9d3e5f](https://github.com/tearoom1/kirby-ftp-backup/commit/c9d3e5f5937aff7ca2ba0b57dd3cbed402f77580))
 * testing single commit for release ([3441fd1](https://github.com/tearoom1/kirby-ftp-backup/commit/3441fd1e07613dc1019854d490a105f715327ad1))
-
-## [1.0.14](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.13...v1.0.14) (2025-08-30)
-
-
-### Bug Fixes
-
-* working on workflow issues ([7bcabf4](https://github.com/tearoom1/kirby-ftp-backup/commit/7bcabf45ebc7d65425e9f374b8477c65b616c88f))
 
