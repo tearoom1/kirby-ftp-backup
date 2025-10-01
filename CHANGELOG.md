@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.1...v1.1.2) (2025-10-01)
+
+
+### Bug Fixes
+
+* allow config with ssh key instead of password [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6) ([df3601a](https://github.com/tearoom1/kirby-ftp-backup/commit/df3601ac65f3535267e7fd2a949c7e080546286a))
+
 ## [1.1.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.0...v1.1.1) (2025-10-01)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * add / as url when bootstrapping kirby for cron run.php [#3](https://github.com/tearoom1/kirby-ftp-backup/issues/3) ([44a344d](https://github.com/tearoom1/kirby-ftp-backup/commit/44a344dcfab308d10ce4750667103f18c0061f45))
-
-## [1.0.16](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.15...v1.0.16) (2025-08-30)
-
-
-### Bug Fixes
-
-* testing removal of installed.php ([ef8dcde](https://github.com/tearoom1/kirby-ftp-backup/commit/ef8dcde2e9a9540e51f1c8931843c12300efc95d))
 
