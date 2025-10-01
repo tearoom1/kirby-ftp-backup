@@ -81,7 +81,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                     // Check if essential FTP settings are configured
                     $configured = !empty($settings['ftpHost']) &&
                         !empty($settings['ftpUsername']) &&
-                        !empty($settings['ftpPassword']);
+                        !empty($settings['ftpPassword'] || !empty($settings['ftpPrivateKey']));
 
                     return [
                         'status' => 'success',
@@ -142,7 +142,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 // Execute backup
                 $manager = new BackupManager();
                 $result = $manager->executeBackupWithFormatting(true);
-                
+
                 // Return appropriate HTTP response
                 $statusCode = $result['success'] ? 200 : 500;
                 return new Kirby\Http\Response($result['message'], 'text/plain', $statusCode);
