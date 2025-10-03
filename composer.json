@@ -1,6 +1,6 @@
 {
   "name": "tearoom1/kirby-ftp-backup",
-  "description": "Kirby plugin that creates backups of your site content and uploads them to an FTP server.",
+  "description": "Kirby plugin that creates content backups and uploads them to a FTP server.",
   "type": "kirby-plugin",
   "license": "MIT",
   "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
