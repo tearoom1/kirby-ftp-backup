@@ -841,7 +841,7 @@ class BackupManager
             ], 404);
         }
 
-        return Response::file($filepath);
+        return Response::download($filepath);
     }
 
     private function hasCredentials(array $settings): bool
