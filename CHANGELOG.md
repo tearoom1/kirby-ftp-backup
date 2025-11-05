@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.0...v1.3.1) (2025-11-05)
+
+
+### Bug Fixes
+
+* error messages ([bc68004](https://github.com/tearoom1/kirby-ftp-backup/commit/bc68004bd67e52dadc2a627c6f978b6bd87a6e90))
+* error messages ([8e82481](https://github.com/tearoom1/kirby-ftp-backup/commit/8e82481d7a4994818a956b0f2285040f380b56a6))
+
 ## [1.3.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.2.0...v1.3.0) (2025-11-05)
 
 
@@ -25,11 +33,4 @@
 ### Bug Fixes
 
 * allow config with ssh key instead of password [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6) ([38b9173](https://github.com/tearoom1/kirby-ftp-backup/commit/38b9173f716c4569cfc4a73dcabb5c66dac40f06))
-
-## [1.1.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.18...v1.1.0) (2025-09-26)
-
-
-### Features
-
-* added route to allow cronjob execution via URL ([a820138](https://github.com/tearoom1/kirby-ftp-backup/commit/a8201386c88638a1a05b0ab86b0189fc7c78de08))
 
