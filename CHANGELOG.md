@@ -1,3 +1,10 @@
+## [1.2.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.2...v1.2.0) (2025-11-05)
+
+
+### Features
+
+* Added include and exclude options for content backup and options to disable the plugin or upload ([463ad1b](https://github.com/tearoom1/kirby-ftp-backup/commit/463ad1b6a079eb1267c569f08c6af0aa587d1ffb))
+
 ## [1.1.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.1...v1.1.2) (2025-10-01)
 
 
@@ -25,11 +32,4 @@
 ### Bug Fixes
 
 * another fix for the retention strategy ([92a7f91](https://github.com/tearoom1/kirby-ftp-backup/commit/92a7f917b5d389f7efd63bec86cdd97f43f9279a))
-
-## [1.0.17](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.16...v1.0.17) (2025-08-30)
-
-
-### Bug Fixes
-
-* add / as url when bootstrapping kirby for cron run.php [#3](https://github.com/tearoom1/kirby-ftp-backup/issues/3) ([44a344d](https://github.com/tearoom1/kirby-ftp-backup/commit/44a344dcfab308d10ce4750667103f18c0061f45))
 
