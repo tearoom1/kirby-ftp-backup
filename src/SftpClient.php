@@ -68,12 +68,73 @@ class SftpClient implements FtpClientInterface
             throw new \Exception('Not connected to SFTP server');
         }
 
+        // Check if local file exists and is readable
+        if (!file_exists($localFile)) {
+            throw new \Exception("Local file does not exist: {$localFile}");
+        }
+
+        if (!is_readable($localFile)) {
+            throw new \Exception("Local file is not readable: {$localFile}");
+        }
+
+        $fileSize = filesize($localFile);
+        if ($fileSize === false || $fileSize === 0) {
+            throw new \Exception("Local file is empty or cannot read size: {$localFile}");
+        }
+
         // Make sure the remote directory exists
-        $this->createRemoteDirectory(dirname($remoteFile));
+        $remoteDir = dirname($remoteFile);
+        $this->createRemoteDirectory($remoteDir);
 
         // Upload file
-        if (!$this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE)) {
-            throw new \Exception("Failed to upload file to SFTP server: {$remoteFile}");
+        $result = $this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE);
+        
+        // Get all errors/warnings
+        $errors = $this->sftp->getErrors();
+        
+        // Filter out non-critical SSH messages
+        $criticalErrors = array_filter($errors, function($error) {
+            return !str_contains($error, 'SSH_MSG_GLOBAL_REQUEST') &&
+                   !str_contains($error, 'hostkeys-00@openssh.com');
+        });
+        
+        if (!$result) {
+            if (!empty($criticalErrors)) {
+                $errorMsg = implode(', ', $criticalErrors);
+                throw new \Exception("Failed to upload file to SFTP server: {$remoteFile}. Error: {$errorMsg}");
+            }
+            // put() returned false but no critical errors - continue to verification
+        }
+
+        // Verify uploaded file exists and size matches local file
+        try {
+            // Check if file exists first
+            if (!$this->sftp->file_exists($remoteFile)) {
+                throw new \Exception("Upload verification failed: Remote file does not exist at {$remoteFile}");
+            }
+            
+            // Get file size using stat
+            $stat = $this->sftp->stat($remoteFile);
+            if ($stat === false) {
+                // File exists but can't get stats - skip verification
+                return true;
+            }
+            
+            $remoteSize = $stat['size'] ?? false;
+            if ($remoteSize === false) {
+                // Can't get size from stat - skip verification
+                return true;
+            }
+            
+            if ($remoteSize !== $fileSize) {
+                throw new \Exception("Upload verification failed. Local size: {$fileSize} bytes, Remote size: {$remoteSize} bytes");
+            }
+        } catch (\Exception $e) {
+            // If it's our own exception, re-throw it
+            if (strpos($e->getMessage(), 'Upload verification failed') === 0) {
+                throw $e;
+            }
+            // Otherwise continue (verification optional)
         }
 
         return true;

@@ -273,16 +273,21 @@ export default {
             this.dismissWarning();
           }
         } else {
-          window.panel.notification.error(response.message);
+          // Show the actual error message from the backend
+          const errorMessage = response.message || 'Failed to create backup';
+          window.panel.notification.error(errorMessage);
 
           // Show warning if the error appears to be FTP-related
-          if (response.message && response.message.toLowerCase().includes('ftp')) {
-            this.showFtpWarning(response.message, true);
+          if (errorMessage.toLowerCase().includes('ftp') || errorMessage.toLowerCase().includes('sftp')) {
+            this.showFtpWarning(errorMessage, true);
           }
         }
       } catch (error) {
-        window.panel.notification.error('Failed to create backup');
-        this.showFtpWarning('Error: Failed to create backup. FTP connection might have failed.', true);
+        // Network or API error
+        const errorMessage = error.message || 'Failed to create backup';
+        window.panel.notification.error(errorMessage);
+        console.error('Backup creation error:', error);
+        this.showFtpWarning('Error: ' + errorMessage, true);
       } finally {
         this.isCreatingBackup = false;
       }
