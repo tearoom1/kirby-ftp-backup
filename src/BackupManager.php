@@ -308,7 +308,9 @@ class BackupManager
         // Always exclude if matches exclude pattern
         if (!empty($excludePatterns)) {
             foreach ($excludePatterns as $pattern) {
-                if (@preg_match($pattern, $normalizedPath)) {
+                // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
+                $regexPattern = '#' . $pattern . '#i';
+                if (@preg_match($regexPattern, $normalizedPath)) {
                     return false;
                 }
             }
@@ -317,7 +319,9 @@ class BackupManager
         // If include patterns are specified, only include matching files
         if (!empty($includePatterns)) {
             foreach ($includePatterns as $pattern) {
-                if (@preg_match($pattern, $normalizedPath)) {
+                // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
+                $regexPattern = '#' . $pattern . '#i';
+                if (@preg_match($regexPattern, $normalizedPath)) {
                     return true;
                 }
             }

@@ -47,7 +47,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'weekly' => 4,    // Then keep 1 per week for 4 weeks
             'monthly' => 6    // Then keep 1 per month for 6 months
         ],
-        // File filtering (regex patterns)
+        // File filtering (regex patterns without delimiters, case-insensitive)
         'includePatterns' => [], // Array of regex patterns - if not empty, only matching files are included
         'excludePatterns' => [], // Array of regex patterns - matching files are always excluded
         // URL execution settings

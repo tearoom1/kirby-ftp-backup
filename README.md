@@ -36,7 +36,7 @@ All configuration is handled through Kirby's option system. Add the following to
     // Plugin Control
     'enabled' => true,                           // Enable/disable the entire plugin
     'ftpEnabled' => true,                        // Enable/disable FTP uploads (backups still created locally)
-    
+
     // FTP Connection Settings
     'ftpProtocol' => 'ftps',
     'ftpHost' => 'your-ftp-host.com',
@@ -59,8 +59,8 @@ All configuration is handled through Kirby's option system. Add the following to
         'weekly' => 4,    // Then keep 1 per week for 4 weeks
         'monthly' => 6    // Then keep 1 per month for 6 months
     ],
-    
-    // File Filtering (regex patterns)
+
+    // File Filtering (regex patterns without delimiters, case-insensitive)
     'includePatterns' => [],                 // If not empty, only files matching these patterns are included
     'excludePatterns' => [],                 // Files matching these patterns are always excluded
 ]
@@ -87,8 +87,8 @@ All configuration is handled through Kirby's option system. Add the following to
 | `filePrefix` | string | `'backup-'` | Prefix for backup filenames                                      |
 | `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                  |
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
-| `includePatterns` | array | `[]` | Regex patterns - if not empty, only matching files are included |
-| `excludePatterns` | array | `[]` | Regex patterns - matching files are always excluded              |
+| `includePatterns` | array | `[]` | Regex patterns (no delimiters, case-insensitive) - if not empty, only matching files are included |
+| `excludePatterns` | array | `[]` | Regex patterns (no delimiters, case-insensitive) - matching files are always excluded |
 | `urlExecutionEnabled` | boolean | `false` | Enable URL-based backup execution                                |
 | `urlExecutionToken` | string | `''` | Security token required for URL-based backup execution          |
 
@@ -174,52 +174,53 @@ You can control which files are included in backups using regex patterns. This i
 1. **Default behavior**: All files are included
 2. **Include patterns**: If specified, only files matching these patterns are included
 3. **Exclude patterns**: Files matching these patterns are always excluded (applied after include patterns)
+4. **Case-insensitive**: All patterns are automatically case-insensitive
 
 #### Examples
 
 **Exclude specific file types:**
 ```php
 'excludePatterns' => [
-    '/\.mp4$/',           // Exclude video files
-    '/\.zip$/',           // Exclude zip files
-    '/\/cache\//',        // Exclude cache directory
-    '/\.tmp$/',           // Exclude temporary files
+    '\.mp4$',           // Exclude video files
+    '\.zip$',           // Exclude zip files
+    '/cache/',          // Exclude cache directory
+    '\.tmp$',           // Exclude temporary files
 ]
 ```
 
 **Include only specific file types:**
 ```php
 'includePatterns' => [
-    '/\.txt$/',           // Only text files
-    '/\.md$/',            // And markdown files
+    '\.txt$',           // Only text files
+    '\.md$',            // And markdown files
 ]
 ```
 
 **Exclude large media files but keep images:**
 ```php
 'includePatterns' => [
-    '/\.(jpg|jpeg|png|gif|svg)$/i',  // Only image files
-    '/\.txt$/',                       // And text files
-    '/\.md$/',                        // And markdown files
+    '\.(jpg|jpeg|png|gif|svg)$',  // Only image files
+    '\.txt$',                      // And text files
+    '\.md$',                       // And markdown files
 ],
 'excludePatterns' => [
-    '/\/originals\//',                // Exclude originals folder
+    '/originals/',                 // Exclude originals folder
 ]
 ```
 
 **Complex filtering:**
 ```php
 'includePatterns' => [
-    '/\.(txt|md|json|yml)$/',        // Include text-based files
+    '\.(txt|md|json|yml)$',       // Include text-based files
 ],
 'excludePatterns' => [
-    '/\/\._/',                        // Exclude macOS resource forks
-    '/\/\.DS_Store$/',               // Exclude .DS_Store files
-    '/\/thumbs\.db$/i',              // Exclude Windows thumbnails
+    '/\._',                       // Exclude macOS resource forks
+    '/\.DS_Store$',               // Exclude .DS_Store files
+    '/thumbs\.db$',               // Exclude Windows thumbnails
 ]
 ```
 
-**Note**: Patterns are standard PHP regex patterns and must include delimiters (usually `/`).
+**Note**: Patterns are standard regex patterns without delimiters. The plugin automatically adds `#` delimiters and makes all patterns case-insensitive.
 
 ## Panel Interface
 
