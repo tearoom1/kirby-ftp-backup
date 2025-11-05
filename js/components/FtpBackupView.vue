@@ -266,8 +266,8 @@ export default {
           window.panel.notification.success(response.message);
           this.loadBackups();
 
-          // Check if FTP upload failed
-          if (response.data && response.data.ftpResult && !response.data.ftpResult.uploaded) {
+          // Check if FTP upload failed (but only if FTP is enabled)
+          if (response.data && response.data.ftpResult && !response.data.ftpResult.uploaded && !response.data.ftpResult.disabled) {
             this.showFtpWarning(response.data.ftpResult.message || 'FTP upload failed', true);
           } else {
             this.dismissWarning();
@@ -357,10 +357,19 @@ export default {
       // Always check if FTP settings are configured
       this.$api.get('ftp-backup/settings-status')
         .then(response => {
-          if (response.status === 'success' && !response.data.configured) {
-            this.showFtpWarning('FTP settings are not configured. Backups will be created locally only.', true);
-          } else {
-            this.dismissWarning();
+          if (response.status === 'success') {
+            // Check if FTP is explicitly disabled
+            if (response.data.ftpEnabled === false) {
+              this.showFtpWarning('FTP upload is disabled. Backups will be created locally only.', true);
+            } 
+            // Check if FTP is not configured
+            else if (!response.data.configured) {
+              this.showFtpWarning('FTP settings are not configured. Backups will be created locally only.', true);
+            } 
+            // FTP is enabled and configured
+            else {
+              this.dismissWarning();
+            }
           }
         })
         .catch(() => {

@@ -89,15 +89,20 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                     $manager = new BackupManager();
                     $settings = $manager->getSettings();
 
+                    // Check if FTP is enabled
+                    $ftpEnabled = $settings['ftpEnabled'] ?? true;
+                    
                     // Check if essential FTP settings are configured
-                    $configured = !empty($settings['ftpHost']) &&
+                    $configured = $ftpEnabled && 
+                        !empty($settings['ftpHost']) &&
                         !empty($settings['ftpUsername']) &&
-                        (!empty($settings['ftpPassword'] || !empty($settings['ftpPrivateKey'])));
+                        (!empty($settings['ftpPassword']) || !empty($settings['ftpPrivateKey']));
 
                     return [
                         'status' => 'success',
                         'data' => [
                             'configured' => $configured,
+                            'ftpEnabled' => $ftpEnabled,
                             'settings' => $settings,
                         ]
                     ];

@@ -142,10 +142,11 @@ class BackupManager
             $ftpEnabled = option('tearoom1.kirby-ftp-backup.ftpEnabled', true);
             
             // Upload to FTP if requested and FTP is enabled
-            $ftpResult = ['uploaded' => false];
+            $ftpResult = ['uploaded' => false, 'disabled' => !$ftpEnabled];
             if ($uploadToFtp && $ftpEnabled) {
                 $ftpClient = $this->initFtpClient();
                 $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename);
+                $ftpResult['disabled'] = false;
                 
                 // Cleanup old backups
                 $this->cleanupOldBackups($ftpClient, $settings);
