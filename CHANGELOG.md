@@ -1,3 +1,10 @@
+## [1.3.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.2.0...v1.3.0) (2025-11-05)
+
+
+### Features
+
+* updated the pattern handling ([cb6fbe5](https://github.com/tearoom1/kirby-ftp-backup/commit/cb6fbe5928773909ce5b05fa513afbb4291ce557))
+
 ## [1.2.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.2...v1.2.0) (2025-11-05)
 
 
@@ -25,11 +32,4 @@
 ### Features
 
 * added route to allow cronjob execution via URL ([a820138](https://github.com/tearoom1/kirby-ftp-backup/commit/a8201386c88638a1a05b0ab86b0189fc7c78de08))
-
-## [1.0.18](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.0.17...v1.0.18) (2025-08-31)
-
-
-### Bug Fixes
-
-* another fix for the retention strategy ([92a7f91](https://github.com/tearoom1/kirby-ftp-backup/commit/92a7f917b5d389f7efd63bec86cdd97f43f9279a))
 
