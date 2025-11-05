@@ -33,6 +33,10 @@ All configuration is handled through Kirby's option system. Add the following to
 
 ```php
 'tearoom1.kirby-ftp-backup' => [
+    // Plugin Control
+    'enabled' => true,                           // Enable/disable the entire plugin
+    'ftpEnabled' => true,                        // Enable/disable FTP uploads (backups still created locally)
+    
     // FTP Connection Settings
     'ftpProtocol' => 'ftps',
     'ftpHost' => 'your-ftp-host.com',
@@ -54,7 +58,11 @@ All configuration is handled through Kirby's option system. Add the following to
         'daily' => 10,    // Keep all backups for the first 10 days
         'weekly' => 4,    // Then keep 1 per week for 4 weeks
         'monthly' => 6    // Then keep 1 per month for 6 months
-    ]
+    ],
+    
+    // File Filtering (regex patterns)
+    'includePatterns' => [],                 // If not empty, only files matching these patterns are included
+    'excludePatterns' => [],                 // Files matching these patterns are always excluded
 ]
 ```
 
@@ -62,6 +70,8 @@ All configuration is handled through Kirby's option system. Add the following to
 
 | Option | Type | Default | Description                                                      |
 |--------|------|---------|------------------------------------------------------------------|
+| `enabled` | boolean | `true` | Enable/disable the entire plugin                                 |
+| `ftpEnabled` | boolean | `true` | Enable/disable FTP uploads (backups still created locally)       |
 | `ftpProtocol` | string | `'ftp'` | FTP protocol: 'ftp', 'ftps' or 'sftp'                            |
 | `ftpHost` | string | `''` | FTP server hostname                                              |
 | `ftpPort` | integer | `21` | FTP server port                                                  |
@@ -77,8 +87,50 @@ All configuration is handled through Kirby's option system. Add the following to
 | `filePrefix` | string | `'backup-'` | Prefix for backup filenames                                      |
 | `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                  |
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
+| `includePatterns` | array | `[]` | Regex patterns - if not empty, only matching files are included |
+| `excludePatterns` | array | `[]` | Regex patterns - matching files are always excluded              |
 | `urlExecutionEnabled` | boolean | `false` | Enable URL-based backup execution                                |
 | `urlExecutionToken` | string | `''` | Security token required for URL-based backup execution          |
+
+### Plugin Control Options
+
+#### Disable Entire Plugin
+
+To completely disable the plugin (no backups will be created):
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    'enabled' => false,
+]
+```
+
+When disabled:
+- Panel UI will not be accessible
+- API routes will return error responses
+- CLI commands will not execute
+- URL-based execution will be blocked
+
+#### Disable FTP Only
+
+To create backups locally but skip FTP uploads:
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    'ftpEnabled' => false,
+]
+```
+
+When FTP is disabled:
+- Backups are still created and stored locally
+- No FTP connection or upload attempts
+- Local retention policies still apply
+- Panel UI remains functional for viewing/downloading local backups
+
+This is useful when:
+- You want local backups only
+- FTP server is temporarily unavailable
+- Testing backup creation without uploading
+- Migrating between FTP servers
 
 ### Retention Strategies
 
@@ -112,6 +164,62 @@ This strategy:
 4. Deletes anything older
 
 This provides a good balance between recent recovery points and long-term archiving.
+
+### File Filtering
+
+You can control which files are included in backups using regex patterns. This is useful for excluding large media files, temporary files, or other content you don't need to back up.
+
+#### How it works
+
+1. **Default behavior**: All files are included
+2. **Include patterns**: If specified, only files matching these patterns are included
+3. **Exclude patterns**: Files matching these patterns are always excluded (applied after include patterns)
+
+#### Examples
+
+**Exclude specific file types:**
+```php
+'excludePatterns' => [
+    '/\.mp4$/',           // Exclude video files
+    '/\.zip$/',           // Exclude zip files
+    '/\/cache\//',        // Exclude cache directory
+    '/\.tmp$/',           // Exclude temporary files
+]
+```
+
+**Include only specific file types:**
+```php
+'includePatterns' => [
+    '/\.txt$/',           // Only text files
+    '/\.md$/',            // And markdown files
+]
+```
+
+**Exclude large media files but keep images:**
+```php
+'includePatterns' => [
+    '/\.(jpg|jpeg|png|gif|svg)$/i',  // Only image files
+    '/\.txt$/',                       // And text files
+    '/\.md$/',                        // And markdown files
+],
+'excludePatterns' => [
+    '/\/originals\//',                // Exclude originals folder
+]
+```
+
+**Complex filtering:**
+```php
+'includePatterns' => [
+    '/\.(txt|md|json|yml)$/',        // Include text-based files
+],
+'excludePatterns' => [
+    '/\/\._/',                        // Exclude macOS resource forks
+    '/\/\.DS_Store$/',               // Exclude .DS_Store files
+    '/\/thumbs\.db$/i',              // Exclude Windows thumbnails
+]
+```
+
+**Note**: Patterns are standard PHP regex patterns and must include delimiters (usually `/`).
 
 ## Panel Interface
 

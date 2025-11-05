@@ -1,5 +1,10 @@
 <?php
 
+// Exit early if plugin is disabled
+if (!option('tearoom1.kirby-ftp-backup.enabled', true)) {
+    return;
+}
+
 @include_once __DIR__ . '/vendor/autoload.php';
 
 // Register autoloader
@@ -20,6 +25,9 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
 
     // Plugin options
     'options' => [
+        // Plugin control
+        'enabled' => true, // Enable/disable the entire plugin
+        'ftpEnabled' => true, // Enable/disable FTP uploads (backups still created locally)
         // FTP setup
         'ftpProtocol' => 'ftp', // Connection type: 'ftp', 'ftps' or 'sftp'
         'ftpHost' => '', // FTP host
@@ -39,6 +47,9 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'weekly' => 4,    // Then keep 1 per week for 4 weeks
             'monthly' => 6    // Then keep 1 per month for 6 months
         ],
+        // File filtering (regex patterns)
+        'includePatterns' => [], // Array of regex patterns - if not empty, only matching files are included
+        'excludePatterns' => [], // Array of regex patterns - matching files are always excluded
         // URL execution settings
         'urlExecutionToken' => '', // Token required for URL-based backup execution
         'urlExecutionEnabled' => false, // Enable/disable URL-based backup execution

@@ -41,6 +41,9 @@ class BackupManager
     public function getSettings(): array
     {
         return [
+            // Plugin control
+            'enabled' => option('tearoom1.kirby-ftp-backup.enabled', true),
+            'ftpEnabled' => option('tearoom1.kirby-ftp-backup.ftpEnabled', true),
             // FTP settings
             'ftpProtocol' => option('tearoom1.kirby-ftp-backup.ftpProtocol', 'ftp'),
             'ftpHost' => option('tearoom1.kirby-ftp-backup.ftpHost', ''),
@@ -60,7 +63,10 @@ class BackupManager
                 'daily' => option('tearoom1.kirby-ftp-backup.tieredRetention.daily', 10),
                 'weekly' => option('tearoom1.kirby-ftp-backup.tieredRetention.weekly', 4),
                 'monthly' => option('tearoom1.kirby-ftp-backup.tieredRetention.monthly', 6)
-            ]
+            ],
+            // File filtering
+            'includePatterns' => option('tearoom1.kirby-ftp-backup.includePatterns', []),
+            'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', [])
         ];
     }
 
@@ -131,21 +137,33 @@ class BackupManager
             $zip->close();
 
             $settings = $this->getSettings();
-            $ftpClient = $this->initFtpClient();
-
-            // Upload to FTP if requested
+            
+            // Check if FTP is enabled
+            $ftpEnabled = option('tearoom1.kirby-ftp-backup.ftpEnabled', true);
+            
+            // Upload to FTP if requested and FTP is enabled
             $ftpResult = ['uploaded' => false];
-            if ($uploadToFtp) {
+            if ($uploadToFtp && $ftpEnabled) {
+                $ftpClient = $this->initFtpClient();
                 $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename);
+                
+                // Cleanup old backups
+                $this->cleanupOldBackups($ftpClient, $settings);
+            } else {
+                // FTP disabled, only cleanup local backups
+                $this->applySimpleRetention();
             }
 
-            // Cleanup old backups
-            $this->cleanupOldBackups($ftpClient, $settings);
+            $message = 'Backup created successfully';
+            if (!$ftpEnabled) {
+                $message .= ' (FTP upload disabled)';
+            } elseif ($ftpResult['uploaded']) {
+                $message .= ' and uploaded to FTP server';
+            }
 
             return [
                 'status' => 'success',
-                'message' => 'Backup created successfully' .
-                    ($ftpResult['uploaded'] ? ' and uploaded to FTP server' : ''),
+                'message' => $message,
                 'data' => [
                     'filename' => $filename,
                     'size' => F::size($filepath),
@@ -277,6 +295,40 @@ class BackupManager
     }
 
     /**
+     * Check if a file path should be included based on regex patterns
+     */
+    private function shouldIncludeFile(string $relativePath): bool
+    {
+        $includePatterns = option('tearoom1.kirby-ftp-backup.includePatterns', []);
+        $excludePatterns = option('tearoom1.kirby-ftp-backup.excludePatterns', []);
+        
+        // Normalize path separators for consistent matching
+        $normalizedPath = str_replace('\\', '/', $relativePath);
+        
+        // Always exclude if matches exclude pattern
+        if (!empty($excludePatterns)) {
+            foreach ($excludePatterns as $pattern) {
+                if (@preg_match($pattern, $normalizedPath)) {
+                    return false;
+                }
+            }
+        }
+        
+        // If include patterns are specified, only include matching files
+        if (!empty($includePatterns)) {
+            foreach ($includePatterns as $pattern) {
+                if (@preg_match($pattern, $normalizedPath)) {
+                    return true;
+                }
+            }
+            return false; // No include pattern matched
+        }
+        
+        // No include patterns specified, include by default
+        return true;
+    }
+
+    /**
      * Helper function to add directory contents to zip
      */
     private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', string $exclude = ''): void
@@ -291,8 +343,13 @@ class BackupManager
             $filePath = $file->getPathname();
             $relativePath = $zipDir . '/' . $file->getFilename();
 
-            // Skip excluded paths
+            // Skip excluded paths (legacy exclude parameter)
             if ($exclude && strpos($relativePath, $exclude) !== false) {
+                continue;
+            }
+            
+            // Apply regex-based filtering
+            if (!$this->shouldIncludeFile($relativePath)) {
                 continue;
             }
 
@@ -651,6 +708,14 @@ class BackupManager
      */
     public function getFtpServerStats(): array
     {
+        // Check if FTP is enabled
+        if (!option('tearoom1.kirby-ftp-backup.ftpEnabled', true)) {
+            return [
+                'status' => 'error',
+                'message' => 'FTP is disabled'
+            ];
+        }
+        
         $ftpClient = null;
         try {
             $settings = $this->getSettings();
