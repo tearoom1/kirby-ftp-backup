@@ -1,64 +1,55 @@
 {
-  "name": "tearoom1/kirby-ftp-backup",
-  "description": "Kirby plugin that creates content backups and uploads them to a FTP server.",
-  "type": "kirby-plugin",
-  "license": "MIT",
-  "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
-  "version": "1.3.2",
-  "keywords": [
-    "kirby",
-    "panel",
-    "backup",
-    "ftp"
-  ],
-  "authors": [
-    {
-      "name": "Mathis Koblin",
-      "email": "mail@tearoom.one",
-      "homepage": "https://www.tearoom.one",
-      "role": "Maintainer"
-    }
-  ],
-  "support": {
-    "docs": "https://github.com/tearoom1/kirby-ftp-backup/blob/main/README.md",
-    "source": "https://github.com/tearoom1/kirby-ftp-backup"
-  },
-  "require": {
-    "getkirby/composer-installer": "^1.2",
-    "phpseclib/phpseclib": "^3.0",
-    "ext-zip": "*",
-    "ext-ftp": "*"
-  },
-  "require-dev": {
-    "phpunit/phpunit": "^10.0",
-    "getkirby/cms": "^4.0.0 || ^5.0.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "TearoomOne\\FtpBackup\\": "src/"
+    "name": "tearoom1/kirby-ftp-backup",
+    "description": "Kirby plugin that creates content backups and uploads them to a FTP server.",
+    "type": "kirby-plugin",
+    "license": "MIT",
+    "homepage": "https://github.com/tearoom1/kirby-ftp-backup",
+    "version": "1.3.2",
+    "keywords": [
+        "kirby",
+        "panel",
+        "backup",
+        "ftp"
+    ],
+    "authors": [
+        {
+            "name": "Mathis Koblin",
+            "email": "mail@tearoom.one",
+            "homepage": "https://www.tearoom.one",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "docs": "https://github.com/tearoom1/kirby-ftp-backup/blob/main/README.md",
+        "source": "https://github.com/tearoom1/kirby-ftp-backup"
     },
-    "exclude-from-classmap": [
-      "/kirby/",
-      "/vendor/phpunit/",
-      "/vendor/filp/",
-      "/vendor/filp/",
-      "/vendor/filp/",
-      "/vendor/filp/",
-      "/tests/"
-    ]
-  },
-  "config": {
-    "optimize-autoloader": true,
-    "allow-plugins": {
-      "getkirby/composer-installer": true
+    "require": {
+        "getkirby/composer-installer": "^1.2",
+        "phpseclib/phpseclib": "^3.0",
+        "ext-zip": "*",
+        "ext-ftp": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "getkirby/cms": "^4.0.0 || ^5.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TearoomOne\\FtpBackup\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "getkirby/composer-installer": true
+        }
+    },
+    "scripts": {
+        "analyze": "phpstan analyse src",
+        "fix": "php-cs-fixer fix src",
+        "dist": "composer install --no-dev --optimize-autoloader",
+        "update-dist": "composer update --no-dev --optimize-autoloader",
+        "test": "vendor/bin/phpunit",
+        "test-local": "vendor/bin/phpunit --testdox"
     }
-  },
-  "scripts": {
-    "analyze": "phpstan analyse src",
-    "fix": "php-cs-fixer fix src",
-    "dist": "composer install --no-dev --optimize-autoloader",
-    "update-dist": "composer update --no-dev --optimize-autoloader",
-    "test": "vendor/bin/phpunit",
-    "test-local": "vendor/bin/phpunit --testdox"
-  }
 }
