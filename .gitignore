@@ -4,6 +4,9 @@
 # npm modules
 /node_modules
 
+# exclude claude
+.claude
+
 # Composer files
 /kirby
 
