@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.1...v1.3.2) (2025-11-19)
+
+
+### Bug Fixes
+
+* Fixed autoloading of classes for release [#7](https://github.com/tearoom1/kirby-ftp-backup/issues/7) ([fa9d4bd](https://github.com/tearoom1/kirby-ftp-backup/commit/fa9d4bd80a73251758f9eba524da7ae074f43d21))
+
 ## [1.3.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.0...v1.3.1) (2025-11-05)
 
 
@@ -26,11 +33,4 @@
 ### Bug Fixes
 
 * allow config with ssh key instead of password [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6) ([df3601a](https://github.com/tearoom1/kirby-ftp-backup/commit/df3601ac65f3535267e7fd2a949c7e080546286a))
-
-## [1.1.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.0...v1.1.1) (2025-10-01)
-
-
-### Bug Fixes
-
-* allow config with ssh key instead of password [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6) ([38b9173](https://github.com/tearoom1/kirby-ftp-backup/commit/38b9173f716c4569cfc4a73dcabb5c66dac40f06))
 

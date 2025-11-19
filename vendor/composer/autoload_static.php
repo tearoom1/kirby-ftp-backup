@@ -11,38 +11,38 @@ class ComposerStaticInit537a3ca395a94790c36225f596257f5b
     );
 
     public static $prefixLengthsPsr4 = array (
-        'p' => 
+        'p' =>
         array (
             'phpseclib3\\' => 11,
         ),
-        'T' => 
+        'T' =>
         array (
             'TearoomOne\\FtpBackup\\' => 21,
         ),
-        'P' => 
+        'P' =>
         array (
             'ParagonIE\\ConstantTime\\' => 23,
         ),
-        'K' => 
+        'K' =>
         array (
             'Kirby\\' => 6,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'phpseclib3\\' => 
+        'phpseclib3\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
         ),
-        'TearoomOne\\FtpBackup\\' => 
+        'TearoomOne\\FtpBackup\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
-        'ParagonIE\\ConstantTime\\' => 
+        'ParagonIE\\ConstantTime\\' =>
         array (
             0 => __DIR__ . '/..' . '/paragonie/constant_time_encoding/src',
         ),
-        'Kirby\\' => 
+        'Kirby\\' =>
         array (
             0 => __DIR__ . '/..' . '/getkirby/composer-installer/src',
         ),
