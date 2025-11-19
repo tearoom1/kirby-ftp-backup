@@ -12,16 +12,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer
-
-      - name: Install dependencies
-        run: composer install --no-dev --optimize-autoloader
-
       - name: conventional Changelog Action
         id: changelog
         uses: TriPSs/conventional-changelog-action@v6
