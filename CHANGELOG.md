@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.2...v1.3.3) (2026-03-12)
+
+
+### Bug Fixes
+
+* fixed several small issues, related to issue [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([bcb3e94](https://github.com/tearoom1/kirby-ftp-backup/commit/bcb3e942a45f18d9a7c2b969a2faa57c03570b73))
+
 ## [1.3.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.1...v1.3.2) (2025-11-19)
 
 
@@ -26,11 +33,4 @@
 ### Features
 
 * Added include and exclude options for content backup and options to disable the plugin or upload ([463ad1b](https://github.com/tearoom1/kirby-ftp-backup/commit/463ad1b6a079eb1267c569f08c6af0aa587d1ffb))
-
-## [1.1.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.1...v1.1.2) (2025-10-01)
-
-
-### Bug Fixes
-
-* allow config with ssh key instead of password [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6) ([df3601a](https://github.com/tearoom1/kirby-ftp-backup/commit/df3601ac65f3535267e7fd2a949c7e080546286a))
 
