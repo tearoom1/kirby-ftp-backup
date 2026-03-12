@@ -14,20 +14,20 @@
     <div class="k-ftp-backup-view-stats">
       <div class="k-ftp-backup-view-stats-card">
         <h3>Total Backups</h3>
-        <p>{{ stats.count }}</p>
+        <p>{{ localStats.count }}</p>
       </div>
 
       <div class="k-ftp-backup-view-stats-card">
         <h3>Total Size</h3>
-        <p>{{ stats.formattedTotalSize }}</p>
+        <p>{{ localStats.formattedTotalSize }}</p>
       </div>
 
       <div class="k-ftp-backup-view-stats-card">
         <h3>Latest Backup</h3>
-        <p v-if="stats.latestBackup">{{ stats.latestBackup.formattedDate }}</p>
+        <p v-if="localStats.latestBackup">{{ localStats.latestBackup.formattedDate }}</p>
         <p v-else>None</p>
-        <div class="k-ftp-backup-view-stats-card-latest" v-if="stats.latestBackup">
-          {{ stats.latestBackup.filename }}
+        <div class="k-ftp-backup-view-stats-card-latest" v-if="localStats.latestBackup">
+          {{ localStats.latestBackup.filename }}
         </div>
       </div>
     </div>
@@ -79,7 +79,7 @@
         :items="backups"
         layout="list"
       >
-        <template slot="options" slot-scope="{ item }">
+        <template #options="{ item }">
           <k-button icon="download" @click="downloadBackup(item)"/>
         </template>
       </k-collection>
@@ -127,11 +127,13 @@
         </div>
       </div>
 
-      <k-button-group slot="footer">
-        <k-button icon="check" @click="$refs.settingsDialog.close()">
-          Close
-        </k-button>
-      </k-button-group>
+      <template #footer>
+        <k-button-group>
+          <k-button icon="check" @click="$refs.settingsDialog.close()">
+            Close
+          </k-button>
+        </k-button-group>
+      </template>
     </k-dialog>
 
     <!-- FTP Server Stats Dialog -->
@@ -208,6 +210,7 @@ export default {
       isCreatingBackup: false,
       isLoadingBackups: false,
       isLoadingFtpStats: false,
+      localStats: this.stats || {},
       backups: [],
       ftpWarning: {
         show: false,
@@ -246,7 +249,7 @@ export default {
         }
 
         if (response.status === 'success' && response.stats) {
-          this.stats = response.stats;
+          this.localStats = response.stats;
         }
       } catch (error) {
         window.panel.notification.error('Failed to load backups');

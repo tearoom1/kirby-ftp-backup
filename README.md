@@ -333,7 +333,7 @@ If you encounter issues:
 
 ## Requirements
 
-- Kirby 3.5+
+- Kirby 4+
 - PHP 7.4+
 - PHP ZIP extension
 - PHP FTP extension

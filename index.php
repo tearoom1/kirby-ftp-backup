@@ -81,6 +81,18 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                     return $manager->createBackup();
                 }
             ],
+            // Catch accidental GET requests to the create endpoint (caused by HTTP→HTTPS or www redirects
+            // converting the POST method to GET — fix your canonical URL in config.php)
+            [
+                'pattern' => 'ftp-backup/create',
+                'method' => 'GET',
+                'action' => function () {
+                    return \Kirby\Http\Response::json([
+                        'status' => 'error',
+                        'message' => 'This endpoint only accepts POST requests. A GET request was received, which is most likely caused by an HTTP redirect (e.g. HTTP→HTTPS or www→non-www) converting your POST to GET. Set the correct canonical URL in your Kirby config.php: \'url\' => \'https://yourdomain.com\''
+                    ], 405);
+                }
+            ],
             // Check FTP settings status
             [
                 'pattern' => 'ftp-backup/settings-status',
@@ -103,7 +115,6 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                         'data' => [
                             'configured' => $configured,
                             'ftpEnabled' => $ftpEnabled,
-                            'settings' => $settings,
                         ]
                     ];
                 }

@@ -98,7 +98,7 @@ class BackupManager
                     'filename' => $file,
                     'size' => F::size($path),
                     'modified' => F::modified($path),
-                    'downloadUrl' => '/ftp-backup/download/' . $file . '?key=' . $key
+                    'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . $file . '?key=' . $key
                 ];
             }
         }
@@ -468,7 +468,7 @@ class BackupManager
             if (!in_array($backup['filename'], $keepFilenames)) {
 
                 if ($this->isLocalDev()) {
-                    echo "Would delete from local: {$file}\n";
+                    echo "Would delete from local: {$backup['filename']}\n";
                 } else {
                     F::remove($backup['path']);
                 }
@@ -772,9 +772,6 @@ class BackupManager
             usort($backupFiles, function ($a, $b) {
                 return $b['modified'] <=> $a['modified'];
             });
-
-            // Disconnect from FTP
-            $ftpClient->disconnect();
 
             // Return stats
             return [
