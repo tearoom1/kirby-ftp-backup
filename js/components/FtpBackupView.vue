@@ -263,7 +263,10 @@ export default {
       return Math.min(100, Math.round((this.progressCurrent / this.progressTotal) * 100));
     },
     isIndeterminate() {
-      return this.progressPhase === 'zip';
+      if (this.progressPhase === 'zip') return true;
+      // FTP/FTPS has no byte-level progress callbacks — show indeterminate bar
+      if (this.progressPhase === 'upload' && this.progressCurrent === 0) return true;
+      return false;
     },
     progressLabel() {
       const phase = this.progressPhase;
@@ -376,7 +379,25 @@ export default {
       this.startProgressPolling();
 
       try {
-        const response = await this.$api.post('ftp-backup/create', { jobId: this.currentJobId });
+        const rawResponse = await fetch('/api/ftp-backup/create', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF': window.panel.system.csrf,
+          },
+          body: JSON.stringify({ jobId: this.currentJobId }),
+        });
+
+        const contentType = rawResponse.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const statusText = rawResponse.status === 504
+            ? '504 Gateway Timeout — the backup did not complete in time. Raise your server\'s proxy timeout (e.g. fastcgi_read_timeout in nginx) or check your PHP error log.'
+            : `HTTP ${rawResponse.status} error. Check your PHP error log.`;
+          throw new Error(statusText);
+        }
+
+        const response = await rawResponse.json();
 
         if (response.status === 'cancelled') {
           window.panel.notification.info('Backup was cancelled');
@@ -404,7 +425,6 @@ export default {
           }
         }
       } catch (error) {
-        // Network or API error
         const errorMessage = error.message || 'Failed to create backup';
         window.panel.notification.error(errorMessage);
         console.error('Backup creation error:', error);

@@ -37,6 +37,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'ftpDirectory' => '/', // FTP remote directory
         'ftpPassive' => true, // Use passive mode
         'ftpTimeout' => 30, // Socket response timeout in seconds (how long to wait for the server to respond to each packet, not the total transfer duration)
+        'ftpKeepAlive' => 0, // Send SSH keepalive every N seconds during upload (0 = disabled). Useful when a firewall drops idle connections mid-transfer.
         // general settings
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
@@ -87,6 +88,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'method' => 'POST',
                 'action' => function () {
                     try {
+                        set_time_limit(0);
                         $jobId = kirby()->request()->get('jobId') ?? null;
                         $manager = new BackupManager();
                         return $manager->createBackup(true, $jobId ?: null);

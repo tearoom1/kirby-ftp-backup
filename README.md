@@ -48,6 +48,7 @@ All configuration is handled through Kirby's option system. Add the following to
     'ftpPrivateKey' => 'path/to/private/key.pem',
     'ftpPassphrase' => 'your-passphrase',
     'ftpTimeout' => 30,
+    'ftpKeepAlive' => 0,
 
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
@@ -82,7 +83,8 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpPassive` | boolean | `true` | Use passive mode                                                 |
 | `ftpPrivateKey` | string | `''` | Path to private key file                                         |
 | `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
-| `ftpTimeout` | integer | `30` | Socket response timeout in seconds — how long to wait for the server to respond to each packet. This is **not** a total transfer timeout; large files will still transfer as long as the connection stays active. Increase this if uploads fail on slow or high-latency connections. |
+| `ftpTimeout` | integer | `30` | Socket response timeout in seconds (see Advanced Options) |
+| `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
@@ -318,6 +320,18 @@ On error:
 Error creating backup: FTP connection failed
 ```
 
+## Advanced Options
+
+### `ftpTimeout`
+
+How long to wait for the server to respond to each individual packet, in seconds. This is **not** a total transfer timeout — large files will transfer for as long as needed as long as the connection stays active. The default of `30` seconds is appropriate for most servers. Increase it only if uploads fail on very slow or high-latency connections.
+
+### `ftpKeepAlive` (SFTP only)
+
+Sends an SSH keepalive packet every N seconds to prevent firewalls or load balancers from dropping idle connections during large uploads. Disabled by default (`0`).
+
+> **Note:** Some OpenSSH servers respond to keepalives with a `hostkeys-00@openssh.com` global request that phpseclib cannot handle mid-transfer, which can interrupt the upload. Only enable this if you have confirmed that idle-timeout drops are the cause of your upload failures.
+
 ## Security Considerations
 
 - Store your FTP credentials securely in your `config.php` file
@@ -334,7 +348,7 @@ If you encounter issues:
 3. Check your server's PHP error logs for any PHP errors
 4. Make sure the local backup directory is writable by PHP
 5. Check if you have the required PHP extensions (zip, ftp)
-6. If uploads fail on slow or high-latency connections, increase `ftpTimeout` (default: 300 s). Note: this is a per-packet socket timeout, not a total transfer limit — large files will always take as long as they need to transfer.
+6. If uploads fail on slow or high-latency connections, increase `ftpTimeout` — see Advanced Options
 7. If you get a 504 Gateway Timeout when creating backups from the Panel, increase your web server's proxy/fastcgi read timeout to match or exceed `max_execution_time` in your `php.ini`
 
 ## Requirements

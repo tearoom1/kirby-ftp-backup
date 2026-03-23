@@ -141,7 +141,8 @@ class BackupManager
             'includePatterns' => option('tearoom1.kirby-ftp-backup.includePatterns', []),
             'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', []),
             // Connection timeout
-            'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30)
+            'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30),
+            'ftpKeepAlive' => (int)option('tearoom1.kirby-ftp-backup.ftpKeepAlive', 0)
         ];
     }
 
@@ -406,7 +407,8 @@ class BackupManager
             $settings['ftpPassword'] ?? '',
             $settings['ftpPrivateKey'] ?? null,
             $settings['ftpPassphrase'] ?? null,
-            $settings['ftpTimeout'] ?? 300
+            $settings['ftpTimeout'] ?? 30,
+            $settings['ftpKeepAlive'] ?? 0
         );
 
         $sftpClient->connect();

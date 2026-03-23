@@ -18,6 +18,7 @@ class SftpClient implements FtpClientInterface
     private ?string $privateKey;
     private ?string $passphrase;
     private int $timeout;
+    private int $keepAlive;
     private ?SFTP $sftp = null;
 
     public function __construct(
@@ -27,7 +28,8 @@ class SftpClient implements FtpClientInterface
         string $password = '',
         string|null $privateKey = null,
         string|null $passphrase = null,
-        int $timeout = self::TIMEOUT
+        int $timeout = self::TIMEOUT,
+        int $keepAlive = 0
     ) {
         $this->host = $host;
         $this->port = $port;
@@ -36,6 +38,7 @@ class SftpClient implements FtpClientInterface
         $this->privateKey = $privateKey;
         $this->passphrase = $passphrase;
         $this->timeout = $timeout;
+        $this->keepAlive = $keepAlive;
     }
 
     /**
@@ -45,6 +48,10 @@ class SftpClient implements FtpClientInterface
     {
         // Create SFTP connection
         $this->sftp = new SFTP($this->host, $this->port, $this->timeout);
+
+        if ($this->keepAlive > 0) {
+            $this->sftp->setKeepAlive($this->keepAlive);
+        }
 
         // Authenticate with private key or password
         if ($this->privateKey) {
@@ -103,38 +110,62 @@ class SftpClient implements FtpClientInterface
         $result = $this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE, -1, -1, $progressCallback);
 
         // Collect all errors produced during the transfer.
-        $allErrors = $this->sftp->getErrors();
+        $allErrors   = $this->sftp->getErrors();
+        $lastError   = $this->sftp->getLastError();
 
-        // SSH_MSG_GLOBAL_REQUEST and hostkeys messages are noise from the server,
-        // not real failures — ignore them when deciding whether put() truly failed.
+        // SSH_MSG_GLOBAL_REQUEST and hostkeys messages are noise — keepalives and
+        // server-side host-key rotation notices, not real failures.
         $criticalErrors = array_values(array_filter($allErrors, function ($error) {
             return !str_contains($error, 'SSH_MSG_GLOBAL_REQUEST') &&
                    !str_contains($error, 'hostkeys-00@openssh.com');
         }));
+
+        // Always log everything for diagnostics.
+        if (!empty($allErrors)) {
+            error_log('[kirby-ftp-backup] SFTP put() errors: ' . implode('; ', $allErrors));
+        }
+        if ($lastError) {
+            error_log('[kirby-ftp-backup] SFTP last error: ' . $lastError);
+        }
 
         if (!$result && !empty($criticalErrors)) {
             throw new \Exception('Upload failed: ' . implode('; ', $criticalErrors));
         }
 
         // Verify that the remote file exists and its size matches the local file.
-        // Use stat() directly to avoid phpseclib's internal attribute cache returning
-        // stale results after a failed or partial transfer.
+        // If the connection was broken during transfer (e.g. by a phpseclib/OpenSSH
+        // protocol quirk), reconnect first and then stat — this gives an accurate
+        // picture of what is actually on the server.
         $stat = $this->sftp->stat($remoteFile);
 
+        if ($stat === false) {
+            // Connection may be broken — reconnect and try once more.
+            try {
+                $this->connect();
+                $stat = $this->sftp->stat($remoteFile);
+            } catch (\Exception $e) {
+                // Reconnect failed; report with whatever diagnostic info we have.
+            }
+        }
+
         if ($stat === false || !isset($stat['size'])) {
-            // stat() failed — the connection may be broken after an interrupted
-            // transfer. A partial file may already exist on the server.
-            $detail = !empty($criticalErrors) ? ' Error: ' . implode('; ', $criticalErrors) : '';
+            $parts = [];
+            if (!empty($criticalErrors)) {
+                $parts[] = implode('; ', $criticalErrors);
+            } elseif ($lastError) {
+                $parts[] = $lastError;
+            }
+            $detail = !empty($parts) ? ' (' . implode('; ', $parts) . ')' : '';
             throw new \Exception(
-                "Upload was interrupted — a partial file may remain on the server.{$detail} " .
-                "Check your server's SFTP timeout and ensure the connection stays alive for large files."
+                "Upload failed: could not verify file on server after transfer.{$detail} " .
+                "Check your PHP error log for full details."
             );
         }
 
         if ($stat['size'] !== $fileSize) {
             throw new \Exception(
-                "Upload incomplete: only {$stat['size']} of {$fileSize} bytes were transferred. " .
-                "The partial file remains on the server. This is usually caused by a connection timeout."
+                "Upload incomplete: only {$stat['size']} of {$fileSize} bytes transferred. " .
+                "A partial file remains on the server."
             );
         }
 
