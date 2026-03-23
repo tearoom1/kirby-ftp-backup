@@ -7,13 +7,14 @@ namespace TearoomOne\FtpBackup;
  */
 class FtpClient implements FtpClientInterface
 {
-    public const TIMEOUT = 60;
+    public const TIMEOUT = 30;
     private string $host;
     private int $port;
     private string $username;
     private string $password;
     private bool $ssl;
     private bool $passive;
+    private int $timeout;
     private $connection;
 
     public function __construct(
@@ -22,7 +23,8 @@ class FtpClient implements FtpClientInterface
         string $username = '',
         string $password = '',
         bool $ssl = false,
-        bool $passive = true
+        bool $passive = true,
+        int $timeout = self::TIMEOUT
     ) {
         $this->host = $host;
         $this->port = $port;
@@ -30,6 +32,7 @@ class FtpClient implements FtpClientInterface
         $this->password = $password;
         $this->ssl = $ssl;
         $this->passive = $passive;
+        $this->timeout = $timeout;
     }
 
     /**
@@ -41,9 +44,9 @@ class FtpClient implements FtpClientInterface
             if (!function_exists('ftp_ssl_connect')) {
                 throw new \Exception('FTP SSL is not supported on this server');
             }
-            $this->connection = ftp_ssl_connect($this->host, $this->port, self::TIMEOUT);
+            $this->connection = ftp_ssl_connect($this->host, $this->port, $this->timeout);
         } else {
-            $this->connection = ftp_connect($this->host, $this->port, self::TIMEOUT);
+            $this->connection = ftp_connect($this->host, $this->port, $this->timeout);
         }
 
         if (!$this->connection) {
@@ -62,7 +65,7 @@ class FtpClient implements FtpClientInterface
     /**
      * Upload a file to the FTP server
      */
-    public function upload(string $localFile, string $remoteFile): bool
+    public function upload(string $localFile, string $remoteFile, ?callable $onProgress = null): bool
     {
         if (!$this->connection) {
             throw new \Exception('Not connected to FTP server');
@@ -71,8 +74,19 @@ class FtpClient implements FtpClientInterface
         // Make sure the remote directory exists
         $this->createRemoteDirectory(dirname($remoteFile));
 
-        // Upload file
-        if (!ftp_put($this->connection, $remoteFile, $localFile, FTP_BINARY)) {
+        // Use non-blocking upload so we can check for cancellation in the loop.
+        // ftp_nb_put does not expose byte offsets, so we pass (0, 0) — the
+        // callback is used for cancellation only; progress stays indeterminate.
+        $result = ftp_nb_put($this->connection, $remoteFile, $localFile, FTP_BINARY);
+
+        while ($result === FTP_MOREDATA) {
+            if ($onProgress) {
+                $onProgress(0, 0);
+            }
+            $result = ftp_nb_continue($this->connection);
+        }
+
+        if ($result !== FTP_FINISHED) {
             throw new \Exception("Failed to upload file to FTP server: {$remoteFile}");
         }
 

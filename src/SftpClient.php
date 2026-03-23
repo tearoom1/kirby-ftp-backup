@@ -10,13 +10,14 @@ use phpseclib3\Crypt\RSA;
  */
 class SftpClient implements FtpClientInterface
 {
-    public const TIMEOUT = 60;
+    public const TIMEOUT = 30;
     private string $host;
     private int $port;
     private string $username;
     private string $password;
     private ?string $privateKey;
     private ?string $passphrase;
+    private int $timeout;
     private ?SFTP $sftp = null;
 
     public function __construct(
@@ -25,7 +26,8 @@ class SftpClient implements FtpClientInterface
         string $username = '',
         string $password = '',
         string|null $privateKey = null,
-        string|null $passphrase = null
+        string|null $passphrase = null,
+        int $timeout = self::TIMEOUT
     ) {
         $this->host = $host;
         $this->port = $port;
@@ -33,6 +35,7 @@ class SftpClient implements FtpClientInterface
         $this->password = $password;
         $this->privateKey = $privateKey;
         $this->passphrase = $passphrase;
+        $this->timeout = $timeout;
     }
 
     /**
@@ -41,7 +44,7 @@ class SftpClient implements FtpClientInterface
     public function connect(): void
     {
         // Create SFTP connection
-        $this->sftp = new SFTP($this->host, $this->port, self::TIMEOUT);
+        $this->sftp = new SFTP($this->host, $this->port, $this->timeout);
 
         // Authenticate with private key or password
         if ($this->privateKey) {
@@ -62,7 +65,7 @@ class SftpClient implements FtpClientInterface
     /**
      * Upload a file to the SFTP server
      */
-    public function upload(string $localFile, string $remoteFile): bool
+    public function upload(string $localFile, string $remoteFile, ?callable $onProgress = null): bool
     {
         if (!$this->sftp) {
             throw new \Exception('Not connected to SFTP server');
@@ -86,55 +89,53 @@ class SftpClient implements FtpClientInterface
         $remoteDir = dirname($remoteFile);
         $this->createRemoteDirectory($remoteDir);
 
-        // Upload file
-        $result = $this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE);
-        
-        // Get all errors/warnings
-        $errors = $this->sftp->getErrors();
-        
-        // Filter out non-critical SSH messages
-        $criticalErrors = array_filter($errors, function($error) {
+        // Upload file — phpseclib calls $progressCallback with the current byte
+        // offset after each packet, so we can report real progress and cancel.
+        $progressCallback = $onProgress
+            ? function (int $position) use ($onProgress, $fileSize) {
+                $onProgress($position, $fileSize);
+            }
+            : null;
+
+        // Clear the error log before uploading so we only collect errors from this transfer.
+        $this->sftp->getErrors();
+
+        $result = $this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE, -1, -1, $progressCallback);
+
+        // Collect all errors produced during the transfer.
+        $allErrors = $this->sftp->getErrors();
+
+        // SSH_MSG_GLOBAL_REQUEST and hostkeys messages are noise from the server,
+        // not real failures — ignore them when deciding whether put() truly failed.
+        $criticalErrors = array_values(array_filter($allErrors, function ($error) {
             return !str_contains($error, 'SSH_MSG_GLOBAL_REQUEST') &&
                    !str_contains($error, 'hostkeys-00@openssh.com');
-        });
-        
-        if (!$result) {
-            if (!empty($criticalErrors)) {
-                $errorMsg = implode(', ', $criticalErrors);
-                throw new \Exception("Failed to upload file to SFTP server: {$remoteFile}. Error: {$errorMsg}");
-            }
-            // put() returned false but no critical errors - continue to verification
+        }));
+
+        if (!$result && !empty($criticalErrors)) {
+            throw new \Exception('Upload failed: ' . implode('; ', $criticalErrors));
         }
 
-        // Verify uploaded file exists and size matches local file
-        try {
-            // Check if file exists first
-            if (!$this->sftp->file_exists($remoteFile)) {
-                throw new \Exception("Upload verification failed: Remote file does not exist at {$remoteFile}");
-            }
-            
-            // Get file size using stat
-            $stat = $this->sftp->stat($remoteFile);
-            if ($stat === false) {
-                // File exists but can't get stats - skip verification
-                return true;
-            }
-            
-            $remoteSize = $stat['size'] ?? false;
-            if ($remoteSize === false) {
-                // Can't get size from stat - skip verification
-                return true;
-            }
-            
-            if ($remoteSize !== $fileSize) {
-                throw new \Exception("Upload verification failed. Local size: {$fileSize} bytes, Remote size: {$remoteSize} bytes");
-            }
-        } catch (\Exception $e) {
-            // If it's our own exception, re-throw it
-            if (strpos($e->getMessage(), 'Upload verification failed') === 0) {
-                throw $e;
-            }
-            // Otherwise continue (verification optional)
+        // Verify that the remote file exists and its size matches the local file.
+        // Use stat() directly to avoid phpseclib's internal attribute cache returning
+        // stale results after a failed or partial transfer.
+        $stat = $this->sftp->stat($remoteFile);
+
+        if ($stat === false || !isset($stat['size'])) {
+            // stat() failed — the connection may be broken after an interrupted
+            // transfer. A partial file may already exist on the server.
+            $detail = !empty($criticalErrors) ? ' Error: ' . implode('; ', $criticalErrors) : '';
+            throw new \Exception(
+                "Upload was interrupted — a partial file may remain on the server.{$detail} " .
+                "Check your server's SFTP timeout and ensure the connection stays alive for large files."
+            );
+        }
+
+        if ($stat['size'] !== $fileSize) {
+            throw new \Exception(
+                "Upload incomplete: only {$stat['size']} of {$fileSize} bytes were transferred. " .
+                "The partial file remains on the server. This is usually caused by a connection timeout."
+            );
         }
 
         return true;

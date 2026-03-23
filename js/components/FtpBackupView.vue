@@ -44,6 +44,15 @@
             Create Backup Now
           </k-button>
           <k-button
+            v-if="isCreatingBackup"
+            icon="cancel"
+            theme="negative"
+            @click="cancelBackup"
+            :disabled="isCancelling"
+          >
+            Cancel
+          </k-button>
+          <k-button
             icon="refresh"
             @click="loadBackups"
             :disabled="isLoading || isCreatingBackup"
@@ -61,6 +70,24 @@
             title="Show FTP Server Stats"
           />
         </k-button-group>
+      </div>
+
+      <!-- Progress bar -->
+      <div v-if="isCreatingBackup" class="k-ftp-backup-progress">
+        <div class="k-ftp-backup-progress-bar">
+          <div
+            v-if="isIndeterminate"
+            class="k-ftp-backup-progress-indeterminate"
+          ></div>
+          <div
+            v-else
+            class="k-ftp-backup-progress-fill"
+            :style="{ width: progressPercent + '%' }"
+          ></div>
+        </div>
+        <div class="k-ftp-backup-progress-label">
+          {{ progressLabel }}
+        </div>
       </div>
     </div>
 
@@ -208,6 +235,7 @@ export default {
     return {
       isLoading: false,
       isCreatingBackup: false,
+      isCancelling: false,
       isLoadingBackups: false,
       isLoadingFtpStats: false,
       localStats: this.stats || {},
@@ -218,8 +246,40 @@ export default {
         isPersistent: false
       },
       ftpStats: null,
-      ftpStatsError: null
+      ftpStatsError: null,
+      // Progress tracking
+      currentJobId: null,
+      progressPollTimer: null,
+      progressPhase: null,
+      progressCurrent: 0,
+      progressTotal: 0,
+      progressMessage: ''
     };
+  },
+
+  computed: {
+    progressPercent() {
+      if (!this.progressTotal) return 0;
+      return Math.min(100, Math.round((this.progressCurrent / this.progressTotal) * 100));
+    },
+    isIndeterminate() {
+      return this.progressPhase === 'zip';
+    },
+    progressLabel() {
+      const phase = this.progressPhase;
+      if (!phase || phase === 'starting') return 'Preparing…';
+      if (phase === 'zip') return this.progressMessage || 'Compressing archive…';
+      if (phase === 'upload') {
+        return this.progressTotal && this.progressCurrent
+          ? `Uploading… ${this.formatSize(this.progressCurrent)} / ${this.formatSize(this.progressTotal)} (${this.progressPercent}%)`
+          : 'Uploading to FTP server…';
+      }
+      if (phase === 'cleanup') return 'Cleaning up old backups…';
+      if (phase === 'done') return this.progressMessage || 'Done';
+      if (phase === 'cancelled') return 'Cancelled';
+      if (phase === 'error') return 'Error: ' + (this.progressMessage || 'Unknown error');
+      return this.progressMessage || '';
+    }
   },
 
   created() {
@@ -259,11 +319,69 @@ export default {
       }
     },
 
+    generateJobId() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    },
+
+    startProgressPolling() {
+      this.stopProgressPolling();
+      this.progressPollTimer = setInterval(async () => {
+        if (!this.currentJobId) return;
+        try {
+          const response = await this.$api.get('ftp-backup/progress/' + this.currentJobId);
+          const d = response && response.data;
+          // Only accept data that looks valid — ignore corrupted/race-condition reads
+          if (d && d.phase && d.phase !== 'unknown') {
+            this.progressPhase = d.phase;
+            this.progressCurrent = d.current || 0;
+            this.progressTotal = d.total || 0;
+            this.progressMessage = d.message || '';
+          }
+        } catch (e) {
+          // silent — polling can fail without disrupting the backup
+        }
+      }, 800);
+    },
+
+    stopProgressPolling() {
+      if (this.progressPollTimer) {
+        clearInterval(this.progressPollTimer);
+        this.progressPollTimer = null;
+      }
+    },
+
+    async cancelBackup() {
+      if (!this.currentJobId || this.isCancelling) return;
+      this.isCancelling = true;
+      try {
+        await this.$api.post('ftp-backup/cancel', { jobId: this.currentJobId });
+        this.progressMessage = 'Cancellation requested…';
+      } catch (e) {
+        window.panel.notification.error('Failed to send cancel signal');
+        this.isCancelling = false;
+      }
+    },
+
     async createBackup() {
       this.isCreatingBackup = true;
+      this.isCancelling = false;
+      this.currentJobId = this.generateJobId();
+      this.progressPhase = 'starting';
+      this.progressCurrent = 0;
+      this.progressTotal = 0;
+      this.progressMessage = '';
+      this.startProgressPolling();
 
       try {
-        const response = await this.$api.post('ftp-backup/create');
+        const response = await this.$api.post('ftp-backup/create', { jobId: this.currentJobId });
+
+        if (response.status === 'cancelled') {
+          window.panel.notification.info('Backup was cancelled');
+          return;
+        }
 
         if (response.status === 'success') {
           window.panel.notification.success(response.message);
@@ -292,7 +410,10 @@ export default {
         console.error('Backup creation error:', error);
         this.showFtpWarning('Error: ' + errorMessage, true);
       } finally {
+        this.stopProgressPolling();
         this.isCreatingBackup = false;
+        this.isCancelling = false;
+        this.currentJobId = null;
       }
     },
 
@@ -400,3 +521,37 @@ export default {
   }
 };
 </script>
+
+<style>
+.k-ftp-backup-progress {
+  margin-top: 1rem;
+}
+.k-ftp-backup-progress-bar {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.k-ftp-backup-progress-fill {
+  height: 100%;
+  background: var(--color-focus);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.k-ftp-backup-progress-indeterminate {
+  height: 100%;
+  width: 40%;
+  background: var(--color-focus);
+  border-radius: 3px;
+  animation: k-ftp-backup-slide 1.4s ease-in-out infinite;
+}
+@keyframes k-ftp-backup-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.k-ftp-backup-progress-label {
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-light);
+}
+</style>

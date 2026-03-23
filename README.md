@@ -47,6 +47,7 @@ All configuration is handled through Kirby's option system. Add the following to
     'ftpPassive' => true,
     'ftpPrivateKey' => 'path/to/private/key.pem',
     'ftpPassphrase' => 'your-passphrase',
+    'ftpTimeout' => 30,
 
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
@@ -81,6 +82,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpPassive` | boolean | `true` | Use passive mode                                                 |
 | `ftpPrivateKey` | string | `''` | Path to private key file                                         |
 | `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
+| `ftpTimeout` | integer | `30` | Socket response timeout in seconds — how long to wait for the server to respond to each packet. This is **not** a total transfer timeout; large files will still transfer as long as the connection stays active. Increase this if uploads fail on slow or high-latency connections. |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
@@ -227,9 +229,11 @@ You can control which files are included in backups using regex patterns. This i
 The plugin adds a "FTP Backup" area to your Kirby Panel:
 
 - View all available backups
-- Create new backups manually
+- Create new backups manually with live progress indication
+- Cancel a running backup
 - Download existing backups
 - View backup statistics (count, total size, latest backup)
+- View FTP server stats and file listing
 
 ## Automatic Backups with Cron
 
@@ -330,6 +334,8 @@ If you encounter issues:
 3. Check your server's PHP error logs for any PHP errors
 4. Make sure the local backup directory is writable by PHP
 5. Check if you have the required PHP extensions (zip, ftp)
+6. If uploads fail on slow or high-latency connections, increase `ftpTimeout` (default: 300 s). Note: this is a per-packet socket timeout, not a total transfer limit — large files will always take as long as they need to transfer.
+7. If you get a 504 Gateway Timeout when creating backups from the Panel, increase your web server's proxy/fastcgi read timeout to match or exceed `max_execution_time` in your `php.ini`
 
 ## Requirements
 
@@ -360,6 +366,6 @@ This plugin is licensed under the [MIT License](LICENSE)
 ## Credits
 
 - Developed by Mathis Koblin
-- Assisted by AI Claude 3.7 Sonnet
+- Assisted by AI Claude Sonnet 4.6
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/tearoom1)

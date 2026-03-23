@@ -15,6 +15,74 @@ class BackupManager
 {
     private string $backupDir;
 
+    // -------------------------------------------------------------------------
+    // Job / cancellation / progress helpers
+    // -------------------------------------------------------------------------
+
+    private function sanitizeJobId(string $jobId): string
+    {
+        return substr(preg_replace('/[^a-f0-9\-]/', '', $jobId), 0, 64);
+    }
+
+    private function cancelFlagPath(string $jobId): string
+    {
+        return $this->backupDir . '/.cancel-' . $this->sanitizeJobId($jobId);
+    }
+
+    private function progressFilePath(string $jobId): string
+    {
+        return $this->backupDir . '/.progress-' . $this->sanitizeJobId($jobId);
+    }
+
+    private function isCancelled(string $jobId): bool
+    {
+        $path = $this->cancelFlagPath($jobId);
+        if (file_exists($path)) {
+            @unlink($path);
+            return true;
+        }
+        return false;
+    }
+
+    private function writeProgress(string $jobId, string $phase, int $current, int $total, string $message = ''): void
+    {
+        $data = json_encode([
+            'phase'   => $phase,
+            'current' => $current,
+            'total'   => $total,
+            'message' => $message,
+        ]);
+        // Write to a temp file then rename so readers never see a partial file
+        $path = $this->progressFilePath($jobId);
+        $tmp  = $path . '.tmp';
+        @file_put_contents($tmp, $data);
+        @rename($tmp, $path);
+    }
+
+    public function getProgress(string $jobId): array
+    {
+        $path = $this->progressFilePath($this->sanitizeJobId($jobId));
+        if (!file_exists($path)) {
+            return ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+        }
+        $data = json_decode(file_get_contents($path), true);
+        return is_array($data) ? $data : ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+    }
+
+    public function cancelBackup(string $jobId): array
+    {
+        $path = $this->cancelFlagPath($jobId);
+        file_put_contents($path, '1');
+        return ['status' => 'success', 'message' => 'Cancel signal sent'];
+    }
+
+
+    private function cleanupJobFiles(string $jobId): void
+    {
+        @unlink($this->cancelFlagPath($jobId));
+        @unlink($this->progressFilePath($jobId));
+    }
+
     /**
      * Constructor
      */
@@ -71,7 +139,9 @@ class BackupManager
             ],
             // File filtering
             'includePatterns' => option('tearoom1.kirby-ftp-backup.includePatterns', []),
-            'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', [])
+            'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', []),
+            // Connection timeout
+            'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30)
         ];
     }
 
@@ -119,10 +189,14 @@ class BackupManager
     /**
      * Create a new backup
      */
-    public function createBackup(bool $uploadToFtp = true): array
+    public function createBackup(bool $uploadToFtp = true, ?string $jobId = null): array
     {
         $ftpClient = null;
         try {
+            if ($jobId) {
+                $this->writeProgress($jobId, 'starting', 0, 0, 'Preparing backup…');
+            }
+
             // Generate filename with date
             $date = date('Y-m-d-His');
             $filePrefix = option('tearoom1.kirby-ftp-backup.filePrefix', 'backup-');
@@ -132,14 +206,23 @@ class BackupManager
             // Create zip archive of content folder
             $contentDir = kirby()->root('content');
 
-            // Create zip excluding .backups directory
+            if ($jobId) {
+                $this->writeProgress($jobId, 'zip', 0, 0, 'Compressing archive…');
+            }
+
             $zip = new \ZipArchive();
             if ($zip->open($filepath, \ZipArchive::CREATE) !== true) {
                 throw new \Exception("Cannot create zip file");
             }
 
-            $this->addDirToZip($contentDir, $zip, '', '/.backups/');
+            $this->addDirToZip($contentDir, $zip, '', '/.backups/', $jobId);
             $zip->close();
+
+            // Check after compression finishes — close() is blocking so this is
+            // the earliest point we can react to a cancel pressed during that phase.
+            if ($jobId && $this->isCancelled($jobId)) {
+                throw new \RuntimeException('Backup cancelled by user', 499);
+            }
 
             $settings = $this->getSettings();
 
@@ -149,11 +232,17 @@ class BackupManager
             // Upload to FTP if requested and FTP is enabled
             $ftpResult = ['uploaded' => false, 'disabled' => !$ftpEnabled];
             if ($uploadToFtp && $ftpEnabled) {
+                if ($jobId) {
+                    $this->writeProgress($jobId, 'upload', 0, 1, 'Uploading to FTP server…');
+                }
                 $ftpClient = $this->initFtpClient();
-                $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename);
+                $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename, $jobId);
                 $ftpResult['disabled'] = false;
 
                 // Cleanup old backups
+                if ($jobId) {
+                    $this->writeProgress($jobId, 'cleanup', 0, 1, 'Cleaning up old backups…');
+                }
                 $this->cleanupOldBackups($ftpClient, $settings);
             } else {
                 // FTP disabled, only cleanup local backups
@@ -167,6 +256,10 @@ class BackupManager
                 $message .= ' and uploaded to FTP server';
             }
 
+            if ($jobId) {
+                $this->writeProgress($jobId, 'done', 1, 1, $message);
+            }
+
             return [
                 'status' => 'success',
                 'message' => $message,
@@ -176,8 +269,30 @@ class BackupManager
                     'ftpResult' => $ftpResult
                 ]
             ];
+        } catch (\RuntimeException $e) {
+            if ($e->getCode() === 499) {
+                // User-initiated cancellation
+                if (isset($filepath) && file_exists($filepath)) {
+                    @unlink($filepath);
+                }
+                if ($jobId) {
+                    $this->writeProgress($jobId, 'cancelled', 0, 0, 'Backup was cancelled');
+                }
+                return ['status' => 'cancelled', 'message' => 'Backup was cancelled'];
+            }
+            error_log('[kirby-ftp-backup] Backup failed: ' . $e->getMessage());
+            if ($jobId) {
+                $this->writeProgress($jobId, 'error', 0, 0, $e->getMessage());
+            }
+            return [
+                'status' => 'error',
+                'message' => 'Backup failed: ' . $e->getMessage()
+            ];
         } catch (\Exception $e) {
             error_log('[kirby-ftp-backup] Backup failed: ' . $e->getMessage());
+            if ($jobId) {
+                $this->writeProgress($jobId, 'error', 0, 0, $e->getMessage());
+            }
             return [
                 'status' => 'error',
                 'message' => 'Backup failed: ' . $e->getMessage()
@@ -186,22 +301,36 @@ class BackupManager
             if ($ftpClient) {
                 $ftpClient->disconnect();
             }
+            if ($jobId) {
+                $this->cleanupJobFiles($jobId);
+            }
         }
     }
 
     /**
      * Upload a backup file to the FTP server
      */
-    private function uploadToFtp(FtpClientInterface $ftpClient, array $settings, string $localFile, string $remoteFilename): array
+    private function uploadToFtp(FtpClientInterface $ftpClient, array $settings, string $localFile, string $remoteFilename, ?string $jobId = null): array
     {
         try {
 
             $directory = $settings['ftpDirectory'] ?? '/';
 
+            $fileSize = $jobId ? (int)filesize($localFile) : 0;
+            $onProgress = $jobId ? function (int $sent, int $total) use ($jobId, $fileSize) {
+                if ($this->isCancelled($jobId)) {
+                    throw new \RuntimeException('Backup cancelled by user', 499);
+                }
+                // Only write progress when we have real byte info (SFTP)
+                if ($sent > 0) {
+                    $this->writeProgress($jobId, 'upload', $sent, $total ?: $fileSize, 'Uploading to FTP server…');
+                }
+            } : null;
+
             if ($this->isLocalDev()) {
                 echo "Would upload: {$localFile} to " .$directory . '/' . $remoteFilename. "\n";
             } else {
-                $ftpClient->upload($localFile, $directory . '/' . $remoteFilename);
+                $ftpClient->upload($localFile, $directory . '/' . $remoteFilename, $onProgress);
             }
 
             return [
@@ -276,7 +405,8 @@ class BackupManager
             $settings['ftpUsername'],
             $settings['ftpPassword'] ?? '',
             $settings['ftpPrivateKey'] ?? null,
-            $settings['ftpPassphrase'] ?? null
+            $settings['ftpPassphrase'] ?? null,
+            $settings['ftpTimeout'] ?? 300
         );
 
         $sftpClient->connect();
@@ -293,7 +423,8 @@ class BackupManager
             $settings['ftpUsername'],
             $settings['ftpPassword'],
             $ftpProtocol === 'ftps',
-            (bool)($settings['ftpPassive'] ?? true)
+            (bool)($settings['ftpPassive'] ?? true),
+            $settings['ftpTimeout'] ?? 300
         );
 
         $ftpClient->connect();
@@ -342,7 +473,7 @@ class BackupManager
     /**
      * Helper function to add directory contents to zip
      */
-    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', string $exclude = ''): void
+    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', string $exclude = '', ?string $jobId = null): void
     {
         $files = new \DirectoryIterator($dir);
 
@@ -365,12 +496,15 @@ class BackupManager
             }
 
             if ($file->isDir()) {
-                // Add empty directory
                 $zip->addEmptyDir(ltrim($relativePath, '/'));
-                // Add directory contents
-                $this->addDirToZip($filePath, $zip, $relativePath, $exclude);
+                $this->addDirToZip($filePath, $zip, $relativePath, $exclude, $jobId);
             } else {
-                // Add file
+                // Check for cancellation before each file so large files
+                // do not block the cancel signal until after they are queued.
+                if ($jobId && $this->isCancelled($jobId)) {
+                    throw new \RuntimeException('Backup cancelled by user', 499);
+                }
+
                 $zip->addFile($filePath, ltrim($relativePath, '/'));
             }
         }

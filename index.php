@@ -36,6 +36,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'ftpPassword' => '', // FTP password
         'ftpDirectory' => '/', // FTP remote directory
         'ftpPassive' => true, // Use passive mode
+        'ftpTimeout' => 30, // Socket response timeout in seconds (how long to wait for the server to respond to each packet, not the total transfer duration)
         // general settings
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
@@ -86,14 +87,45 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'method' => 'POST',
                 'action' => function () {
                     try {
+                        $jobId = kirby()->request()->get('jobId') ?? null;
                         $manager = new BackupManager();
-                        return $manager->createBackup();
+                        return $manager->createBackup(true, $jobId ?: null);
                     } catch (\Throwable $e) {
                         error_log('[kirby-ftp-backup] Error creating backup: ' . $e->getMessage());
                         return \Kirby\Http\Response::json([
                             'status' => 'error',
                             'message' => 'Error creating backup: ' . $e->getMessage()
                         ], 500);
+                    }
+                }
+            ],
+            // Cancel a running backup
+            [
+                'pattern' => 'ftp-backup/cancel',
+                'method' => 'POST',
+                'action' => function () {
+                    try {
+                        $jobId = kirby()->request()->get('jobId') ?? '';
+                        if (empty($jobId)) {
+                            return \Kirby\Http\Response::json(['status' => 'error', 'message' => 'Missing jobId'], 400);
+                        }
+                        $manager = new BackupManager();
+                        return $manager->cancelBackup($jobId);
+                    } catch (\Throwable $e) {
+                        return \Kirby\Http\Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
+                    }
+                }
+            ],
+            // Poll progress of a running backup
+            [
+                'pattern' => 'ftp-backup/progress/(:any)',
+                'method' => 'GET',
+                'action' => function (string $jobId) {
+                    try {
+                        $manager = new BackupManager();
+                        return ['status' => 'success', 'data' => $manager->getProgress($jobId)];
+                    } catch (\Throwable $e) {
+                        return \Kirby\Http\Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
                     }
                 }
             ],
