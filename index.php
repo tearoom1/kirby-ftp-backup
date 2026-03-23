@@ -68,8 +68,16 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'pattern' => 'ftp-backup/backups',
                 'method' => 'GET',
                 'action' => function () {
-                    $manager = new BackupManager();
-                    return $manager->listBackups();
+                    try {
+                        $manager = new BackupManager();
+                        return $manager->listBackups();
+                    } catch (\Throwable $e) {
+                        error_log('[kirby-ftp-backup] Error listing backups: ' . $e->getMessage());
+                        return \Kirby\Http\Response::json([
+                            'status' => 'error',
+                            'message' => 'Error listing backups: ' . $e->getMessage()
+                        ], 500);
+                    }
                 }
             ],
             // Create backup manually
@@ -77,8 +85,16 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'pattern' => 'ftp-backup/create',
                 'method' => 'POST',
                 'action' => function () {
-                    $manager = new BackupManager();
-                    return $manager->createBackup();
+                    try {
+                        $manager = new BackupManager();
+                        return $manager->createBackup();
+                    } catch (\Throwable $e) {
+                        error_log('[kirby-ftp-backup] Error creating backup: ' . $e->getMessage());
+                        return \Kirby\Http\Response::json([
+                            'status' => 'error',
+                            'message' => 'Error creating backup: ' . $e->getMessage()
+                        ], 500);
+                    }
                 }
             ],
             // Catch accidental GET requests to the create endpoint (caused by HTTP→HTTPS or www redirects
@@ -98,25 +114,33 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'pattern' => 'ftp-backup/settings-status',
                 'method' => 'GET',
                 'action' => function () {
-                    $manager = new BackupManager();
-                    $settings = $manager->getSettings();
+                    try {
+                        $manager = new BackupManager();
+                        $settings = $manager->getSettings();
 
-                    // Check if FTP is enabled
-                    $ftpEnabled = $settings['ftpEnabled'] ?? true;
-                    
-                    // Check if essential FTP settings are configured
-                    $configured = $ftpEnabled && 
-                        !empty($settings['ftpHost']) &&
-                        !empty($settings['ftpUsername']) &&
-                        (!empty($settings['ftpPassword']) || !empty($settings['ftpPrivateKey']));
+                        // Check if FTP is enabled
+                        $ftpEnabled = $settings['ftpEnabled'] ?? true;
 
-                    return [
-                        'status' => 'success',
-                        'data' => [
-                            'configured' => $configured,
-                            'ftpEnabled' => $ftpEnabled,
-                        ]
-                    ];
+                        // Check if essential FTP settings are configured
+                        $configured = $ftpEnabled &&
+                            !empty($settings['ftpHost']) &&
+                            !empty($settings['ftpUsername']) &&
+                            (!empty($settings['ftpPassword']) || !empty($settings['ftpPrivateKey']));
+
+                        return [
+                            'status' => 'success',
+                            'data' => [
+                                'configured' => $configured,
+                                'ftpEnabled' => $ftpEnabled,
+                            ]
+                        ];
+                    } catch (\Throwable $e) {
+                        error_log('[kirby-ftp-backup] Error checking settings status: ' . $e->getMessage());
+                        return \Kirby\Http\Response::json([
+                            'status' => 'error',
+                            'message' => 'Error checking settings: ' . $e->getMessage()
+                        ], 500);
+                    }
                 }
             ],
             // Get FTP server stats and file list
@@ -124,8 +148,16 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'pattern' => 'ftp-backup/ftp-stats',
                 'method' => 'GET',
                 'action' => function () {
-                    $manager = new BackupManager();
-                    return $manager->getFtpServerStats();
+                    try {
+                        $manager = new BackupManager();
+                        return $manager->getFtpServerStats();
+                    } catch (\Throwable $e) {
+                        error_log('[kirby-ftp-backup] Error retrieving FTP stats: ' . $e->getMessage());
+                        return \Kirby\Http\Response::json([
+                            'status' => 'error',
+                            'message' => 'Error retrieving FTP stats: ' . $e->getMessage()
+                        ], 500);
+                    }
                 }
             ],
         ]
@@ -138,9 +170,17 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'pattern' => 'ftp-backup/download/(:any)',
             'method' => 'GET',
             'action' => function (string $filename) {
-                $key = get('key');
-                $manager = new BackupManager();
-                return $manager->downloadBackup($filename, $key);
+                try {
+                    $key = get('key');
+                    $manager = new BackupManager();
+                    return $manager->downloadBackup($filename, $key);
+                } catch (\Throwable $e) {
+                    error_log('[kirby-ftp-backup] Error downloading backup: ' . $e->getMessage());
+                    return \Kirby\Http\Response::json([
+                        'status' => 'error',
+                        'message' => 'Error downloading backup: ' . $e->getMessage()
+                    ], 500);
+                }
             }
         ],
         // Execute backup via URL (with token authentication)

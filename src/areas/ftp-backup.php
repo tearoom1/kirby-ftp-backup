@@ -11,11 +11,17 @@ return [
         [
             'pattern' => 'ftp-backup',
             'action' => function () {
+                $stats = null;
+                try {
+                    $stats = BackupController::getStats();
+                } catch (\Throwable $e) {
+                    error_log('[kirby-ftp-backup] Failed to load stats in panel view: ' . $e->getMessage());
+                }
                 return [
                     'component' => 'ftp-backup-view',
                     'title' => 'FTP Backup',
                     'props' => [
-                        'stats' => BackupController::getStats()
+                        'stats' => $stats
                     ]
                 ];
             }

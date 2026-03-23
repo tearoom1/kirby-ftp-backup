@@ -31,7 +31,12 @@ class BackupManager
 
         // Ensure backup directory exists
         if (!is_dir($this->backupDir)) {
-            Dir::make($this->backupDir);
+            try {
+                Dir::make($this->backupDir);
+            } catch (\Throwable $e) {
+                error_log('[kirby-ftp-backup] Failed to create backup directory "' . $this->backupDir . '": ' . $e->getMessage());
+                throw new \Exception('Backup directory could not be created: ' . $this->backupDir, 0, $e);
+            }
         }
     }
 
@@ -137,17 +142,17 @@ class BackupManager
             $zip->close();
 
             $settings = $this->getSettings();
-            
+
             // Check if FTP is enabled
             $ftpEnabled = option('tearoom1.kirby-ftp-backup.ftpEnabled', true);
-            
+
             // Upload to FTP if requested and FTP is enabled
             $ftpResult = ['uploaded' => false, 'disabled' => !$ftpEnabled];
             if ($uploadToFtp && $ftpEnabled) {
                 $ftpClient = $this->initFtpClient();
                 $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename);
                 $ftpResult['disabled'] = false;
-                
+
                 // Cleanup old backups
                 $this->cleanupOldBackups($ftpClient, $settings);
             } else {
@@ -172,6 +177,7 @@ class BackupManager
                 ]
             ];
         } catch (\Exception $e) {
+            error_log('[kirby-ftp-backup] Backup failed: ' . $e->getMessage());
             return [
                 'status' => 'error',
                 'message' => 'Backup failed: ' . $e->getMessage()
@@ -302,10 +308,10 @@ class BackupManager
     {
         $includePatterns = option('tearoom1.kirby-ftp-backup.includePatterns', []);
         $excludePatterns = option('tearoom1.kirby-ftp-backup.excludePatterns', []);
-        
+
         // Normalize path separators for consistent matching
         $normalizedPath = str_replace('\\', '/', $relativePath);
-        
+
         // Always exclude if matches exclude pattern
         if (!empty($excludePatterns)) {
             foreach ($excludePatterns as $pattern) {
@@ -316,7 +322,7 @@ class BackupManager
                 }
             }
         }
-        
+
         // If include patterns are specified, only include matching files
         if (!empty($includePatterns)) {
             foreach ($includePatterns as $pattern) {
@@ -328,7 +334,7 @@ class BackupManager
             }
             return false; // No include pattern matched
         }
-        
+
         // No include patterns specified, include by default
         return true;
     }
@@ -352,7 +358,7 @@ class BackupManager
             if ($exclude && strpos($relativePath, $exclude) !== false) {
                 continue;
             }
-            
+
             // Apply regex-based filtering
             if (!$this->shouldIncludeFile($relativePath)) {
                 continue;
@@ -720,7 +726,7 @@ class BackupManager
                 'message' => 'FTP is disabled'
             ];
         }
-        
+
         $ftpClient = null;
         try {
             $settings = $this->getSettings();
@@ -786,6 +792,7 @@ class BackupManager
             ];
 
         } catch (\Exception $e) {
+            error_log('[kirby-ftp-backup] Error retrieving FTP server stats: ' . $e->getMessage());
             return [
                 'status' => 'error',
                 'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
