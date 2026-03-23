@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.3...v1.3.4) (2026-03-23)
+
+
+### Bug Fixes
+
+* handle errors and log them [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([efe0a87](https://github.com/tearoom1/kirby-ftp-backup/commit/efe0a87c971e24afbf3602b5da735fac15cb979d))
+
 ## [1.3.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.2...v1.3.3) (2026-03-12)
 
 
@@ -26,11 +33,4 @@
 ### Features
 
 * updated the pattern handling ([cb6fbe5](https://github.com/tearoom1/kirby-ftp-backup/commit/cb6fbe5928773909ce5b05fa513afbb4291ce557))
-
-## [1.2.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.1.2...v1.2.0) (2025-11-05)
-
-
-### Features
-
-* Added include and exclude options for content backup and options to disable the plugin or upload ([463ad1b](https://github.com/tearoom1/kirby-ftp-backup/commit/463ad1b6a079eb1267c569f08c6af0aa587d1ffb))
 
