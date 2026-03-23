@@ -1,3 +1,11 @@
+## [1.4.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.4...v1.4.0) (2026-03-23)
+
+
+### Features
+
+* progress bar and cancel job  [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([7860377](https://github.com/tearoom1/kirby-ftp-backup/commit/7860377b2fbe5ae462c50d138fc57bffad6128b7))
+* progress bar and cancel job, better errors and options [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([3f4a0a7](https://github.com/tearoom1/kirby-ftp-backup/commit/3f4a0a784607940db29cf733eceb9290fe447fa3))
+
 ## [1.3.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.3...v1.3.4) (2026-03-23)
 
 
@@ -26,11 +34,4 @@
 
 * error messages ([bc68004](https://github.com/tearoom1/kirby-ftp-backup/commit/bc68004bd67e52dadc2a627c6f978b6bd87a6e90))
 * error messages ([8e82481](https://github.com/tearoom1/kirby-ftp-backup/commit/8e82481d7a4994818a956b0f2285040f380b56a6))
-
-## [1.3.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.2.0...v1.3.0) (2025-11-05)
-
-
-### Features
-
-* updated the pattern handling ([cb6fbe5](https://github.com/tearoom1/kirby-ftp-backup/commit/cb6fbe5928773909ce5b05fa513afbb4291ce557))
 
