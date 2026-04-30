@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.4.0...v1.4.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* ftps issue with closing connections ([3cac146](https://github.com/tearoom1/kirby-ftp-backup/commit/3cac146dbb058dc65c523c43ebea358c12a2a24f))
+
 ## [1.4.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.4...v1.4.0) (2026-03-23)
 
 
@@ -26,12 +33,4 @@
 ### Bug Fixes
 
 * Fixed autoloading of classes for release [#7](https://github.com/tearoom1/kirby-ftp-backup/issues/7) ([fa9d4bd](https://github.com/tearoom1/kirby-ftp-backup/commit/fa9d4bd80a73251758f9eba524da7ae074f43d21))
-
-## [1.3.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.0...v1.3.1) (2025-11-05)
-
-
-### Bug Fixes
-
-* error messages ([bc68004](https://github.com/tearoom1/kirby-ftp-backup/commit/bc68004bd67e52dadc2a627c6f978b6bd87a6e90))
-* error messages ([8e82481](https://github.com/tearoom1/kirby-ftp-backup/commit/8e82481d7a4994818a956b0f2285040f380b56a6))
 
