@@ -131,7 +131,9 @@ class FtpClient implements FtpClientInterface
     public function disconnect(): void
     {
         if ($this->connection) {
-            ftp_close($this->connection);
+            // Suppress SSL EOF warning from vsftpd: it closes the connection
+            // without sending a proper close_notify, which is benign on disconnect.
+            @ftp_close($this->connection);
             $this->connection = null;
         }
     }
