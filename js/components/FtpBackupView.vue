@@ -164,7 +164,13 @@
     </k-dialog>
 
     <!-- FTP Server Stats Dialog -->
-    <k-dialog ref="ftpStatsDialog" :button="'close'" size="large" theme="info">
+    <k-dialog
+      ref="ftpStatsDialog"
+      class="k-ftp-backup-stats-dialog"
+      :button="'close'"
+      size="large"
+      theme="info"
+    >
       <k-headline>FTP Server Stats</k-headline>
 
       <div v-if="isLoadingFtpStats" class="k-ftp-backup-dialog-loading">
@@ -179,6 +185,11 @@
       </div>
 
       <div v-else-if="ftpStats" class="k-ftp-backup-view-server-stats">
+        <div v-if="ftpStats.connection" class="k-ftp-backup-connection">
+          <span>Endpoint</span>
+          <code>{{ ftpStatsConnection }}</code>
+        </div>
+
         <div class="k-ftp-backup-view-stats">
           <div class="k-ftp-backup-view-stats-card">
             <h3>Files on Server</h3>
@@ -197,7 +208,7 @@
         </div>
 
         <div class="k-ftp-backup-dialog-section">
-          <h3>Files on FTP Server</h3>
+          <h3 class="k-ftp-backup-files-title">Files on FTP Server</h3>
           <div v-if="ftpStats.files && ftpStats.files.length > 0">
             <table class="k-ftp-backup-files-table">
               <thead>
@@ -221,6 +232,7 @@
           </div>
         </div>
       </div>
+
     </k-dialog>
   </k-panel-inside>
 </template>
@@ -282,6 +294,18 @@ export default {
       if (phase === 'cancelled') return 'Cancelled';
       if (phase === 'error') return 'Error: ' + (this.progressMessage || 'Unknown error');
       return this.progressMessage || '';
+    },
+    ftpStatsConnection() {
+      const connection = this.ftpStats && this.ftpStats.connection;
+      if (!connection) {
+        return '';
+      }
+
+      const host = connection.host || '';
+      const port = connection.port ? `:${connection.port}` : '';
+      const path = connection.path || '/';
+
+      return `${host}${port}${path}`;
     }
   },
 
@@ -573,5 +597,41 @@ export default {
   margin-top: 0.5rem;
   font-size: var(--text-sm);
   color: var(--color-text-light);
+}
+.k-ftp-backup-files-title {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+.k-ftp-backup-stats-dialog .k-dialog-buttons {
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+.k-ftp-backup-stats-dialog .k-button-group.k-dialog-buttons:has(>.k-button:nth-child(2)) {
+  grid-template-columns: 1fr;
+}
+.k-ftp-backup-stats-dialog .k-dialog-buttons .k-button:first-child {
+  display: none;
+}
+.k-ftp-backup-connection {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--theme-color-back);
+}
+.k-ftp-backup-connection span {
+  flex-shrink: 0;
+  color: var(--color-text-light);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+}
+.k-ftp-backup-connection code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.25;
 }
 </style>

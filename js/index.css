@@ -1,27 +1,48 @@
 .k-ftp-backup-view-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) minmax(10rem, 1fr) minmax(16rem, 1.5fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .k-ftp-backup-view-stats-card {
   background: var(--theme-color-back);
   border-radius: 4px;
-  padding: 1rem;
-  flex: 1;
-  min-width: 150px;
+  min-width: 0;
+  padding: 0.8rem 1rem;
 }
 
 .k-ftp-backup-view-stats-card h3 {
-  font-size: 1rem;
+  font-size: var(--text-sm);
   color: var(--color-text-light);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .k-ftp-backup-view-stats-card p {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+@media (max-width: 54rem) {
+  .k-ftp-backup-view-stats {
+    grid-template-columns: minmax(9rem, 1fr) minmax(10rem, 1fr);
+  }
+
+  .k-ftp-backup-view-stats-card:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 34rem) {
+  .k-ftp-backup-view-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .k-ftp-backup-view-stats-card:last-child {
+    grid-column: auto;
+  }
 }
 
 .k-ftp-backup-view-stats-card-latest {

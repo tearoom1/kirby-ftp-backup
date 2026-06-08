@@ -869,6 +869,7 @@ class BackupManager
             $ftpClient = $this->initFtpClient();
 
             $directory = $settings['ftpDirectory'] ?? '/';
+            $protocol = $settings['ftpProtocol'] ?? 'ftp';
 
             // List files on the FTP server
             $files = $ftpClient->listDirectory($directory);
@@ -919,6 +920,12 @@ class BackupManager
             return [
                 'status' => 'success',
                 'data' => [
+                    'connection' => [
+                        'host' => $settings['ftpHost'] ?? '',
+                        'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
+                        'path' => $directory,
+                        'protocol' => strtoupper($protocol)
+                    ],
                     'files' => $backupFiles,
                     'count' => count($backupFiles),
                     'totalSize' => $totalSize,
