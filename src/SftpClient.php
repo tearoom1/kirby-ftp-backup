@@ -104,27 +104,26 @@ class SftpClient implements FtpClientInterface
             }
             : null;
 
-        // Clear the error log before uploading so we only collect errors from this transfer.
-        $this->sftp->getErrors();
+        // phpseclib keeps SSH-layer errors for the lifetime of the connection.
+        // Snapshot the current count so diagnostics below only inspect this upload.
+        $previousErrorCount = count($this->sftp->getErrors());
 
         $result = $this->sftp->put($remoteFile, $localFile, SFTP::SOURCE_LOCAL_FILE, -1, -1, $progressCallback);
 
         // Collect all errors produced during the transfer.
-        $allErrors   = $this->sftp->getErrors();
-        $lastError   = $this->sftp->getLastError();
+        $allErrors = array_slice($this->sftp->getErrors(), $previousErrorCount);
+        $lastError = !empty($allErrors) ? $allErrors[count($allErrors) - 1] : '';
 
         // SSH_MSG_GLOBAL_REQUEST and hostkeys messages are noise — keepalives and
         // server-side host-key rotation notices, not real failures.
         $criticalErrors = array_values(array_filter($allErrors, function ($error) {
-            return !str_contains($error, 'SSH_MSG_GLOBAL_REQUEST') &&
-                   !str_contains($error, 'hostkeys-00@openssh.com');
+            return !$this->isNonCriticalSshError($error);
         }));
 
-        // Always log everything for diagnostics.
-        if (!empty($allErrors)) {
-            error_log('[kirby-ftp-backup] SFTP put() errors: ' . implode('; ', $allErrors));
+        if (!empty($criticalErrors)) {
+            error_log('[kirby-ftp-backup] SFTP put() errors: ' . implode('; ', $criticalErrors));
         }
-        if ($lastError) {
+        if ($lastError && !$this->isNonCriticalSshError($lastError)) {
             error_log('[kirby-ftp-backup] SFTP last error: ' . $lastError);
         }
 
@@ -152,7 +151,7 @@ class SftpClient implements FtpClientInterface
             $parts = [];
             if (!empty($criticalErrors)) {
                 $parts[] = implode('; ', $criticalErrors);
-            } elseif ($lastError) {
+            } elseif ($lastError && !$this->isNonCriticalSshError($lastError)) {
                 $parts[] = $lastError;
             }
             $detail = !empty($parts) ? ' (' . implode('; ', $parts) . ')' : '';
@@ -170,6 +169,12 @@ class SftpClient implements FtpClientInterface
         }
 
         return true;
+    }
+
+    private function isNonCriticalSshError(string $error): bool
+    {
+        return str_contains($error, 'SSH_MSG_GLOBAL_REQUEST') ||
+               str_contains($error, 'hostkeys-00@openssh.com');
     }
 
     /**
