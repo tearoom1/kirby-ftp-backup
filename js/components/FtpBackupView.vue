@@ -135,7 +135,10 @@
     'ftpDirectory' => 'backups',
     'ftpPassive' => true,
     'ftpPrivateKey' => '', // for sftp
-    'ftpPassphrase' => '' // for sftp
+    'ftpPassphrase' => '', // for sftp
+    'excludeContentWatch' => true,
+    'excludeDrafts' => true,
+    'excludePaths' => ['.backups']
 ]</pre>
           </div>
           Find more about those options in the Readme.md file
@@ -290,6 +293,7 @@ export default {
           : 'Uploading to FTP server…';
       }
       if (phase === 'cleanup') return 'Cleaning up old backups…';
+      if (phase === 'cancelling') return this.progressMessage || 'Cancellation requested…';
       if (phase === 'done') return this.progressMessage || 'Done';
       if (phase === 'cancelled') return 'Cancelled';
       if (phase === 'error') return 'Error: ' + (this.progressMessage || 'Unknown error');
@@ -366,6 +370,10 @@ export default {
             this.progressCurrent = d.current || 0;
             this.progressTotal = d.total || 0;
             this.progressMessage = d.message || '';
+
+            if (d.phase === 'cancelled') {
+              this.finishCancelledBackup();
+            }
           }
         } catch (e) {
           // silent — polling can fail without disrupting the backup
@@ -385,11 +393,24 @@ export default {
       this.isCancelling = true;
       try {
         await this.$api.post('ftp-backup/cancel', { jobId: this.currentJobId });
+        this.progressPhase = 'cancelling';
         this.progressMessage = 'Cancellation requested…';
       } catch (e) {
         window.panel.notification.error('Failed to send cancel signal');
         this.isCancelling = false;
       }
+    },
+
+    finishCancelledBackup() {
+      if (!this.currentJobId && !this.isCreatingBackup && !this.isCancelling) {
+        return;
+      }
+
+      this.stopProgressPolling();
+      this.isCreatingBackup = false;
+      this.isCancelling = false;
+      this.currentJobId = null;
+      window.panel.notification.info('Backup was cancelled');
     },
 
     async createBackup() {
@@ -424,7 +445,7 @@ export default {
         const response = await rawResponse.json();
 
         if (response.status === 'cancelled') {
-          window.panel.notification.info('Backup was cancelled');
+          this.finishCancelledBackup();
           return;
         }
 

@@ -65,6 +65,9 @@ All configuration is handled through Kirby's option system. Add the following to
     // File Filtering (regex patterns without delimiters, case-insensitive)
     'includePatterns' => [],                 // If not empty, only files matching these patterns are included
     'excludePatterns' => [],                 // Files matching these patterns are always excluded
+    'excludePaths' => [],                    // Relative paths or fnmatch patterns to exclude
+    'excludeContentWatch' => false,          // Exclude .content-watch.json history files
+    'excludeDrafts' => false,                // Exclude Kirby _drafts folders
 ]
 ```
 
@@ -94,6 +97,9 @@ All configuration is handled through Kirby's option system. Add the following to
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
 | `includePatterns` | array | `[]` | Regex patterns (no delimiters, case-insensitive) - if not empty, only matching files are included |
 | `excludePatterns` | array | `[]` | Regex patterns (no delimiters, case-insensitive) - matching files are always excluded |
+| `excludePaths` | array | `[]` | Relative paths or fnmatch patterns to exclude before regex filtering |
+| `excludeContentWatch` | boolean | `false` | Exclude `.content-watch.json` files from backups |
+| `excludeDrafts` | boolean | `false` | Exclude all Kirby `_drafts` directories from backups |
 | `urlExecutionEnabled` | boolean | `false` | Enable URL-based backup execution                                |
 | `urlExecutionToken` | string | `''` | Security token required for URL-based backup execution          |
 
@@ -195,8 +201,9 @@ You can control which files are included in backups using regex patterns. This i
 
 1. **Default behavior**: All files are included
 2. **Include patterns**: If specified, only files matching these patterns are included
-3. **Exclude patterns**: Files matching these patterns are always excluded (applied after include patterns)
-4. **Case-insensitive**: All patterns are automatically case-insensitive
+3. **Dedicated excludes**: `excludeContentWatch`, `excludeDrafts` and `excludePaths` are applied before regex patterns
+4. **Exclude patterns**: Files matching these patterns are always excluded
+5. **Case-insensitive**: Regex patterns are automatically case-insensitive
 
 #### Examples
 
@@ -207,6 +214,21 @@ You can control which files are included in backups using regex patterns. This i
     '\.zip$',           // Exclude zip files
     '/cache/',          // Exclude cache directory
     '\.tmp$',           // Exclude temporary files
+]
+```
+
+**Exclude Content Watch history and drafts:**
+```php
+'excludeContentWatch' => true,
+'excludeDrafts' => true,
+```
+
+**Exclude specific relative paths:**
+```php
+'excludePaths' => [
+    '.backups',
+    'private',
+    '*/_versions/*',
 ]
 ```
 

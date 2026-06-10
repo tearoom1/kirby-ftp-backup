@@ -24,6 +24,11 @@ class BackupManager
         return substr(preg_replace('/[^a-f0-9\-]/', '', $jobId), 0, 64);
     }
 
+    private function jobFilePath(string $jobId): string
+    {
+        return $this->backupDir . '/.job-' . $this->sanitizeJobId($jobId);
+    }
+
     private function cancelFlagPath(string $jobId): string
     {
         return $this->backupDir . '/.cancel-' . $this->sanitizeJobId($jobId);
@@ -46,6 +51,10 @@ class BackupManager
 
     private function writeProgress(string $jobId, string $phase, int $current, int $total, string $message = ''): void
     {
+        if ($this->sanitizeJobId($jobId) === '') {
+            return;
+        }
+
         $data = json_encode([
             'phase'   => $phase,
             'current' => $current,
@@ -61,6 +70,10 @@ class BackupManager
 
     public function getProgress(string $jobId): array
     {
+        if ($this->sanitizeJobId($jobId) === '') {
+            return ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+        }
+
         $path = $this->progressFilePath($this->sanitizeJobId($jobId));
         if (!file_exists($path)) {
             return ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
@@ -71,16 +84,34 @@ class BackupManager
 
     public function cancelBackup(string $jobId): array
     {
+        if ($this->isKnownJob($jobId) === false) {
+            return ['status' => 'error', 'message' => 'Unknown backup job'];
+        }
+
         $path = $this->cancelFlagPath($jobId);
         file_put_contents($path, '1');
         return ['status' => 'success', 'message' => 'Cancel signal sent'];
     }
 
+    private function markJobActive(string $jobId): void
+    {
+        if ($this->sanitizeJobId($jobId) === '') {
+            return;
+        }
+
+        file_put_contents($this->jobFilePath($jobId), (string)time());
+    }
+
+    private function isKnownJob(string $jobId): bool
+    {
+        return $this->sanitizeJobId($jobId) !== '' && file_exists($this->jobFilePath($jobId));
+    }
 
     private function cleanupJobFiles(string $jobId): void
     {
         @unlink($this->cancelFlagPath($jobId));
         @unlink($this->progressFilePath($jobId));
+        @unlink($this->jobFilePath($jobId));
     }
 
     /**
@@ -140,6 +171,9 @@ class BackupManager
             // File filtering
             'includePatterns' => option('tearoom1.kirby-ftp-backup.includePatterns', []),
             'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', []),
+            'excludePaths' => option('tearoom1.kirby-ftp-backup.excludePaths', []),
+            'excludeContentWatch' => option('tearoom1.kirby-ftp-backup.excludeContentWatch', false),
+            'excludeDrafts' => option('tearoom1.kirby-ftp-backup.excludeDrafts', false),
             // Connection timeout
             'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30),
             'ftpKeepAlive' => (int)option('tearoom1.kirby-ftp-backup.ftpKeepAlive', 0)
@@ -194,6 +228,11 @@ class BackupManager
         $ftpClient = null;
         try {
             if ($jobId) {
+                if ($this->sanitizeJobId($jobId) === '') {
+                    return ['status' => 'error', 'message' => 'Invalid backup job id'];
+                }
+
+                $this->markJobActive($jobId);
                 $this->writeProgress($jobId, 'starting', 0, 0, 'Preparing backup…');
             }
 
@@ -239,14 +278,18 @@ class BackupManager
                 $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename, $jobId);
                 $ftpResult['disabled'] = false;
 
+                if ($jobId && $this->isCancelled($jobId)) {
+                    throw new \RuntimeException('Backup cancelled by user', 499);
+                }
+
                 // Cleanup old backups
                 if ($jobId) {
                     $this->writeProgress($jobId, 'cleanup', 0, 1, 'Cleaning up old backups…');
                 }
-                $this->cleanupOldBackups($ftpClient, $settings);
+                $this->cleanupOldBackups($ftpClient, $settings, $jobId);
             } else {
                 // FTP disabled, only cleanup local backups
-                $this->applySimpleRetention();
+                $this->applySimpleRetention($jobId);
             }
 
             $message = 'Backup created successfully';
@@ -336,6 +379,15 @@ class BackupManager
             return [
                 'uploaded' => true,
                 'message' => 'File uploaded to FTP server'
+            ];
+        } catch (\RuntimeException $e) {
+            if ($e->getCode() === 499) {
+                throw $e;
+            }
+
+            return [
+                'uploaded' => false,
+                'message' => 'FTP upload failed: ' . $e->getMessage()
             ];
         } catch (\Exception $e) {
             return [
@@ -440,13 +492,35 @@ class BackupManager
     {
         $includePatterns = option('tearoom1.kirby-ftp-backup.includePatterns', []);
         $excludePatterns = option('tearoom1.kirby-ftp-backup.excludePatterns', []);
+        $excludePaths = option('tearoom1.kirby-ftp-backup.excludePaths', []);
 
         // Normalize path separators for consistent matching
-        $normalizedPath = str_replace('\\', '/', $relativePath);
+        $normalizedPath = ltrim(str_replace('\\', '/', $relativePath), '/');
+
+        if (option('tearoom1.kirby-ftp-backup.excludeContentWatch', false) && basename($normalizedPath) === '.content-watch.json') {
+            return false;
+        }
+
+        if (option('tearoom1.kirby-ftp-backup.excludeDrafts', false) && preg_match('#(^|/)_drafts(/|$)#', $normalizedPath) === 1) {
+            return false;
+        }
+
+        if (!empty($excludePaths)) {
+            foreach ((array)$excludePaths as $path) {
+                $path = trim(str_replace('\\', '/', (string)$path), '/');
+                if ($path === '') {
+                    continue;
+                }
+
+                if ($normalizedPath === $path || str_starts_with($normalizedPath, $path . '/') || fnmatch($path, $normalizedPath)) {
+                    return false;
+                }
+            }
+        }
 
         // Always exclude if matches exclude pattern
         if (!empty($excludePatterns)) {
-            foreach ($excludePatterns as $pattern) {
+            foreach ((array)$excludePatterns as $pattern) {
                 // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
                 $regexPattern = '#' . $pattern . '#i';
                 if (@preg_match($regexPattern, $normalizedPath)) {
@@ -457,7 +531,7 @@ class BackupManager
 
         // If include patterns are specified, only include matching files
         if (!empty($includePatterns)) {
-            foreach ($includePatterns as $pattern) {
+            foreach ((array)$includePatterns as $pattern) {
                 // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
                 $regexPattern = '#' . $pattern . '#i';
                 if (@preg_match($regexPattern, $normalizedPath)) {
@@ -514,25 +588,34 @@ class BackupManager
     /**
      * Clean up old backups based on retention settings
      */
-    public function cleanupOldBackups(FtpClientInterface $ftpClient, array $settings): void
+    public function cleanupOldBackups(FtpClientInterface $ftpClient, array $settings, ?string $jobId = null): void
     {
         $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
 
         if ($retentionStrategy === 'tiered') {
-            $this->applyTieredRetention();
+            $this->applyTieredRetention($jobId);
         } else {
-            $this->applySimpleRetention();
+            $this->applySimpleRetention($jobId);
         }
 
+        $this->throwIfCancelled($jobId);
+
         if ($settings['deleteFromFtp']) {
-            $this->cleanupFtpBackups($ftpClient, $settings);
+            $this->cleanupFtpBackups($ftpClient, $settings, $jobId);
+        }
+    }
+
+    private function throwIfCancelled(?string $jobId): void
+    {
+        if ($jobId && $this->isCancelled($jobId)) {
+            throw new \RuntimeException('Backup cancelled by user', 499);
         }
     }
 
     /**
      * Apply simple retention strategy (keep X most recent backups)
      */
-    private function applySimpleRetention(): void
+    private function applySimpleRetention(?string $jobId = null): void
     {
         $settings = $this->getSettings();
         $retention = $settings['backupRetention'] ?? 10;
@@ -556,6 +639,8 @@ class BackupManager
             $toDelete = array_slice(array_keys($backups), 0, $count - $retention);
 
             foreach ($toDelete as $file) {
+                $this->throwIfCancelled($jobId);
+
                 if ($this->isLocalDev()) {
                     echo "Would delete from local: {$file}\n";
                 } else {
@@ -571,7 +656,7 @@ class BackupManager
      * - Then keep one backup per 7-day period for Y periods
      * - Then keep one backup per 30-day period for Z periods
      */
-    private function applyTieredRetention(): void
+    private function applyTieredRetention(?string $jobId = null): void
     {
         $settings = $this->getSettings();
         $tieredSettings = $settings['tieredRetention'] ?? [
@@ -607,6 +692,7 @@ class BackupManager
 
         foreach ($backups as $backup) {
             if (!in_array($backup['filename'], $keepFilenames)) {
+                $this->throwIfCancelled($jobId);
 
                 if ($this->isLocalDev()) {
                     echo "Would delete from local: {$backup['filename']}\n";
@@ -760,23 +846,34 @@ class BackupManager
     /**
      * Clean up old backups from FTP server based on retention setting
      */
-    public function cleanupFtpBackups($ftpClient, $settings): array
+    public function cleanupFtpBackups($ftpClient, $settings, ?string $jobId = null): array
     {
         try {
             $directory = $settings['ftpDirectory'] ?? '/';
+            $this->throwIfCancelled($jobId);
             $files = $ftpClient->listDirectory($directory);
+            $this->throwIfCancelled($jobId);
 
             // Filter to .zip files only
             $backupFiles = array_filter($files, fn ($file) => substr($file, -4) === '.zip');
 
             $toDelete = $this->determineFilesToDelete($backupFiles, $settings);
-            $deletedCount = $this->deleteFilesFromFtp($toDelete, $ftpClient, $settings);
+            $deletedCount = $this->deleteFilesFromFtp($toDelete, $ftpClient, $settings, $jobId);
 
             return [
                 'success' => true,
                 'message' => "Deleted {$deletedCount} old backups from FTP server"
             ];
 
+        } catch (\RuntimeException $e) {
+            if ($e->getCode() === 499) {
+                throw $e;
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Error cleaning up FTP backups: ' . $e->getMessage()
+            ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -833,11 +930,13 @@ class BackupManager
     /**
      * Delete files from FTP server
      */
-    private function deleteFilesFromFtp(array $filesToDelete, $ftpClient, array $settings): int
+    private function deleteFilesFromFtp(array $filesToDelete, $ftpClient, array $settings, ?string $jobId = null): int
     {
         $deletedCount = 0;
 
         foreach ($filesToDelete as $file) {
+            $this->throwIfCancelled($jobId);
+
             if ($this->isLocalDev()) {
                 echo "Would delete from FTP: {$file}\n";
             } else {

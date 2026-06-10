@@ -64,6 +64,9 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         // File filtering (regex patterns without delimiters, case-insensitive)
         'includePatterns' => [], // Array of regex patterns - if not empty, only matching files are included
         'excludePatterns' => [], // Array of regex patterns - matching files are always excluded
+        'excludePaths' => [], // Array of relative paths or fnmatch patterns, e.g. ['.backups', '_drafts/*']
+        'excludeContentWatch' => false, // Exclude .content-watch.json history files
+        'excludeDrafts' => false, // Exclude all Kirby _drafts directories
         // URL execution settings
         'urlExecutionToken' => '', // Token required for URL-based backup execution
         'urlExecutionEnabled' => false, // Enable/disable URL-based backup execution
