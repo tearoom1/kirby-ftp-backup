@@ -73,6 +73,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | Option | Type | Default | Description                                                      |
 |--------|------|---------|------------------------------------------------------------------|
 | `enabled` | boolean | `true` | Enable/disable the entire plugin                                 |
+| `allowedRoles` | array | `[]` | Additional Kirby roles allowed to use the plugin. Admins always have access (see Access Control) |
 | `ftpEnabled` | boolean | `true` | Enable/disable FTP uploads (backups still created locally)       |
 | `ftpProtocol` | string | `'ftp'` | FTP protocol: 'ftp', 'ftps' or 'sftp'                            |
 | `ftpHost` | string | `''` | FTP server hostname                                              |
@@ -113,6 +114,23 @@ When disabled:
 - API routes will return error responses
 - CLI commands will not execute
 - URL-based execution will be blocked
+
+#### Access Control
+
+By default, **only users with the `admin` role** can access the plugin — that includes the panel area, the menu entry, the stats view, listing/creating/cancelling backups, and downloading backup files. Non-admins will not see the menu item at all, and any direct API call returns `403 Forbidden`.
+
+If you want to grant access to additional Kirby roles (for example, an `editor` or a dedicated `backup-operator` role), list them in `allowedRoles`:
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    'allowedRoles' => ['editor', 'backup-operator'],
+]
+```
+
+Notes:
+- Admins are **always** allowed; you do not need to include `'admin'` in the list.
+- Users with any of the listed roles get **full** access — there is no read-only mode. They can create backups, download archives (which contain your entire site), and cancel running jobs. Only grant this to roles you fully trust.
+- The `allowedRoles` option does **not** apply to the URL-based `/ftp-backup/execute` endpoint — that endpoint is protected by its own token and is intended for unauthenticated cron-style use (see [URL-Based Backup Execution](#url-based-backup-execution)).
 
 #### Disable FTP Only
 
