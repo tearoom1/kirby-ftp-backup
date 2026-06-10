@@ -16,6 +16,9 @@
         ref="sponsorDropdown"
         align-x="end"
       >
+        <div class="k-ftp-backup-view-sponsor-text">
+          {{ sponsorText }}
+        </div>
         <k-dropdown-item
           icon="heart"
           link="https://github.com/sponsors/tearoom1"
@@ -306,6 +309,16 @@ export default {
   },
 
   computed: {
+    sponsorText() {
+      const language = this.panelLanguage();
+
+      if (language.startsWith('de')) {
+        return 'Dieses Plugin entsteht mit viel Liebe und laufendem Aufwand. Wenn es dir Zeit spart, hilft eine kleine Spende, Wartung und Weiterentwicklung möglich zu machen.';
+      }
+
+      return 'This plugin is built with care and ongoing effort. If it saves you time, a small donation helps keep maintenance and future improvements going.';
+    },
+
     progressPercent() {
       if (!this.progressTotal) return 0;
       return Math.min(100, Math.round((this.progressCurrent / this.progressTotal) * 100));
@@ -352,6 +365,15 @@ export default {
   },
 
   methods: {
+    panelLanguage() {
+      const panel = window.panel || {};
+      const panelLanguage = panel.language && panel.language.code;
+      const viewLanguage = panel.view && panel.view.props && panel.view.props.language;
+      const browserLanguage = window.navigator && window.navigator.language;
+
+      return String(viewLanguage || panelLanguage || browserLanguage || 'en').toLowerCase();
+    },
+
     async loadBackups() {
       this.isLoadingBackups = true;
 
@@ -638,6 +660,14 @@ export default {
 .k-ftp-backup-view-sponsor-button:hover {
   --button-color-icon: #b81d4d;
   color: #b81d4d;
+}
+
+.k-ftp-backup-view-sponsor-text {
+  max-width: 17rem;
+  padding: .75rem .75rem .5rem;
+  color: var(--color-text-dimmed);
+  font-size: .8rem;
+  line-height: 1.35;
 }
 
 .k-ftp-backup-progress {
