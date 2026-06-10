@@ -16,7 +16,18 @@ load([
     'TearoomOne\\FtpBackup\\BackupController' => 'src/BackupController.php',
 ], __DIR__);
 
+use TearoomOne\FtpBackup\BackupController;
 use TearoomOne\FtpBackup\BackupManager;
+
+$requireAccess = function () {
+    if (!BackupController::canAccess()) {
+        return \Kirby\Http\Response::json([
+            'status' => 'error',
+            'message' => 'Forbidden'
+        ], 403);
+    }
+    return null;
+};
 
 Kirby::plugin('tearoom1/kirby-ftp-backup', [
     // Plugin information
@@ -27,6 +38,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
     'options' => [
         // Plugin control
         'enabled' => true, // Enable/disable the entire plugin
+        'allowedRoles' => [], // Additional Kirby roles allowed to use the plugin (admins always allowed). Example: ['editor', 'client']
         'ftpEnabled' => true, // Enable/disable FTP uploads (backups still created locally)
         // FTP setup
         'ftpProtocol' => 'ftp', // Connection type: 'ftp', 'ftps' or 'sftp'
@@ -69,7 +81,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/backups',
                 'method' => 'GET',
-                'action' => function () {
+                'action' => function () use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         $manager = new BackupManager();
                         return $manager->listBackups();
@@ -86,7 +99,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/create',
                 'method' => 'POST',
-                'action' => function () {
+                'action' => function () use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         set_time_limit(0);
                         $jobId = kirby()->request()->get('jobId') ?? null;
@@ -105,7 +119,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/cancel',
                 'method' => 'POST',
-                'action' => function () {
+                'action' => function () use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         $jobId = kirby()->request()->get('jobId') ?? '';
                         if (empty($jobId)) {
@@ -122,7 +137,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/progress/(:any)',
                 'method' => 'GET',
-                'action' => function (string $jobId) {
+                'action' => function (string $jobId) use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         $manager = new BackupManager();
                         return ['status' => 'success', 'data' => $manager->getProgress($jobId)];
@@ -147,7 +163,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/settings-status',
                 'method' => 'GET',
-                'action' => function () {
+                'action' => function () use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         $manager = new BackupManager();
                         $settings = $manager->getSettings();
@@ -181,7 +198,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             [
                 'pattern' => 'ftp-backup/ftp-stats',
                 'method' => 'GET',
-                'action' => function () {
+                'action' => function () use ($requireAccess) {
+                    if ($r = $requireAccess()) return $r;
                     try {
                         $manager = new BackupManager();
                         return $manager->getFtpServerStats();
@@ -204,10 +222,12 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'pattern' => 'ftp-backup/download/(:any)',
             'method' => 'GET',
             'action' => function (string $filename) {
+                if (!BackupController::canAccess()) {
+                    return new Kirby\Http\Response('Forbidden', 'text/plain', 403);
+                }
                 try {
-                    $key = get('key');
                     $manager = new BackupManager();
-                    return $manager->downloadBackup($filename, $key);
+                    return $manager->downloadBackup($filename);
                 } catch (\Throwable $e) {
                     error_log('[kirby-ftp-backup] Error downloading backup: ' . $e->getMessage());
                     return \Kirby\Http\Response::json([

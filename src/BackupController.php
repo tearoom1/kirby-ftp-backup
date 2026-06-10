@@ -12,6 +12,27 @@ use Kirby\Toolkit\Str;
 class BackupController
 {
     /**
+     * Check whether the current user may access the plugin
+     * (run backups, view stats, download). Admins always pass.
+     * Additional roles can be granted via the `allowedRoles` option.
+     */
+    public static function canAccess(): bool
+    {
+        $user = kirby()->user();
+        if (!$user) {
+            return false;
+        }
+        if ($user->isAdmin()) {
+            return true;
+        }
+        $allowed = option('tearoom1.kirby-ftp-backup.allowedRoles', []);
+        if (!is_array($allowed) || empty($allowed)) {
+            return false;
+        }
+        return in_array($user->role()->name(), $allowed, true);
+    }
+
+    /**
      * Get backup statistics
      */
     public static function getStats(): array

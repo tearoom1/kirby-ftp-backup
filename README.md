@@ -292,6 +292,16 @@ First, enable URL execution and set a secure token in your `config.php`:
 ]
 ```
 
+> **⚠️ Security: the token is the only thing protecting this endpoint.**
+> The `/ftp-backup/execute` URL is publicly reachable whenever `urlExecutionEnabled` is `true` — it is not behind the panel login, only behind the token. The plugin does **not** rate-limit failed attempts, so a weak token can be brute-forced.
+>
+> **You must:**
+> - Generate a long, high-entropy token (at least 32 random characters), e.g. `openssl rand -hex 32` or `php -r "echo bin2hex(random_bytes(32));"`. Never use a guessable string.
+> - Treat the token like a password: do not commit it to public repos, do not share it in chats, rotate it if exposed.
+> - Prefer HTTPS so the token is not sent in the clear.
+> - For defense in depth, add rate limiting / IP allow-listing at the web server level (e.g. `fail2ban`, nginx `limit_req`, Cloudflare rules). The plugin itself does not throttle requests.
+> - If you don't need URL execution, leave `urlExecutionEnabled` set to `false`.
+
 ### Usage
 
 Once configured, you can trigger a backup by making a GET request to:
@@ -306,6 +316,8 @@ https://yoursite.com/ftp-backup/execute?token=your-secure-random-token-here
 - **Enable/Disable Toggle**: Can be completely disabled via configuration
 - **Timing-Safe Comparison**: Uses `hash_equals()` to prevent timing attacks
 - **Plain Text Response**: Returns simple status messages for easy monitoring
+
+**Not provided by the plugin:** rate limiting on the `execute` endpoint. Token strength and any throttling are entirely your responsibility — see the warning above.
 
 ### Example Response
 
