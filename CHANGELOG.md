@@ -1,3 +1,10 @@
+## [1.6.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.5.0...v1.6.0) (2026-06-10)
+
+
+### Features
+
+* gate backup routes behind admin/allowed roles ([2ef9a7d](https://github.com/tearoom1/kirby-ftp-backup/commit/2ef9a7dbef1585321003a5b6433fa34ce61fe8c1))
+
 ## [1.5.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.4.2...v1.5.0) (2026-06-08)
 
 
@@ -26,11 +33,4 @@
 
 * progress bar and cancel job  [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([7860377](https://github.com/tearoom1/kirby-ftp-backup/commit/7860377b2fbe5ae462c50d138fc57bffad6128b7))
 * progress bar and cancel job, better errors and options [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([3f4a0a7](https://github.com/tearoom1/kirby-ftp-backup/commit/3f4a0a784607940db29cf733eceb9290fe447fa3))
-
-## [1.3.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.3...v1.3.4) (2026-03-23)
-
-
-### Bug Fixes
-
-* handle errors and log them [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([efe0a87](https://github.com/tearoom1/kirby-ftp-backup/commit/efe0a87c971e24afbf3602b5da735fac15cb979d))
 
