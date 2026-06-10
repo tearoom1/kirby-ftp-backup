@@ -1,5 +1,38 @@
 <template>
   <k-panel-inside class="k-ftp-backup-view">
+    <!-- Sponsor Heart -->
+    <div class="k-ftp-backup-view-sponsor">
+      <k-button
+        class="k-ftp-backup-view-sponsor-button"
+        icon="heart"
+        variant="filled"
+        size="sm"
+        theme="empty"
+        title="Support FTP Backup"
+        aria-label="Support FTP Backup"
+        @click="$refs.sponsorDropdown.toggle()"
+      />
+      <k-dropdown-content
+        ref="sponsorDropdown"
+        align-x="end"
+      >
+        <k-dropdown-item
+          icon="heart"
+          link="https://github.com/sponsors/tearoom1"
+          target="_blank"
+        >
+          Sponsor on GitHub
+        </k-dropdown-item>
+        <k-dropdown-item
+          icon="heart"
+          link="https://buymeacoffee.com/tearoom1"
+          target="_blank"
+        >
+          Buy Me a Coffee
+        </k-dropdown-item>
+      </k-dropdown-content>
+    </div>
+
     <!-- Warning Panel for FTP Errors -->
     <div v-if="ftpWarning.show" class="k-ftp-backup-view-warning">
       <k-box theme="negative" class="k-ftp-backup-view-warning-box">
@@ -177,7 +210,7 @@
       <k-headline>FTP Server Stats</k-headline>
 
       <div v-if="isLoadingFtpStats" class="k-ftp-backup-dialog-loading">
-        <k-icon type="loader" class="k-ftp-backup-spinner" />
+        <k-icon type="loader" class="k-ftp-backup-spinner"/>
         <span>Loading FTP server stats...</span>
       </div>
 
@@ -392,7 +425,7 @@ export default {
       if (!this.currentJobId || this.isCancelling) return;
       this.isCancelling = true;
       try {
-        await this.$api.post('ftp-backup/cancel', { jobId: this.currentJobId });
+        await this.$api.post('ftp-backup/cancel', {jobId: this.currentJobId});
         this.progressPhase = 'cancelling';
         this.progressMessage = 'Cancellation requested…';
       } catch (e) {
@@ -431,7 +464,7 @@ export default {
             'Content-Type': 'application/json',
             'X-CSRF': window.panel.system.csrf,
           },
-          body: JSON.stringify({ jobId: this.currentJobId }),
+          body: JSON.stringify({jobId: this.currentJobId}),
         });
 
         const contentType = rawResponse.headers.get('content-type') || '';
@@ -555,11 +588,11 @@ export default {
             // Check if FTP is explicitly disabled
             if (response.data.ftpEnabled === false) {
               this.showFtpWarning('FTP upload is disabled. Backups will be created locally only.', true);
-            } 
+            }
             // Check if FTP is not configured
             else if (!response.data.configured) {
               this.showFtpWarning('FTP settings are not configured. Backups will be created locally only.', true);
-            } 
+            }
             // FTP is enabled and configured
             else {
               this.dismissWarning();
@@ -588,21 +621,43 @@ export default {
 </script>
 
 <style>
+
+.k-ftp-backup-view-sponsor {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -1rem;
+  margin-bottom: 0.5rem;
+}
+
+.k-ftp-backup-view-sponsor-button {
+  --button-color-icon: #e0245e;
+  color: #e0245e;
+}
+
+.k-ftp-backup-view-sponsor-button:hover {
+  --button-color-icon: #b81d4d;
+  color: #b81d4d;
+}
+
 .k-ftp-backup-progress {
   margin-top: 1rem;
 }
+
 .k-ftp-backup-progress-bar {
   height: 6px;
   background: var(--color-border);
   border-radius: 3px;
   overflow: hidden;
 }
+
 .k-ftp-backup-progress-fill {
   height: 100%;
   background: var(--color-focus);
   border-radius: 3px;
   transition: width 0.4s ease;
 }
+
 .k-ftp-backup-progress-indeterminate {
   height: 100%;
   width: 40%;
@@ -610,29 +665,40 @@ export default {
   border-radius: 3px;
   animation: k-ftp-backup-slide 1.4s ease-in-out infinite;
 }
+
 @keyframes k-ftp-backup-slide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(250%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
 }
+
 .k-ftp-backup-progress-label {
   margin-top: 0.5rem;
   font-size: var(--text-sm);
   color: var(--color-text-light);
 }
+
 .k-ftp-backup-files-title {
   font-size: 1rem;
   line-height: 1.25;
 }
+
 .k-ftp-backup-stats-dialog .k-dialog-buttons {
   grid-template-columns: 1fr;
   width: 100%;
 }
+
 .k-ftp-backup-stats-dialog .k-button-group.k-dialog-buttons:has(>.k-button:nth-child(2)) {
   grid-template-columns: 1fr;
 }
+
 .k-ftp-backup-stats-dialog .k-dialog-buttons .k-button:first-child {
   display: none;
 }
+
 .k-ftp-backup-connection {
   display: flex;
   align-items: baseline;
@@ -643,12 +709,14 @@ export default {
   border: 1px solid var(--color-border);
   background: var(--theme-color-back);
 }
+
 .k-ftp-backup-connection span {
   flex-shrink: 0;
   color: var(--color-text-light);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
 }
+
 .k-ftp-backup-connection code {
   overflow-wrap: anywhere;
   font-family: var(--font-mono);
