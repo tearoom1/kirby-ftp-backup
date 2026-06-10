@@ -1,3 +1,11 @@
+## [1.6.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.0...v1.6.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* added sponsor heart back in ([a6e262a](https://github.com/tearoom1/kirby-ftp-backup/commit/a6e262ad65503111749e9227178b1df11461bcef))
+* improve backup cancellation and excludes ([2e46bf7](https://github.com/tearoom1/kirby-ftp-backup/commit/2e46bf77c6b78dd182eb5edf1c23390a62827602))
+
 ## [1.6.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.5.0...v1.6.0) (2026-06-10)
 
 
@@ -25,12 +33,4 @@
 ### Bug Fixes
 
 * ftps issue with closing connections ([3cac146](https://github.com/tearoom1/kirby-ftp-backup/commit/3cac146dbb058dc65c523c43ebea358c12a2a24f))
-
-## [1.4.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.3.4...v1.4.0) (2026-03-23)
-
-
-### Features
-
-* progress bar and cancel job  [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([7860377](https://github.com/tearoom1/kirby-ftp-backup/commit/7860377b2fbe5ae462c50d138fc57bffad6128b7))
-* progress bar and cancel job, better errors and options [#8](https://github.com/tearoom1/kirby-ftp-backup/issues/8) ([3f4a0a7](https://github.com/tearoom1/kirby-ftp-backup/commit/3f4a0a784607940db29cf733eceb9290fe447fa3))
 
