@@ -314,7 +314,8 @@ The `run.php` script handles:
 - Creating a new backup
 - Uploading the backup to the configured FTP server
 - Cleaning up old backups based on the retention setting
-- Outputs logs to the console
+- Staying silent on success so cron does not send routine emails
+- Writing a message to STDERR and returning exit code `1` on failure
 
 ## URL-Based Backup Execution
 

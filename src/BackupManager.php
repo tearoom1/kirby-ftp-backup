@@ -1168,11 +1168,16 @@ class BackupManager
 
             if ($result['status'] === 'success') {
                 $message = "Backup created successfully: " . ($result['data']['filename'] ?? 'unknown');
+                $ftpResult = $result['data']['ftpResult'] ?? [];
 
-                if (isset($result['data']['ftpResult']) && $result['data']['ftpResult']['uploaded']) {
-                    $message .= "\n" . ($result['data']['ftpResult']['message'] ?? '');
-                } else {
-                    $message .= "\nBackup not uploaded to FTP: " . ($result['data']['ftpResult']['message'] ?? 'Unknown error');
+                if ($ftpResult['uploaded'] ?? false) {
+                    $message .= "\n" . ($ftpResult['message'] ?? '');
+                } elseif (!($ftpResult['disabled'] ?? false)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Backup created locally but FTP upload failed: ' . ($ftpResult['message'] ?? 'Unknown error'),
+                        'exitCode' => 1
+                    ];
                 }
 
                 return [

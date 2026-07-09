@@ -34,14 +34,14 @@ require $bootstrapFile;
 // Initialize Kirby
 $kirby = new Kirby\Cms\App(['options' => ['url' => '/']]);
 
-echo "Starting Kirby Backup with bootstrap path: " . $bootstrapFile . PHP_EOL;
-
 // Initialize the backup manager and create a backup
 $backupManager = new TearoomOne\FtpBackup\BackupManager();
 $result = $backupManager->executeBackupWithFormatting(true);
 
-// Output the result message
-echo $result['message'] . PHP_EOL;
+// Successful cron jobs stay silent so cron does not send routine emails.
+if ($result['exitCode'] !== 0) {
+    fwrite(STDERR, $result['message'] . PHP_EOL);
+}
 
 // Exit with appropriate code
 exit($result['exitCode']);
