@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.0...v1.7.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* serialize release workflows ([d322612](https://github.com/tearoom1/kirby-ftp-backup/commit/d322612c33857be346718c351c01487bd1b6a0bc))
+
 ## [1.7.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.2...v1.7.0) (2026-07-09)
 
 
@@ -31,11 +38,4 @@
 ### Features
 
 * gate backup routes behind admin/allowed roles ([2ef9a7d](https://github.com/tearoom1/kirby-ftp-backup/commit/2ef9a7dbef1585321003a5b6433fa34ce61fe8c1))
-
-## [1.5.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.4.2...v1.5.0) (2026-06-08)
-
-
-### Features
-
-* show FTP endpoint in server stats ([d257b11](https://github.com/tearoom1/kirby-ftp-backup/commit/d257b1117d2cd0a6eaa993151c8ba0a4f15d5bf9))
 
