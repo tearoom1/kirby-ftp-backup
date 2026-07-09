@@ -51,6 +51,7 @@ All configuration is handled through Kirby's option system. Add the following to
     'ftpMaxRetries' => 3,
     'ftpRetryDelay' => 5,
     'ftpKeepAlive' => 0,
+    'cliOutputOnSuccess' => false,
 
     // Backup Settings
     'backupDirectory' => 'content/.backups',  // Local directory to store backups
@@ -93,6 +94,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpMaxRetries` | integer | `3` | Number of reconnect-and-resume attempts after an FTP/FTPS upload failure |
 | `ftpRetryDelay` | integer | `5` | Seconds to wait before reconnecting for an FTP/FTPS upload retry |
 | `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
+| `cliOutputOnSuccess` | boolean | `false` | Print successful `run.php` results. Errors are always written to STDERR |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
@@ -297,6 +299,29 @@ php /path/to/site/plugins/kirby-ftp-backup/run.php /path/to/root
 
 The root directory is the one with the `kirby` folder inside.
 
+Successful runs are silent by default. This can be configured globally:
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    'cliOutputOnSuccess' => true,
+]
+```
+
+The cron command can override the configuration for a single invocation:
+
+```bash
+# Never print successful runs
+php /path/to/site/plugins/kirby-ftp-backup/run.php --silent
+
+# Print successful runs
+php /path/to/site/plugins/kirby-ftp-backup/run.php --verbose
+
+# Flags and an explicit Kirby root can be combined in either order
+php /path/to/site/plugins/kirby-ftp-backup/run.php --silent /path/to/root
+```
+
+Errors are always written to STDERR and return a non-zero exit code.
+
 
 ### Example Crontab Entry
 
@@ -314,7 +339,7 @@ The `run.php` script handles:
 - Creating a new backup
 - Uploading the backup to the configured FTP server
 - Cleaning up old backups based on the retention setting
-- Staying silent on success so cron does not send routine emails
+- Optionally printing successful runs, controlled by configuration or `--silent`/`--verbose`
 - Writing a message to STDERR and returning exit code `1` on failure
 
 ## URL-Based Backup Execution

@@ -13,21 +13,50 @@ if (php_sapi_name() !== 'cli') {
     die();
 }
 
-// Determine the Kirby root directory
+// Parse optional output flag and Kirby root directory.
+$outputOnSuccessOverride = null;
+$rootArgument = null;
+
+foreach (array_slice($argv, 1) as $argument) {
+    if ($argument === '--silent') {
+        $outputOnSuccessOverride = false;
+        continue;
+    }
+
+    if ($argument === '--verbose') {
+        $outputOnSuccessOverride = true;
+        continue;
+    }
+
+    if (str_starts_with($argument, '--')) {
+        fwrite(STDERR, 'Unknown option: ' . $argument . PHP_EOL);
+        exit(2);
+    }
+
+    if ($rootArgument !== null) {
+        fwrite(STDERR, 'Only one Kirby root directory can be specified.' . PHP_EOL);
+        exit(2);
+    }
+
+    $rootArgument = $argument;
+}
+
+// Determine the Kirby root directory.
 $rootDir = dirname(__DIR__, 3);
 
-// check if a root path is passed as an argument, if so overwrite $rootDir
-if (count($argv) === 2) {
-    if (!is_dir($argv[1])) {
-        die('Invalid root directory: ' . $argv[1]);
+if ($rootArgument !== null) {
+    if (!is_dir($rootArgument)) {
+        fwrite(STDERR, 'Invalid root directory: ' . $rootArgument . PHP_EOL);
+        exit(2);
     }
-    $rootDir = $argv[1];
+    $rootDir = $rootArgument;
 }
 
 // Load Kirby
 $bootstrapFile = realpath($rootDir . '/kirby/bootstrap.php');
 if (!file_exists($bootstrapFile)) {
-    die('Could not find bootstrap file: ' . $bootstrapFile);
+    fwrite(STDERR, 'Could not find bootstrap file: ' . $rootDir . '/kirby/bootstrap.php' . PHP_EOL);
+    exit(2);
 }
 require $bootstrapFile;
 
@@ -37,10 +66,13 @@ $kirby = new Kirby\Cms\App(['options' => ['url' => '/']]);
 // Initialize the backup manager and create a backup
 $backupManager = new TearoomOne\FtpBackup\BackupManager();
 $result = $backupManager->executeBackupWithFormatting(true);
+$outputOnSuccess = $outputOnSuccessOverride
+    ?? (bool)option('tearoom1.kirby-ftp-backup.cliOutputOnSuccess', false);
 
-// Successful cron jobs stay silent so cron does not send routine emails.
 if ($result['exitCode'] !== 0) {
     fwrite(STDERR, $result['message'] . PHP_EOL);
+} elseif ($outputOnSuccess) {
+    fwrite(STDOUT, $result['message'] . PHP_EOL);
 }
 
 // Exit with appropriate code

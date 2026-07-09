@@ -52,6 +52,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'ftpMaxRetries' => 3, // Resume a failed FTP/FTPS upload up to this many times
         'ftpRetryDelay' => 5, // Seconds to wait before reconnecting for an upload retry
         'ftpKeepAlive' => 0, // Send SSH keepalive every N seconds during upload (0 = disabled). Useful when a firewall drops idle connections mid-transfer.
+        'cliOutputOnSuccess' => false, // Print successful run.php results; errors are always printed
         // general settings
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
