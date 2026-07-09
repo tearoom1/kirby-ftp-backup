@@ -48,6 +48,8 @@ All configuration is handled through Kirby's option system. Add the following to
     'ftpPrivateKey' => 'path/to/private/key.pem',
     'ftpPassphrase' => 'your-passphrase',
     'ftpTimeout' => 30,
+    'ftpMaxRetries' => 3,
+    'ftpRetryDelay' => 5,
     'ftpKeepAlive' => 0,
 
     // Backup Settings
@@ -88,6 +90,8 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpPrivateKey` | string | `''` | Path to private key file                                         |
 | `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
 | `ftpTimeout` | integer | `30` | Socket response timeout in seconds (see Advanced Options) |
+| `ftpMaxRetries` | integer | `3` | Number of reconnect-and-resume attempts after an FTP/FTPS upload failure |
+| `ftpRetryDelay` | integer | `5` | Seconds to wait before reconnecting for an FTP/FTPS upload retry |
 | `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |

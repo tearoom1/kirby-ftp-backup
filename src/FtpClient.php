@@ -15,6 +15,8 @@ class FtpClient implements FtpClientInterface
     private bool $ssl;
     private bool $passive;
     private int $timeout;
+    private int $maxRetries;
+    private int $retryDelay;
     private $connection;
 
     public function __construct(
@@ -24,7 +26,9 @@ class FtpClient implements FtpClientInterface
         string $password = '',
         bool $ssl = false,
         bool $passive = true,
-        int $timeout = self::TIMEOUT
+        int $timeout = self::TIMEOUT,
+        int $maxRetries = 3,
+        int $retryDelay = 5
     ) {
         $this->host = $host;
         $this->port = $port;
@@ -33,6 +37,8 @@ class FtpClient implements FtpClientInterface
         $this->ssl = $ssl;
         $this->passive = $passive;
         $this->timeout = $timeout;
+        $this->maxRetries = max(0, $maxRetries);
+        $this->retryDelay = max(0, $retryDelay);
     }
 
     /**
@@ -74,23 +80,63 @@ class FtpClient implements FtpClientInterface
         // Make sure the remote directory exists
         $this->createRemoteDirectory(dirname($remoteFile));
 
-        // Use non-blocking upload so we can check for cancellation in the loop.
-        // ftp_nb_put does not expose byte offsets, so we pass (0, 0) — the
-        // callback is used for cancellation only; progress stays indeterminate.
-        $result = ftp_nb_put($this->connection, $remoteFile, $localFile, FTP_BINARY);
+        $localSize = filesize($localFile);
+        if ($localSize === false) {
+            throw new \Exception("Failed to determine local file size: {$localFile}");
+        }
 
-        while ($result === FTP_MOREDATA) {
-            if ($onProgress) {
-                $onProgress(0, 0);
+        $attempt = 0;
+        $offset = 0;
+
+        while (true) {
+            try {
+                // Resume both the local read and remote write at the same byte
+                // after a transient timeout or dropped data connection.
+                $result = ftp_nb_put(
+                    $this->connection,
+                    $remoteFile,
+                    $localFile,
+                    FTP_BINARY,
+                    $offset
+                );
+
+                while ($result === FTP_MOREDATA) {
+                    if ($onProgress) {
+                        $onProgress(0, 0);
+                    }
+                    $result = ftp_nb_continue($this->connection);
+                }
+
+                if ($result === FTP_FINISHED) {
+                    return true;
+                }
+
+                throw new \Exception("FTP transfer did not finish: {$remoteFile}");
+            } catch (\Throwable $e) {
+                // Never turn a deliberate cancellation into an automatic retry.
+                if ((int)$e->getCode() === 499 || $attempt >= $this->maxRetries) {
+                    throw $e;
+                }
+
+                $attempt++;
+                $this->disconnect();
+
+                if ($this->retryDelay > 0) {
+                    sleep($this->retryDelay);
+                }
+
+                $this->connect();
+                $remoteSize = ftp_size($this->connection, $remoteFile);
+                if ($remoteSize < 0 || $remoteSize > $localSize) {
+                    throw new \Exception(
+                        "Cannot safely resume FTP upload at remote size {$remoteSize}: {$remoteFile}",
+                        0,
+                        $e
+                    );
+                }
+                $offset = $remoteSize;
             }
-            $result = ftp_nb_continue($this->connection);
         }
-
-        if ($result !== FTP_FINISHED) {
-            throw new \Exception("Failed to upload file to FTP server: {$remoteFile}");
-        }
-
-        return true;
     }
 
     /**

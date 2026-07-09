@@ -176,6 +176,8 @@ class BackupManager
             'excludeDrafts' => option('tearoom1.kirby-ftp-backup.excludeDrafts', false),
             // Connection timeout
             'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30),
+            'ftpMaxRetries' => (int)option('tearoom1.kirby-ftp-backup.ftpMaxRetries', 3),
+            'ftpRetryDelay' => (int)option('tearoom1.kirby-ftp-backup.ftpRetryDelay', 5),
             'ftpKeepAlive' => (int)option('tearoom1.kirby-ftp-backup.ftpKeepAlive', 0)
         ];
     }
@@ -477,7 +479,9 @@ class BackupManager
             $settings['ftpPassword'],
             $ftpProtocol === 'ftps',
             (bool)($settings['ftpPassive'] ?? true),
-            $settings['ftpTimeout'] ?? 300
+            $settings['ftpTimeout'] ?? 30,
+            $settings['ftpMaxRetries'] ?? 3,
+            $settings['ftpRetryDelay'] ?? 5
         );
 
         $ftpClient->connect();

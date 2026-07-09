@@ -49,6 +49,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'ftpDirectory' => '/', // FTP remote directory
         'ftpPassive' => true, // Use passive mode
         'ftpTimeout' => 30, // Socket response timeout in seconds (how long to wait for the server to respond to each packet, not the total transfer duration)
+        'ftpMaxRetries' => 3, // Resume a failed FTP/FTPS upload up to this many times
+        'ftpRetryDelay' => 5, // Seconds to wait before reconnecting for an upload retry
         'ftpKeepAlive' => 0, // Send SSH keepalive every N seconds during upload (0 = disabled). Useful when a firewall drops idle connections mid-transfer.
         // general settings
         'backupDirectory' => kirby()->root('content') . '/.backups',
