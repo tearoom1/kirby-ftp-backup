@@ -1,3 +1,15 @@
+## [1.7.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.2...v1.7.0) (2026-07-09)
+
+
+### Features
+
+* configure successful CLI output ([3054865](https://github.com/tearoom1/kirby-ftp-backup/commit/305486530b0abef1038687e8fb2d4cf0423382ae))
+
+
+### Bug Fixes
+
+* keep successful cron backups silent ([c3cd9f0](https://github.com/tearoom1/kirby-ftp-backup/commit/c3cd9f038ff3edc7a68a4555199f9870efafc0af))
+
 ## [1.6.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.1...v1.6.2) (2026-07-09)
 
 
@@ -26,11 +38,4 @@
 ### Features
 
 * show FTP endpoint in server stats ([d257b11](https://github.com/tearoom1/kirby-ftp-backup/commit/d257b1117d2cd0a6eaa993151c8ba0a4f15d5bf9))
-
-## [1.4.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.4.1...v1.4.2) (2026-06-08)
-
-
-### Bug Fixes
-
-* suppress non-critical SFTP hostkeys logs ([5bf55f8](https://github.com/tearoom1/kirby-ftp-backup/commit/5bf55f8e536f7ea87c1c07db83b66ee47f72cf67)), closes [#9](https://github.com/tearoom1/kirby-ftp-backup/issues/9)
 
