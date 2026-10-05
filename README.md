@@ -88,6 +88,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpPassword` | string | `''` | FTP password                                                     |
 | `ftpDirectory` | string | `'/'` | Remote directory to store backups                                |
 | `ftpPassive` | boolean | `true` | Use passive mode                                                 |
+| `ftpUsePasvAddress` | boolean | `true` | FTP/FTPS: connect the data channel to the IP announced in the PASV reply. Set to `false` when the server announces a wrong or internal IP (e.g. after a server move); the data channel then uses `ftpHost` |
 | `ftpPrivateKey` | string | `''` | Path to private key file                                         |
 | `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
 | `ftpTimeout` | integer | `30` | Socket response timeout in seconds (see Advanced Options) |

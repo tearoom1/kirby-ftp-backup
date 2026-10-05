@@ -17,6 +17,7 @@ class FtpClient implements FtpClientInterface
     private int $timeout;
     private int $maxRetries;
     private int $retryDelay;
+    private bool $usePasvAddress;
     private $connection;
 
     public function __construct(
@@ -28,7 +29,8 @@ class FtpClient implements FtpClientInterface
         bool $passive = true,
         int $timeout = self::TIMEOUT,
         int $maxRetries = 3,
-        int $retryDelay = 5
+        int $retryDelay = 5,
+        bool $usePasvAddress = true
     ) {
         $this->host = $host;
         $this->port = $port;
@@ -39,6 +41,39 @@ class FtpClient implements FtpClientInterface
         $this->timeout = $timeout;
         $this->maxRetries = max(0, $maxRetries);
         $this->retryDelay = max(0, $retryDelay);
+        $this->usePasvAddress = $usePasvAddress;
+    }
+
+    /**
+     * Human-readable endpoint for error messages, e.g. ftps://user@host:21
+     */
+    public function endpoint(): string
+    {
+        $user = $this->username !== '' ? $this->username . '@' : '';
+        return ($this->ssl ? 'ftps' : 'ftp') . "://{$user}{$this->host}:{$this->port}";
+    }
+
+    /**
+     * Build an exception message that names the endpoint and the underlying PHP warning
+     */
+    private function error(string $message): \Exception
+    {
+        $detail = error_get_last()['message'] ?? '';
+        error_clear_last();
+
+        $message .= ' [' . $this->endpoint() . ']';
+        if ($detail !== '') {
+            $message .= ': ' . preg_replace('/^ftp_\w+\(\): /', '', $detail);
+        }
+
+        // Control connection works but the data connection cannot be opened:
+        // typically a wrong passive address on the server or a blocked passive port range.
+        if ($this->passive && str_contains($detail, 'php_connect_nonb')) {
+            $message .= ' (passive data connection failed; check the server\'s passive address/port range'
+                . ($this->usePasvAddress ? " or set 'ftpUsePasvAddress' => false" : '') . ')';
+        }
+
+        return new \Exception($message);
     }
 
     /**
@@ -46,25 +81,32 @@ class FtpClient implements FtpClientInterface
      */
     public function connect(): void
     {
+        error_clear_last();
+
         if ($this->ssl) {
             if (!function_exists('ftp_ssl_connect')) {
                 throw new \Exception('FTP SSL is not supported on this server');
             }
-            $this->connection = ftp_ssl_connect($this->host, $this->port, $this->timeout);
+            $this->connection = @ftp_ssl_connect($this->host, $this->port, $this->timeout);
         } else {
-            $this->connection = ftp_connect($this->host, $this->port, $this->timeout);
+            $this->connection = @ftp_connect($this->host, $this->port, $this->timeout);
         }
 
         if (!$this->connection) {
-            throw new \Exception("Failed to connect to FTP server: {$this->host}:{$this->port}");
+            throw $this->error('Failed to connect to FTP server');
         }
 
-        if (!ftp_login($this->connection, $this->username, $this->password)) {
-            throw new \Exception('Failed to login to FTP server: Invalid credentials');
+        if (!@ftp_login($this->connection, $this->username, $this->password)) {
+            throw $this->error('Failed to login to FTP server');
         }
 
-        if ($this->passive) {
-            ftp_pasv($this->connection, true);
+        if (!$this->usePasvAddress) {
+            // Ignore the IP announced in the PASV reply and reuse the control connection host
+            ftp_set_option($this->connection, FTP_USEPASVADDRESS, false);
+        }
+
+        if ($this->passive && !@ftp_pasv($this->connection, true)) {
+            throw $this->error('Failed to enable passive mode');
         }
     }
 
@@ -92,7 +134,7 @@ class FtpClient implements FtpClientInterface
             try {
                 // Resume both the local read and remote write at the same byte
                 // after a transient timeout or dropped data connection.
-                $result = ftp_nb_put(
+                $result = @ftp_nb_put(
                     $this->connection,
                     $remoteFile,
                     $localFile,
@@ -104,14 +146,14 @@ class FtpClient implements FtpClientInterface
                     if ($onProgress) {
                         $onProgress(0, 0);
                     }
-                    $result = ftp_nb_continue($this->connection);
+                    $result = @ftp_nb_continue($this->connection);
                 }
 
                 if ($result === FTP_FINISHED) {
                     return true;
                 }
 
-                throw new \Exception("FTP transfer did not finish: {$remoteFile}");
+                throw $this->error("FTP transfer did not finish: {$remoteFile}");
             } catch (\Throwable $e) {
                 // Never turn a deliberate cancellation into an automatic retry.
                 if ((int)$e->getCode() === 499 || $attempt >= $this->maxRetries) {
@@ -160,8 +202,8 @@ class FtpClient implements FtpClientInterface
 
             // Try to change to directory, create if fails
             if (@ftp_chdir($this->connection, $path) === false) {
-                if (!ftp_mkdir($this->connection, $path)) {
-                    throw new \Exception("Failed to create directory on FTP server: {$path}");
+                if (!@ftp_mkdir($this->connection, $path)) {
+                    throw $this->error("Failed to create directory on FTP server: {$path}");
                 }
                 ftp_chdir($this->connection, $path);
             }
@@ -193,8 +235,8 @@ class FtpClient implements FtpClientInterface
             throw new \Exception('Not connected to FTP server');
         }
 
-        if (!ftp_delete($this->connection, $remoteFile)) {
-            throw new \Exception("Failed to delete file from FTP server: {$remoteFile}");
+        if (!@ftp_delete($this->connection, $remoteFile)) {
+            throw $this->error("Failed to delete file from FTP server: {$remoteFile}");
         }
 
         return true;
@@ -216,10 +258,10 @@ class FtpClient implements FtpClientInterface
         }
 
         // Get raw listing
-        $rawList = ftp_nlist($this->connection, $directory);
+        $rawList = @ftp_nlist($this->connection, $directory);
 
         if ($rawList === false) {
-            throw new \Exception("Failed to list directory on FTP server: {$directory}");
+            throw $this->error("Failed to list directory on FTP server: {$directory}");
         }
 
         // Filter out parent directory entries and get just filenames
@@ -246,7 +288,7 @@ class FtpClient implements FtpClientInterface
         $size = ftp_size($this->connection, $remoteFile);
 
         if ($size < 0) {
-            throw new \Exception("Failed to get file size from FTP server: {$remoteFile}");
+            throw $this->error("Failed to get file size from FTP server: {$remoteFile}");
         }
 
         return $size;
@@ -264,7 +306,7 @@ class FtpClient implements FtpClientInterface
         $time = ftp_mdtm($this->connection, $remoteFile);
 
         if ($time < 0) {
-            throw new \Exception("Failed to get modified time from FTP server: {$remoteFile}");
+            throw $this->error("Failed to get modified time from FTP server: {$remoteFile}");
         }
 
         return $time;

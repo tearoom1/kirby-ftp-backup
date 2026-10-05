@@ -218,6 +218,10 @@
       </div>
 
       <div v-else-if="ftpStatsError" class="k-ftp-backup-dialog-error">
+        <div v-if="ftpStatsErrorConnection" class="k-ftp-backup-connection">
+          <span>Endpoint</span>
+          <code>{{ ftpStatsErrorConnection }}</code>
+        </div>
         <k-box theme="negative">
           {{ ftpStatsError }}
         </k-box>
@@ -298,6 +302,7 @@ export default {
       },
       ftpStats: null,
       ftpStatsError: null,
+      ftpStatsErrorConnection: '',
       // Progress tracking
       currentJobId: null,
       progressPollTimer: null,
@@ -346,16 +351,7 @@ export default {
       return this.progressMessage || '';
     },
     ftpStatsConnection() {
-      const connection = this.ftpStats && this.ftpStats.connection;
-      if (!connection) {
-        return '';
-      }
-
-      const host = connection.host || '';
-      const port = connection.port ? `:${connection.port}` : '';
-      const path = connection.path || '/';
-
-      return `${host}${port}${path}`;
+      return this.formatConnection(this.ftpStats && this.ftpStats.connection);
     }
   },
 
@@ -365,6 +361,19 @@ export default {
   },
 
   methods: {
+    formatConnection(connection) {
+      if (!connection) {
+        return '';
+      }
+
+      const protocol = connection.protocol ? `${connection.protocol.toLowerCase()}://` : '';
+      const host = connection.host || '(no host configured)';
+      const port = connection.port ? `:${connection.port}` : '';
+      const path = connection.path || '/';
+
+      return `${protocol}${host}${port}${path}`;
+    },
+
     panelLanguage() {
       const panel = window.panel || {};
       const panelLanguage = panel.language && panel.language.code;
@@ -554,6 +563,7 @@ export default {
     async loadFtpServerStats() {
       this.isLoadingFtpStats = true;
       this.ftpStatsError = null;
+      this.ftpStatsErrorConnection = '';
 
       try {
         const response = await this.$api.get('ftp-backup/ftp-stats');
@@ -562,10 +572,11 @@ export default {
           this.ftpStats = response.data;
         } else {
           this.ftpStatsError = response.message || 'Failed to load FTP server stats';
+          this.ftpStatsErrorConnection = this.formatConnection(response.connection);
           this.ftpStats = null;
         }
       } catch (error) {
-        this.ftpStatsError = 'Failed to connect to FTP server';
+        this.ftpStatsError = 'Failed to connect to FTP server' + (error.message ? ': ' + error.message : '');
         this.ftpStats = null;
       } finally {
         this.isLoadingFtpStats = false;

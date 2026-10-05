@@ -42,6 +42,15 @@ class SftpClient implements FtpClientInterface
     }
 
     /**
+     * Human-readable endpoint for error messages, e.g. sftp://user@host:22
+     */
+    public function endpoint(): string
+    {
+        $user = $this->username !== '' ? $this->username . '@' : '';
+        return "sftp://{$user}{$this->host}:{$this->port}";
+    }
+
+    /**
      * Connect to the SFTP server
      */
     public function connect(): void
@@ -59,14 +68,26 @@ class SftpClient implements FtpClientInterface
             $key = RSA::loadPrivateKey(file_get_contents($this->privateKey), $this->passphrase);
 
             if (!$this->sftp->login($this->username, $key)) {
-                throw new \Exception('SFTP authentication failed: Invalid key or passphrase');
+                throw new \Exception($this->loginError('Invalid key or passphrase'));
             }
         } else {
             // Use password authentication
             if (!$this->sftp->login($this->username, $this->password)) {
-                throw new \Exception('SFTP authentication failed: Invalid credentials');
+                throw new \Exception($this->loginError('Invalid credentials'));
             }
         }
+    }
+
+    /**
+     * Distinguish an unreachable host from rejected credentials
+     */
+    private function loginError(string $credentialsMessage): string
+    {
+        $reason = $this->sftp->isConnected()
+            ? $credentialsMessage
+            : 'Could not connect' . ($this->sftp->getLastError() ? ': ' . $this->sftp->getLastError() : '');
+
+        return 'SFTP authentication failed [' . $this->endpoint() . ']: ' . $reason;
     }
 
     /**

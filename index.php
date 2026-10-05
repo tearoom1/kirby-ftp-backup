@@ -48,6 +48,7 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'ftpPassword' => '', // FTP password
         'ftpDirectory' => '/', // FTP remote directory
         'ftpPassive' => true, // Use passive mode
+        'ftpUsePasvAddress' => true, // FTP/FTPS: use the IP announced in the PASV reply. Set to false if the server announces a wrong/internal IP (data connection then goes to ftpHost)
         'ftpTimeout' => 30, // Socket response timeout in seconds (how long to wait for the server to respond to each packet, not the total transfer duration)
         'ftpMaxRetries' => 3, // Resume a failed FTP/FTPS upload up to this many times
         'ftpRetryDelay' => 5, // Seconds to wait before reconnecting for an upload retry

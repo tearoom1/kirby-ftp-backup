@@ -178,6 +178,7 @@ class BackupManager
             'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30),
             'ftpMaxRetries' => (int)option('tearoom1.kirby-ftp-backup.ftpMaxRetries', 3),
             'ftpRetryDelay' => (int)option('tearoom1.kirby-ftp-backup.ftpRetryDelay', 5),
+            'ftpUsePasvAddress' => (bool)option('tearoom1.kirby-ftp-backup.ftpUsePasvAddress', true),
             'ftpKeepAlive' => (int)option('tearoom1.kirby-ftp-backup.ftpKeepAlive', 0)
         ];
     }
@@ -433,10 +434,14 @@ class BackupManager
         $ftpProtocol = $settings['ftpProtocol'] ?? 'ftp';
 
         // Check if essential settings are available
-        if (!in_array($ftpProtocol, ['ftp', 'ftps', 'sftp']) ||
-            empty($settings['ftpHost']) ||
-            !$this->hasCredentials($settings)) {
-            throw new \Exception('Invalid FTP settings');
+        if (!in_array($ftpProtocol, ['ftp', 'ftps', 'sftp'])) {
+            throw new \Exception("Invalid FTP settings: unknown ftpProtocol '{$ftpProtocol}' (use 'ftp', 'ftps' or 'sftp')");
+        }
+        if (empty($settings['ftpHost'])) {
+            throw new \Exception('Invalid FTP settings: ftpHost is not set');
+        }
+        if (!$this->hasCredentials($settings)) {
+            throw new \Exception('Invalid FTP settings: ftpUsername and ftpPassword (or ftpPrivateKey for SFTP) are required');
         }
 
         // Check which connection type to use
@@ -481,7 +486,8 @@ class BackupManager
             (bool)($settings['ftpPassive'] ?? true),
             $settings['ftpTimeout'] ?? 30,
             $settings['ftpMaxRetries'] ?? 3,
-            $settings['ftpRetryDelay'] ?? 5
+            $settings['ftpRetryDelay'] ?? 5,
+            (bool)($settings['ftpUsePasvAddress'] ?? true)
         );
 
         $ftpClient->connect();
@@ -966,12 +972,18 @@ class BackupManager
         }
 
         $ftpClient = null;
-        try {
-            $settings = $this->getSettings();
-            $ftpClient = $this->initFtpClient();
+        $settings = $this->getSettings();
+        $directory = $settings['ftpDirectory'] ?? '/';
+        $protocol = $settings['ftpProtocol'] ?? 'ftp';
+        $connection = [
+            'host' => $settings['ftpHost'] ?? '',
+            'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
+            'path' => $directory,
+            'protocol' => strtoupper($protocol)
+        ];
 
-            $directory = $settings['ftpDirectory'] ?? '/';
-            $protocol = $settings['ftpProtocol'] ?? 'ftp';
+        try {
+            $ftpClient = $this->initFtpClient();
 
             // List files on the FTP server
             $files = $ftpClient->listDirectory($directory);
@@ -1022,12 +1034,7 @@ class BackupManager
             return [
                 'status' => 'success',
                 'data' => [
-                    'connection' => [
-                        'host' => $settings['ftpHost'] ?? '',
-                        'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
-                        'path' => $directory,
-                        'protocol' => strtoupper($protocol)
-                    ],
+                    'connection' => $connection,
                     'files' => $backupFiles,
                     'count' => count($backupFiles),
                     'totalSize' => $totalSize,
@@ -1040,7 +1047,8 @@ class BackupManager
             error_log('[kirby-ftp-backup] Error retrieving FTP server stats: ' . $e->getMessage());
             return [
                 'status' => 'error',
-                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage()
+                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage(),
+                'connection' => $connection
             ];
         } finally {
             if ($ftpClient) {
