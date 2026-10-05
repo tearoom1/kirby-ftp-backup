@@ -1,3 +1,10 @@
+## [1.7.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.1...v1.7.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* show endpoint and cause in FTP connection errors ([55373eb](https://github.com/tearoom1/kirby-ftp-backup/commit/55373eb935299ed30d510eccae3740e60265ece9))
+
 ## [1.7.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.0...v1.7.1) (2026-07-09)
 
 
@@ -31,11 +38,4 @@
 
 * added sponsor heart back in ([a6e262a](https://github.com/tearoom1/kirby-ftp-backup/commit/a6e262ad65503111749e9227178b1df11461bcef))
 * improve backup cancellation and excludes ([2e46bf7](https://github.com/tearoom1/kirby-ftp-backup/commit/2e46bf77c6b78dd182eb5edf1c23390a62827602))
-
-## [1.6.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.5.0...v1.6.0) (2026-06-10)
-
-
-### Features
-
-* gate backup routes behind admin/allowed roles ([2ef9a7d](https://github.com/tearoom1/kirby-ftp-backup/commit/2ef9a7dbef1585321003a5b6433fa34ce61fe8c1))
 
