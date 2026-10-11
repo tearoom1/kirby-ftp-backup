@@ -2,7 +2,7 @@
 
 A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP server.
 
-[![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-content-watch)
+[![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-ftp-backup)
 
 ***
 
@@ -466,3 +466,11 @@ This plugin is licensed under the [MIT License](LICENSE)
 - Assisted by AI Claude Sonnet 4.6
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://coff.ee/tearoom1)
+
+## Screenshots
+
+Screenshots use fictional Cedar & Leaf sample content at 1600 × 902 pixels. The main image uses the light theme.
+
+| View | Light | Dark |
+| --- | --- | --- |
+| Overview | [Light](screenshot.jpg) | [Dark](screenshot-dark.jpg) |
