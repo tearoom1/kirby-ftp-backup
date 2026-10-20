@@ -1,3 +1,10 @@
+## [1.7.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.2...v1.7.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* discard buffered output before sending backup download ([227a577](https://github.com/tearoom1/kirby-ftp-backup/commit/227a5779c19f4c79505decce8c0c8fcdd28dd71b)), closes [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6)
+
 ## [1.7.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.1...v1.7.2) (2026-10-05)
 
 
@@ -30,12 +37,4 @@
 ### Bug Fixes
 
 * resume interrupted FTP uploads ([3ba8de1](https://github.com/tearoom1/kirby-ftp-backup/commit/3ba8de14fbc09b2cd0c0232a4ce046607c347712))
-
-## [1.6.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.0...v1.6.1) (2026-06-10)
-
-
-### Bug Fixes
-
-* added sponsor heart back in ([a6e262a](https://github.com/tearoom1/kirby-ftp-backup/commit/a6e262ad65503111749e9227178b1df11461bcef))
-* improve backup cancellation and excludes ([2e46bf7](https://github.com/tearoom1/kirby-ftp-backup/commit/2e46bf77c6b78dd182eb5edf1c23390a62827602))
 
