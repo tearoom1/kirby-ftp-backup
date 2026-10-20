@@ -87,6 +87,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'weekly' => 4,    // Then keep 1 per week for 4 weeks
             'monthly' => 6    // Then keep 1 per month for 6 months
         ],
+        'archivePassword' => null, // Encrypt archives with AES-256 (open them with 7-Zip or similar)
+        'additionalPaths' => [], // Extra files/folders relative to the project root, stored under _additional/ in the archive, e.g. ['site/accounts']
         // File filtering (regex patterns without delimiters, case-insensitive)
         'includePatterns' => [], // Array of regex patterns - if not empty, only matching files are included
         'excludePatterns' => [], // Array of regex patterns - matching files are always excluded
@@ -133,6 +135,30 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                         return Response::json(['status' => 'error', 'message' => 'Missing jobId'], 400);
                     }
                     return (new BackupManager())->cancelBackup($jobId);
+                })
+            ],
+            // Protect a backup from retention, or remove the protection
+            [
+                'pattern' => 'ftp-backup/protect',
+                'method' => 'POST',
+                'action' => $guarded('protecting backup', function () {
+                    $request = kirby()->request();
+                    return (new BackupManager())->protectBackup(
+                        (string)$request->get('filename'),
+                        (bool)$request->get('protected', true)
+                    );
+                })
+            ],
+            // Delete a backup locally and optionally on the FTP server
+            [
+                'pattern' => 'ftp-backup/delete',
+                'method' => 'POST',
+                'action' => $guarded('deleting backup', function () {
+                    $request = kirby()->request();
+                    return (new BackupManager())->deleteBackup(
+                        (string)$request->get('filename'),
+                        (bool)$request->get('remote', false)
+                    );
                 })
             ],
             // Poll progress of a running backup

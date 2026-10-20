@@ -280,6 +280,7 @@ class BackupManager
                     'filename' => $file,
                     'size' => F::size($path),
                     'modified' => F::modified($path),
+                    'protected' => in_array($file, $this->protectedBackups(), true),
                     'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . rawurlencode($file)
                 ];
             }
@@ -590,7 +591,8 @@ class BackupManager
      */
     private function selectBackupsToDelete(array $filenames, array $settings): array
     {
-        $backups = $this->ownBackups($filenames);
+        // Protected backups are neither deleted nor counted
+        $backups = $this->ownBackups(array_diff($filenames, $this->protectedBackups()));
 
         if ($settings['retentionStrategy'] === 'tiered') {
             $keep = array_column($this->applyTieredRetentionStrategy($backups, $settings['tieredRetention']), 'filename');
@@ -607,6 +609,13 @@ class BackupManager
      */
     private function createArchive(string $filepath, ?string $jobId): void
     {
+        // Check the options before anything is written
+        $additionalPaths = $this->additionalPaths();
+        $password = (string)$this->option('archivePassword', '');
+        if ($password !== '' && !\ZipArchive::isEncryptionMethodSupported(\ZipArchive::EM_AES_256)) {
+            throw new \Exception('archivePassword is set, but this server\'s zip library cannot encrypt archives (AES-256)');
+        }
+
         $zip = new \ZipArchive();
         if ($zip->open($filepath, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) {
             throw new \Exception("Cannot create zip file: {$filepath}");
@@ -614,6 +623,11 @@ class BackupManager
 
         try {
             $fileCount = $this->addDirToZip(kirby()->root('content'), $zip, '', $jobId);
+            foreach ($additionalPaths as $name => $path) {
+                $fileCount += is_dir($path)
+                    ? $this->addDirToZip($path, $zip, $name, $jobId)
+                    : $this->addFileToZip($zip, $path, $name);
+            }
             if ($fileCount === 0) {
                 throw new \Exception('The archive contains no files: no content files matched the backup filters');
             }
@@ -632,13 +646,64 @@ class BackupManager
             throw new \Exception('Could not write zip file: ' . $detail);
         }
 
-        $this->verifyArchive($filepath, $entryCount);
+        $this->verifyArchive($filepath, $entryCount, $password);
+    }
+
+    /**
+     * Resolve `additionalPaths` to real paths, keyed by their name in the archive
+     * (`_additional/` plus the path relative to the project root)
+     */
+    private function additionalPaths(): array
+    {
+        $base = dirname(kirby()->root('site'));
+        $content = realpath(kirby()->root('content'));
+        $paths = [];
+
+        foreach ((array)$this->option('additionalPaths', []) as $path) {
+            $path = rtrim(str_replace('\\', '/', (string)$path), '/');
+            if ($path === '') {
+                continue;
+            }
+
+            $absolute = str_starts_with($path, '/') ? $path : $base . '/' . $path;
+            $real = realpath($absolute);
+            if ($real === false) {
+                throw new \Exception("Additional path does not exist: {$path}");
+            }
+            if ($real === $content || str_starts_with($real, $content . '/')) {
+                throw new \Exception("Additional path is already part of the content folder: {$path}");
+            }
+
+            $relative = str_starts_with($real, $base . '/') ? substr($real, strlen($base) + 1) : ltrim($real, '/');
+            $paths['_additional/' . $relative] = $real;
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Add one file to the zip, encrypted if `archivePassword` is set
+     *
+     * @return int 1 (the number of files added)
+     */
+    private function addFileToZip(\ZipArchive $zip, string $path, string $name): int
+    {
+        if (!$zip->addFile($path, $name)) {
+            throw new \Exception("Could not add file to zip: {$name}");
+        }
+
+        $password = (string)$this->option('archivePassword', '');
+        if ($password !== '' && !$zip->setEncryptionName($name, \ZipArchive::EM_AES_256, $password)) {
+            throw new \Exception("Could not encrypt file in zip: {$name}");
+        }
+
+        return 1;
     }
 
     /**
      * Re-open the written archive and check its structure and entry count
      */
-    private function verifyArchive(string $filepath, int $expectedEntries): void
+    private function verifyArchive(string $filepath, int $expectedEntries, string $password = ''): void
     {
         $zip = new \ZipArchive();
         $status = $zip->open($filepath, \ZipArchive::CHECKCONS | \ZipArchive::RDONLY);
@@ -647,6 +712,21 @@ class BackupManager
         }
 
         $entries = $zip->numFiles;
+
+        // Make sure the archive can actually be decrypted again
+        if ($password !== '') {
+            $zip->setPassword($password);
+            for ($i = 0; $i < $entries; $i++) {
+                if (!str_ends_with((string)$zip->getNameIndex($i), '/')) {
+                    $readable = $zip->getFromIndex($i) !== false;
+                    break;
+                }
+            }
+            if (!($readable ?? true)) {
+                $zip->close();
+                throw new \Exception("The written archive cannot be decrypted with archivePassword: {$filepath}");
+            }
+        }
         $zip->close();
 
         if ($entries !== $expectedEntries) {
@@ -827,10 +907,7 @@ class BackupManager
             // do not block the cancel signal until after they are queued.
             $this->throwIfCancelled($jobId);
 
-            if (!$zip->addFile($filePath, $relativePath)) {
-                throw new \Exception("Could not add file to zip: {$relativePath}");
-            }
-            $fileCount++;
+            $fileCount += $this->addFileToZip($zip, $filePath, $relativePath);
         }
 
         return $fileCount;
@@ -1094,12 +1171,88 @@ class BackupManager
     }
 
     /**
+     * Only plain zip filenames are accepted, which blocks path traversal
+     */
+    private function isValidBackupName(string $filename): bool
+    {
+        return $filename === basename($filename)
+            && !str_starts_with($filename, '.')
+            && F::extension($filename) === 'zip';
+    }
+
+    /**
+     * @return string[] Filenames that retention must keep
+     */
+    private function protectedBackups(): array
+    {
+        $path = $this->backupDir . '/.protected.json';
+        $list = is_file($path) ? json_decode((string)file_get_contents($path), true) : [];
+        return is_array($list) ? array_values(array_filter($list, 'is_string')) : [];
+    }
+
+    /**
+     * Protect a backup from retention (locally and on the server), or remove the protection
+     */
+    public function protectBackup(string $filename, bool $protected): array
+    {
+        if (!$this->isValidBackupName($filename)) {
+            return ['status' => 'error', 'message' => 'Invalid filename'];
+        }
+
+        $list = array_diff($this->protectedBackups(), [$filename]);
+        if ($protected) {
+            $list[] = $filename;
+        }
+        file_put_contents($this->backupDir . '/.protected.json', json_encode(array_values($list)));
+
+        return [
+            'status' => 'success',
+            'message' => $protected ? 'Backup is protected from automatic deletion' : 'Protection removed'
+        ];
+    }
+
+    /**
+     * Delete a backup locally and, if requested, on the FTP server
+     */
+    public function deleteBackup(string $filename, bool $remote = false): array
+    {
+        if (!$this->isValidBackupName($filename)) {
+            return ['status' => 'error', 'message' => 'Invalid filename'];
+        }
+        if (in_array($filename, $this->protectedBackups(), true)) {
+            return ['status' => 'error', 'message' => 'This backup is protected. Remove the protection before deleting it.'];
+        }
+
+        $localPath = $this->backupDir . '/' . $filename;
+        $deletedLocally = is_file($localPath) && F::remove($localPath);
+
+        if ($remote) {
+            $settings = $this->getSettings();
+            $ftpClient = null;
+            try {
+                $ftpClient = $this->createFtpClient($settings);
+                $ftpClient->delete($this->remotePath($settings['ftpDirectory'], $filename));
+            } catch (\Throwable $e) {
+                return [
+                    'status' => 'error',
+                    'message' => ($deletedLocally ? 'Deleted locally, but not on the FTP server: ' : 'Could not delete on the FTP server: ') . $e->getMessage()
+                ];
+            } finally {
+                $ftpClient?->disconnect();
+            }
+        } elseif (!$deletedLocally) {
+            return ['status' => 'error', 'message' => 'Backup file not found'];
+        }
+
+        return ['status' => 'success', 'message' => 'Backup deleted'];
+    }
+
+    /**
      * Download a backup file
      */
     public function downloadBackup(string $filename): Response
     {
-        // Reject anything that isn't a plain filename to block path traversal
-        if ($filename !== basename($filename) || F::extension($filename) !== 'zip') {
+        if (!$this->isValidBackupName($filename)) {
             return Response::json([
                 'status' => 'error',
                 'message' => 'Invalid filename'

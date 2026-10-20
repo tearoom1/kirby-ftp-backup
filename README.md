@@ -96,6 +96,8 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpRetryDelay` | integer | `5` | Seconds to wait before reconnecting for an FTP/FTPS upload retry |
 | `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
 | `cliOutputOnSuccess` | boolean | `false` | Print successful `run.php` results. Errors are always written to STDERR |
+| `archivePassword` | string | `null` | Encrypt archives with AES-256. macOS Archive Utility and `unzip` cannot open them; use 7-Zip (`7z x`), Keka or WinZip |
+| `additionalPaths` | array | `[]` | Extra files or folders to back up, relative to the project root (or absolute), e.g. `['site/accounts', 'site/blueprints']`. Stored under `_additional/` in the archive |
 | `notifyEmail` | string\|array | `null` | Send an email when a run fails or its upload fails (uses Kirby's [email setup](https://getkirby.com/docs/guide/emails)) |
 | `notifyFrom` | string | `null` | Sender of notification emails (default: the first recipient) |
 | `notifyWebhook` | string | `null` | URL that receives each notification as JSON `POST` (e.g. for Slack, ntfy or a monitoring service) |
@@ -171,6 +173,18 @@ This is useful when:
 - FTP server is temporarily unavailable
 - Testing backup creation without uploading
 - Migrating between FTP servers
+
+### Protecting and Deleting Backups
+
+In the Panel, a backup can be protected (e.g. the one made right before a big update). Protected backups are never removed by retention — neither locally nor on the FTP server — and do not count towards `backupRetention`. Backups can also be deleted individually, optionally including the copy on the FTP server.
+
+### Encryption
+
+With `archivePassword`, every file in the archive is encrypted with AES-256 before the archive leaves the server. Keep the password somewhere other than the site: without it the backups cannot be restored.
+
+```php
+'archivePassword' => 'a long random passphrase',
+```
 
 ### Notifications
 
@@ -461,6 +475,7 @@ To restore:
 2. Test it before touching the site: `unzip -t backup-….zip` (for encrypted archives use `7z t backup-….zip`, see `archivePassword`).
 3. Move the current content folder aside, e.g. `mv content content-before-restore`. Keep the backup directory (default `content/.backups`) if you want to keep your local backups.
 4. Unpack the archive into a new, empty `content` folder: `mkdir content && unzip backup-….zip -d content`.
+   If you use `additionalPaths`, move the `content/_additional/…` folders back to their places afterwards (e.g. `content/_additional/site/accounts` → `site/accounts`) and remove `content/_additional`.
 5. Clear Kirby's caches and generated thumbnails (`media` folder) and check the site.
 6. Remove `content-before-restore` once everything looks right.
 
