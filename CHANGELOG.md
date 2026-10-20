@@ -1,3 +1,10 @@
+## [1.7.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.3...v1.7.4) (2026-10-20)
+
+
+### Bug Fixes
+
+* harden retention, downloads, SFTP keys and backup runs ([dad3f46](https://github.com/tearoom1/kirby-ftp-backup/commit/dad3f46819e479d5b49229770ece2f05b3457c4f))
+
 ## [1.7.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.2...v1.7.3) (2026-10-20)
 
 
@@ -30,11 +37,4 @@
 ### Bug Fixes
 
 * keep successful cron backups silent ([c3cd9f0](https://github.com/tearoom1/kirby-ftp-backup/commit/c3cd9f038ff3edc7a68a4555199f9870efafc0af))
-
-## [1.6.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.6.1...v1.6.2) (2026-07-09)
-
-
-### Bug Fixes
-
-* resume interrupted FTP uploads ([3ba8de1](https://github.com/tearoom1/kirby-ftp-backup/commit/3ba8de14fbc09b2cd0c0232a4ce046607c347712))
 
