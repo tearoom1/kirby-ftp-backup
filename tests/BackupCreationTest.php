@@ -212,6 +212,31 @@ class BackupCreationTest extends PluginTestCase
         $this->assertSame([], $this->localBackups());
     }
 
+    public function testDamagedArchiveFailsVerification(): void
+    {
+        $this->writeContent('home/home.txt', str_repeat('content ', 5000));
+        $manager = new BackupManager();
+        $result = $manager->createBackup();
+        $path = $this->backupDir . '/' . $result['data']['filename'];
+        $verify = new \ReflectionMethod($manager, 'verifyArchive');
+
+        // An intact archive passes
+        $verify->invoke($manager, $path, 2);
+
+        // Expecting more entries than written fails
+        try {
+            $verify->invoke($manager, $path, 3);
+            $this->fail('A missing entry should fail verification');
+        } catch (\Exception $e) {
+            $this->assertStringContainsString('entries', $e->getMessage());
+        }
+
+        // A truncated file fails
+        file_put_contents($path, substr(file_get_contents($path), 0, 200));
+        $this->expectException(\Exception::class);
+        $verify->invoke($manager, $path, 2);
+    }
+
     public function testCancelledBackupLeavesNoFilesBehind(): void
     {
         $this->writeContent('home/home.txt');

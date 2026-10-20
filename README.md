@@ -425,6 +425,19 @@ Sends an SSH keepalive packet every N seconds to prevent firewalls or load balan
 
 > **Note:** Some OpenSSH servers respond to keepalives with a `hostkeys-00@openssh.com` global request that phpseclib cannot handle mid-transfer, which can interrupt the upload. Only enable this if you have confirmed that idle-timeout drops are the cause of your upload failures.
 
+## Restoring a Backup
+
+Each archive contains the `content` folder as it was at backup time (files at the archive root, e.g. `home/home.txt`). Every archive is re-opened and checked after it is written, and FTP/SFTP uploads are compared by size.
+
+To restore:
+
+1. Get the archive: download it in the Panel or copy it from the FTP server.
+2. Test it before touching the site: `unzip -t backup-….zip` (for encrypted archives use `7z t backup-….zip`, see `archivePassword`).
+3. Move the current content folder aside, e.g. `mv content content-before-restore`. Keep the backup directory (default `content/.backups`) if you want to keep your local backups.
+4. Unpack the archive into a new, empty `content` folder: `mkdir content && unzip backup-….zip -d content`.
+5. Clear Kirby's caches and generated thumbnails (`media` folder) and check the site.
+6. Remove `content-before-restore` once everything looks right.
+
 ## Security Considerations
 
 - Store your FTP credentials securely in your `config.php` file
@@ -446,8 +459,8 @@ If you encounter issues:
 
 ## Requirements
 
-- Kirby 4+
-- PHP 7.4+
+- Kirby 4 or 5
+- PHP 8.1+ (Kirby 5 needs 8.2+)
 - PHP ZIP extension
 - PHP FTP extension
 
@@ -457,6 +470,16 @@ The tests can be run with:
 
 ```bash
 composer update
+composer test
+composer analyze
+```
+
+`tests/ServerIntegrationTest.php` additionally runs against real servers when these variables are set (the GitHub workflow starts both servers as service containers):
+
+```bash
+FTP_BACKUP_TEST_FTP=ftp://user:pass@host:21/absolute/writable/dir \
+FTP_BACKUP_TEST_SFTP=sftp://user:pass@host:22/absolute/writable/dir \
+FTP_BACKUP_TEST_SFTP_RELATIVE=upload \
 composer test
 ```
 

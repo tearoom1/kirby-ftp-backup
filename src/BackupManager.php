@@ -50,6 +50,7 @@ class BackupManager
         }
 
         $path = $this->cancelFlagPath($jobId);
+        clearstatcache(true, $path);
         if (file_exists($path)) {
             @unlink($path);
             throw new BackupCancelledException();
@@ -473,6 +474,7 @@ class BackupManager
             if ($fileCount === 0) {
                 throw new \Exception('The archive contains no files: no content files matched the backup filters');
             }
+            $entryCount = $zip->numFiles;
         } catch (\Throwable $e) {
             // Drop the queued entries so nothing is written on close
             $zip->unchangeAll();
@@ -487,6 +489,26 @@ class BackupManager
             throw new \Exception('Could not write zip file: ' . $detail);
         }
 
+        $this->verifyArchive($filepath, $entryCount);
+    }
+
+    /**
+     * Re-open the written archive and check its structure and entry count
+     */
+    private function verifyArchive(string $filepath, int $expectedEntries): void
+    {
+        $zip = new \ZipArchive();
+        $status = $zip->open($filepath, \ZipArchive::CHECKCONS | \ZipArchive::RDONLY);
+        if ($status !== true) {
+            throw new \Exception("The written archive is damaged (zip error {$status}): {$filepath}");
+        }
+
+        $entries = $zip->numFiles;
+        $zip->close();
+
+        if ($entries !== $expectedEntries) {
+            throw new \Exception("The written archive has {$entries} entries instead of {$expectedEntries}: {$filepath}");
+        }
     }
 
     /**
@@ -494,9 +516,15 @@ class BackupManager
      */
     private function uploadToFtp(FtpClientInterface $ftpClient, array $settings, string $localFile, string $remoteFilename, ?string $jobId = null): array
     {
-        $onProgress = $jobId ? function (int $sent, int $total) use ($jobId) {
+        // Clients report every few kilobytes; check and report at most twice a second
+        $lastReport = 0.0;
+        $onProgress = $jobId ? function (int $sent, int $total) use ($jobId, &$lastReport) {
+            $now = microtime(true);
+            if ($now - $lastReport < 0.5 && $sent < $total) {
+                return;
+            }
+            $lastReport = $now;
             $this->throwIfCancelled($jobId);
-            // Only write progress when we have real byte info (SFTP)
             if ($sent > 0) {
                 $this->writeProgress($jobId, 'upload', $sent, $total, 'Uploading to FTP server…');
             }

@@ -131,29 +131,38 @@ class FtpClient implements FtpClientInterface
         $offset = 0;
 
         while (true) {
+            $handle = null;
             try {
-                // Resume both the local read and remote write at the same byte
-                // after a transient timeout or dropped data connection.
-                $result = @ftp_nb_put(
-                    $this->connection,
-                    $remoteFile,
-                    $localFile,
-                    FTP_BINARY,
-                    $offset
-                );
+                // Read from our own handle so progress can be reported in bytes;
+                // after a retry, resume the local read and the remote write at the same byte
+                $handle = fopen($localFile, 'rb');
+                if ($handle === false || fseek($handle, $offset) !== 0) {
+                    throw new \Exception("Failed to read local file: {$localFile}");
+                }
+
+                $result = @ftp_nb_fput($this->connection, $remoteFile, $handle, FTP_BINARY, $offset);
 
                 while ($result === FTP_MOREDATA) {
                     if ($onProgress) {
-                        $onProgress(0, 0);
+                        $onProgress((int)ftell($handle), $localSize);
                     }
                     $result = @ftp_nb_continue($this->connection);
                 }
 
-                if ($result === FTP_FINISHED) {
-                    return true;
+                if ($result !== FTP_FINISHED) {
+                    throw $this->error("FTP transfer did not finish: {$remoteFile}");
                 }
 
-                throw $this->error("FTP transfer did not finish: {$remoteFile}");
+                // Servers that support SIZE let us confirm nothing was lost
+                $remoteSize = @ftp_size($this->connection, $remoteFile);
+                if ($remoteSize >= 0 && $remoteSize !== $localSize) {
+                    throw new \Exception("Upload incomplete: {$remoteSize} of {$localSize} bytes on the server: {$remoteFile}");
+                }
+
+                if ($onProgress) {
+                    $onProgress($localSize, $localSize);
+                }
+                return true;
             } catch (\Throwable $e) {
                 // Never turn a deliberate cancellation into an automatic retry.
                 if ($e instanceof BackupCancelledException || $attempt >= $this->maxRetries) {
@@ -177,6 +186,10 @@ class FtpClient implements FtpClientInterface
                     );
                 }
                 $offset = $remoteSize;
+            } finally {
+                if (is_resource($handle)) {
+                    fclose($handle);
+                }
             }
         }
     }
@@ -196,23 +209,31 @@ class FtpClient implements FtpClientInterface
         $workingDirectory = @ftp_pwd($this->connection);
 
         try {
-            if (str_starts_with($directory, '/') && !@ftp_chdir($this->connection, '/')) {
+            if (str_starts_with($directory, '/') && !$this->changeDirectory('/')) {
                 throw $this->error('Failed to change to the root directory on FTP server');
             }
 
             foreach (explode('/', $directory) as $part) {
-                if ($part === '' || $part === '.' || @ftp_chdir($this->connection, $part)) {
+                if ($part === '' || $part === '.' || $this->changeDirectory($part)) {
                     continue;
                 }
-                if (!@ftp_mkdir($this->connection, $part) || !@ftp_chdir($this->connection, $part)) {
+                if (!@ftp_mkdir($this->connection, $part) || !$this->changeDirectory($part)) {
                     throw $this->error("Failed to create directory on FTP server: {$directory}");
                 }
             }
         } finally {
             if ($workingDirectory !== false) {
-                @ftp_chdir($this->connection, $workingDirectory);
+                $this->changeDirectory($workingDirectory);
             }
         }
+    }
+
+    /**
+     * @phpstan-impure The result depends on the server's directory state
+     */
+    private function changeDirectory(string $directory): bool
+    {
+        return @ftp_chdir($this->connection, $directory);
     }
 
     /**

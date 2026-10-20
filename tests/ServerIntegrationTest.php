@@ -41,7 +41,17 @@ class ServerIntegrationTest extends PluginTestCase
 
             foreach (["{$run}/nested", $absolute] as $directory) {
                 $remote = $directory . '/backup.zip';
-                $this->assertTrue($client->upload($local, $remote));
+                $progress = [];
+                $this->assertTrue($client->upload($local, $remote, function (int $sent, int $total) use (&$progress) {
+                    $progress[] = [$sent, $total];
+                }));
+                // Progress is reported in bytes, never goes backwards and ends at the file size
+                $this->assertNotEmpty($progress);
+                $this->assertSame([200000, 200000], end($progress));
+                $sent = array_column($progress, 0);
+                $sorted = $sent;
+                sort($sorted);
+                $this->assertSame($sorted, $sent);
                 $this->assertContains('backup.zip', $client->listDirectory($directory));
                 $this->assertSame(200000, $client->getFileSize($remote));
                 $this->assertEqualsWithDelta(time(), $client->getModifiedTime($remote), 120);
