@@ -162,11 +162,48 @@
           {{ t('list.empty') }}
         </div>
       </div>
-      <k-collection
-        v-else
-        :items="listItems"
-        layout="list"
-      />
+      <div v-else class="k-ftp-backup-table">
+        <table>
+          <thead>
+          <tr>
+            <th>{{ t('list.created') }}</th>
+            <th class="is-right">{{ t('list.size') }}</th>
+            <th class="is-center">{{ t('list.colLocal') }}</th>
+            <th v-if="ftpConfigured" class="is-center">{{ t('list.colServer') }}</th>
+            <th>{{ t('list.colNote') }}</th>
+            <th>{{ t('list.file') }}</th>
+            <th><span class="k-ftp-backup-sr">{{ t('list.actions') }}</span></th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="backup in listItems" :key="backup.filename">
+            <td class="k-ftp-backup-table-date">
+              <strong>{{ formatDay(backup.modified) }}</strong>
+              <span>{{ formatTime(backup.modified) }}</span>
+            </td>
+            <td class="k-ftp-backup-table-size is-right">{{ formatSize(backup.size || 0) }}</td>
+            <td class="k-ftp-backup-table-flag is-center">
+              <k-icon v-if="backup.local" type="check" class="is-yes" :title="t('list.colLocal')"/>
+              <span v-else class="is-no">–</span>
+            </td>
+            <td v-if="ftpConfigured" class="k-ftp-backup-table-flag is-center">
+              <span v-if="remoteFiles === null" class="is-no" :title="isLoadingRemote ? t('list.loadingServer') : ''">?</span>
+              <k-icon v-else-if="backup.remote" type="check" class="is-yes" :title="t('list.colServer')"/>
+              <span v-else class="is-no">–</span>
+            </td>
+            <td class="k-ftp-backup-table-location">{{ locationLabel(backup) }}</td>
+            <td class="k-ftp-backup-table-notes">
+              <span v-if="backup.protected" class="k-ftp-backup-tag is-protected">{{ t('list.protected') }}</span>
+              <span v-if="backup.deleteNext" class="k-ftp-backup-tag is-delete">{{ t('list.deleteNext') }}</span>
+            </td>
+            <td class="k-ftp-backup-table-file" :title="backup.filename">{{ backup.filename }}</td>
+            <td class="k-ftp-backup-table-options">
+              <k-options-dropdown :options="itemOptions(backup)"/>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
       <p v-if="isLoadingRemote" class="k-ftp-backup-view-list-note">
         {{ t('list.loadingServer') }}
       </p>
@@ -416,8 +453,7 @@ export default {
       }
 
       return Object.values(byName)
-        .sort((a, b) => (b.modified - a.modified) || b.filename.localeCompare(a.filename))
-        .map(backup => this.toListItem(backup));
+        .sort((a, b) => (b.modified - a.modified) || b.filename.localeCompare(a.filename));
     },
 
     statusMessages() {
@@ -526,26 +562,21 @@ export default {
       return `${protocol}${host}${port}${path}`;
     },
 
-    toListItem(backup) {
-      const info = [this.formatDate(backup.modified), this.formatSize(backup.size || 0)];
-      // Only say where a backup is when the server list is known
-      if (this.remoteFiles !== null) {
-        info.push(backup.local && backup.remote
-          ? this.t('list.both')
-          : (backup.local ? this.t('list.local') : this.t('list.remote')));
-      }
-      if (backup.protected) info.push(this.t('list.protected'));
-      if (backup.deleteNext) info.push(this.t('list.deleteNext'));
+    formatDay(timestamp) {
+      return new Date(timestamp * 1000).toLocaleDateString(this.locale, {day: '2-digit', month: '2-digit', year: 'numeric'});
+    },
 
-      return {
-        id: backup.filename,
-        text: backup.filename,
-        info: info.join(' · '),
-        image: {
-          icon: backup.protected ? 'lock' : (backup.local ? 'archive' : 'server')
-        },
-        options: this.itemOptions(backup)
-      };
+    formatTime(timestamp) {
+      return new Date(timestamp * 1000).toLocaleTimeString(this.locale, {hour: '2-digit', minute: '2-digit'});
+    },
+
+    // Shown instead of the two check columns on narrow screens
+    locationLabel(backup) {
+      if (!this.ftpConfigured || this.remoteFiles === null) {
+        return '';
+      }
+      if (backup.local && backup.remote) return this.t('list.both');
+      return backup.local ? this.t('list.local') : this.t('list.remote');
     },
 
     itemOptions(backup) {
@@ -910,13 +941,21 @@ export default {
         unitIndex++;
       }
 
-      return `${size.toFixed(unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`;
+      const number = new Intl.NumberFormat(this.locale, {maximumFractionDigits: unitIndex === 0 ? 0 : 1}).format(size);
+      return `${number} ${units[unitIndex]}`;
     }
   }
 };
 </script>
 
 <style>
+/* Status colours that keep their contrast in the light and dark Panel theme
+   (Kirby switches the theme through color-scheme) */
+.k-ftp-backup-view {
+  --ftp-backup-yes: light-dark(var(--color-green-700), var(--color-green-400));
+  --ftp-backup-delete: light-dark(var(--color-red-700), var(--color-red-400));
+  --ftp-backup-protected: light-dark(var(--color-blue-700), var(--color-blue-400));
+}
 
 .k-ftp-backup-view-sponsor {
   position: relative;
@@ -950,6 +989,173 @@ export default {
   margin-bottom: 1.25rem;
 }
 
+.k-ftp-backup-table {
+  container-type: inline-size;
+}
+
+.k-ftp-backup-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--item-color-back, var(--color-white));
+  border-radius: var(--rounded);
+  box-shadow: var(--shadow);
+  font-size: var(--text-sm);
+}
+
+.k-ftp-backup-table th {
+  padding: 0.6rem 0.75rem;
+  text-align: start;
+  font-weight: var(--font-normal);
+  color: var(--color-text-dimmed);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.k-ftp-backup-table td {
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-ftp-backup-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.k-ftp-backup-table .is-right {
+  text-align: end;
+}
+
+.k-ftp-backup-table .is-center {
+  text-align: center;
+}
+
+.k-ftp-backup-table .is-yes {
+  display: inline-flex;
+  color: var(--ftp-backup-yes);
+}
+
+.k-ftp-backup-table .is-no {
+  color: var(--color-text-dimmed);
+}
+
+.k-ftp-backup-table-date strong {
+  font-weight: var(--font-bold);
+}
+
+.k-ftp-backup-table-date span {
+  margin-inline-start: 0.4rem;
+  color: var(--color-text-dimmed);
+}
+
+.k-ftp-backup-table-file {
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-dimmed);
+}
+
+.k-ftp-backup-table-location {
+  display: none;
+}
+
+.k-ftp-backup-table-notes .k-ftp-backup-tag + .k-ftp-backup-tag {
+  margin-inline-start: 0.25rem;
+}
+
+.k-ftp-backup-table-options {
+  width: 1%;
+  padding-inline: 0.25rem !important;
+}
+
+.k-ftp-backup-tag {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.k-ftp-backup-tag.is-protected {
+  color: var(--ftp-backup-protected);
+}
+
+.k-ftp-backup-tag.is-delete {
+  color: var(--ftp-backup-delete);
+}
+
+.k-ftp-backup-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Medium: the filename column would only show a few characters */
+@container (max-width: 52rem) {
+  .k-ftp-backup-table th:nth-last-child(2),
+  .k-ftp-backup-table-file {
+    display: none;
+  }
+}
+
+/* Narrow: one stacked row per backup with date, size and location */
+@container (max-width: 34rem) {
+  .k-ftp-backup-table table,
+  .k-ftp-backup-table tbody,
+  .k-ftp-backup-table tr,
+  .k-ftp-backup-table td {
+    display: block;
+  }
+
+  .k-ftp-backup-table thead,
+  .k-ftp-backup-table-flag,
+  .k-ftp-backup-table-file {
+    display: none !important;
+  }
+
+  .k-ftp-backup-table tr {
+    position: relative;
+    padding: 0.55rem 2.5rem 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .k-ftp-backup-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .k-ftp-backup-table td {
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .k-ftp-backup-table-size,
+  .k-ftp-backup-table-location {
+    display: inline !important;
+    color: var(--color-text-dimmed);
+  }
+
+  .k-ftp-backup-table-location:not(:empty)::before {
+    content: " · ";
+  }
+
+  .k-ftp-backup-table-notes:not(:empty) {
+    margin-top: 0.3rem;
+  }
+
+  .k-ftp-backup-table-options {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.25rem;
+  }
+}
+
 .k-ftp-backup-view-list-note {
   margin-top: 0.75rem;
   font-size: var(--text-sm);
@@ -969,11 +1175,11 @@ export default {
 }
 
 .k-ftp-backup-test-steps li.is-ok .k-icon {
-  color: var(--color-positive);
+  color: var(--ftp-backup-yes);
 }
 
 .k-ftp-backup-test-steps li.is-failed .k-icon {
-  color: var(--color-negative);
+  color: var(--ftp-backup-delete);
 }
 
 .k-ftp-backup-test-steps p {

@@ -1,6 +1,6 @@
 # Kirby FTP Backup
 
-A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP server.
+A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP, FTPS or SFTP server.
 
 [![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-ftp-backup)
 
@@ -138,7 +138,7 @@ When disabled:
 
 #### Access Control
 
-By default, **only users with the `admin` role** can access the plugin — that includes the panel area, the menu entry, the stats view, listing/creating/cancelling backups, and downloading backup files. Non-admins will not see the menu item at all, and any direct API call returns `403 Forbidden`.
+By default, **only users with the `admin` role** can access the plugin — that includes the panel area, the menu entry, the stats view, listing/creating/cancelling backups, protecting and deleting backups, the connection test, and downloading backup files. Non-admins will not see the menu item at all, and any direct API call returns `403 Forbidden`.
 
 If you want to grant access to additional Kirby roles (for example, an `editor` or a dedicated `backup-operator` role), list them in `allowedRoles`:
 
@@ -150,7 +150,7 @@ If you want to grant access to additional Kirby roles (for example, an `editor` 
 
 Notes:
 - Admins are **always** allowed; you do not need to include `'admin'` in the list.
-- Users with any of the listed roles get **full** access — there is no read-only mode. They can create backups, download archives (which contain your entire site), and cancel running jobs. Only grant this to roles you fully trust.
+- Users with any of the listed roles get **full** access — there is no read-only mode. They can create, download (archives contain your entire site), protect and delete backups, also on the FTP server, and cancel running jobs. Only grant this to roles you fully trust.
 - The `allowedRoles` option does **not** apply to the URL-based `/ftp-backup/execute` endpoint — that endpoint is protected by its own token and is intended for unauthenticated cron-style use (see [URL-Based Backup Execution](#url-based-backup-execution)).
 
 #### Disable FTP Only
@@ -276,11 +276,12 @@ You can control which files are included in backups using regex patterns. This i
 **Exclude specific relative paths:**
 ```php
 'excludePaths' => [
-    '.backups',
     'private',
     '*/_versions/*',
 ]
 ```
+
+The backup directory itself is always excluded, there is no need to list it.
 
 **Include only specific file types:**
 ```php
@@ -318,14 +319,15 @@ You can control which files are included in backups using regex patterns. This i
 
 ## Panel Interface
 
-The plugin adds a "FTP Backup" area to your Kirby Panel:
+The plugin adds a "FTP Backup" area to your Kirby Panel (in English or German, following the user's Panel language):
 
-- View all available backups
-- Create new backups manually with live progress indication
+- One list of all backups, local and on the FTP server, with date, size, where each copy is (`Local` / `Server`), whether it is protected and whether the next run will delete it
+- Per backup: download, protect from deletion, delete the local copy, delete on the server
+- Create a backup manually with live progress (compression, upload in bytes for FTP and SFTP, cleanup)
 - Cancel a running backup (only one backup runs at a time; a second start is rejected)
-- Download existing backups
-- View backup statistics (count, total size, latest backup)
-- View FTP server stats and file listing
+- The result of the last run (also of cron and URL runs) and, with `maxBackupAge`, a warning when the newest backup is too old
+- Test connection: checks the settings, login, write access and the backup directory without creating a backup
+- Backup statistics and the FTP server listing with endpoint, file count and size
 
 ## Automatic Backups with Cron
 
@@ -449,9 +451,14 @@ Backup created successfully: backup-2025-09-26-140236.zip
 File uploaded to FTP server
 ```
 
-On error:
+When the backup was created but the upload failed (HTTP status 500, run.php exit code 1):
 ```
-Error creating backup: FTP connection failed
+Backup created locally but FTP upload failed: FTP upload failed: Failed to connect to FTP server [ftps://user@example.com:21]: …
+```
+
+On error (HTTP status 500, run.php exit code 1):
+```
+Error creating backup: Backup failed: …
 ```
 
 ## Advanced Options
@@ -485,19 +492,21 @@ To restore:
 - Store your FTP credentials securely in your `config.php` file
 - Make sure your `config.php` file is not accessible from the web
 - Consider using SFTP or FTP with SSL for secure transfers
+- Consider `archivePassword` when backups are stored on a server you do not control
 - Regularly verify that your backups are being created and can be restored
 
 ## Troubleshooting
 
 If you encounter issues:
 
-1. Check that your FTP credentials and server settings are correct
-2. Verify that the FTP directory exists and has write permissions
-3. Check your server's PHP error logs for any PHP errors
-4. Make sure the local backup directory is writable by PHP
-5. Check if you have the required PHP extensions (zip, ftp)
-6. If uploads fail on slow or high-latency connections, increase `ftpTimeout` — see Advanced Options
-7. If you get a 504 Gateway Timeout when creating backups from the Panel, increase your web server's proxy/fastcgi read timeout to match or exceed `max_execution_time` in your `php.ini`
+1. Use **Test connection** in the Panel: it checks the settings, login, write access and the backup directory step by step and shows the exact error
+2. Check that your FTP credentials and server settings are correct
+3. Verify that the FTP directory exists and has write permissions
+4. Check your server's PHP error logs for any PHP errors
+5. Make sure the local backup directory is writable by PHP
+6. Check if you have the required PHP extensions (zip, ftp)
+7. If uploads fail on slow or high-latency connections, increase `ftpTimeout` — see Advanced Options
+8. If you get a 504 Gateway Timeout when creating backups from the Panel, increase your web server's proxy/fastcgi read timeout to match or exceed `max_execution_time` in your `php.ini`
 
 ## Requirements
 
@@ -516,7 +525,7 @@ composer test
 composer analyze
 ```
 
-`tests/ServerIntegrationTest.php` additionally runs against real servers when these variables are set (the GitHub workflow starts both servers as service containers):
+`tests/ServerIntegrationTest.php` additionally runs against real servers when these variables are set (the GitHub workflow starts an SFTP container and a pyftpdlib FTP server for it):
 
 ```bash
 FTP_BACKUP_TEST_FTP=ftp://user:pass@host:21/absolute/writable/dir \
