@@ -21,6 +21,7 @@ load([
 use Kirby\Http\Response;
 use TearoomOne\FtpBackup\BackupController;
 use TearoomOne\FtpBackup\BackupManager;
+use TearoomOne\FtpBackup\FileDownloadResponse;
 
 /**
  * Wrap a route action with the access check and error handling shared by all plugin routes
@@ -181,7 +182,14 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
             'pattern' => 'ftp-backup/download/(:any)',
             'method' => 'GET',
             'action' => $guarded('downloading backup', function (string $filename) {
-                return (new BackupManager())->downloadBackup(rawurldecode($filename));
+                $response = (new BackupManager())->downloadBackup(rawurldecode($filename));
+                if ($response instanceof FileDownloadResponse) {
+                    // Send it ourselves: Kirby 4 rebuilds returned responses
+                    // from their body and would drop the stream
+                    echo $response->send();
+                    exit;
+                }
+                return $response;
             })
         ],
         // Execute backup via URL (with token authentication)

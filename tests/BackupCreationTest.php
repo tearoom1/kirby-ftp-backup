@@ -9,6 +9,61 @@ use TearoomOne\FtpBackup\BackupManager;
  */
 class BackupCreationTest extends PluginTestCase
 {
+    public function testIncludePatternsMatchFilesInsideFolders(): void
+    {
+        $this->app(['includePatterns' => ['\.txt$']]);
+        $this->writeContent('home/home.txt');
+        $this->writeContent('home/photo.jpg', 'jpg');
+        $this->writeContent('notes/1_note/note.txt');
+
+        $result = (new BackupManager())->createBackup();
+
+        $this->assertSame('success', $result['status'], $result['message']);
+        $files = array_values(array_filter(
+            $this->zipEntries($this->backupDir . '/' . $result['data']['filename']),
+            fn ($entry) => !str_ends_with($entry, '/')
+        ));
+        $this->assertSame(['home/home.txt', 'notes/1_note/note.txt'], $files);
+    }
+
+    public function testArchiveWithFoldersButNoFilesIsAnErrorAndKeepsOlderBackups(): void
+    {
+        $this->app(['includePatterns' => ['\.nothing$'], 'backupRetention' => 1]);
+        $this->writeContent('home/home.txt');
+        $previous = $this->backupName($this->days(1));
+        $this->createLocalBackup($previous, 1);
+
+        $result = (new BackupManager())->createBackup();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('no files', $result['message']);
+        $this->assertSame([$previous], $this->localBackups());
+    }
+
+    public function testRejectedSecondStartLeavesTheRunningJobIntact(): void
+    {
+        $this->writeContent('home/home.txt');
+        $jobId = '0123abcd-4567-89ef-0123-456789abcdef';
+        $manager = new BackupManager();
+
+        // Simulate the first run: it holds the lock and owns the job files
+        $lock = fopen($this->backupDir . '/.lock', 'c');
+        flock($lock, LOCK_EX | LOCK_NB);
+        file_put_contents($this->backupDir . '/.job-' . $jobId, (string)time());
+        file_put_contents($this->backupDir . '/.progress-' . $jobId, '{"phase":"zip","current":0,"total":0,"message":""}');
+
+        try {
+            $result = $manager->createBackup(true, $jobId);
+
+            $this->assertSame('error', $result['status']);
+            $this->assertSame('zip', $manager->getProgress($jobId)['phase']);
+            $this->assertSame('success', $manager->cancelBackup($jobId)['status']);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
     public function testArchiveContainsContentButNotTheBackupDirectory(): void
     {
         $this->writeContent('home/home.txt');
@@ -153,7 +208,7 @@ class BackupCreationTest extends PluginTestCase
         $result = (new BackupManager())->createBackup();
 
         $this->assertSame('error', $result['status']);
-        $this->assertStringContainsString('empty', $result['message']);
+        $this->assertStringContainsString('no files', $result['message']);
         $this->assertSame([], $this->localBackups());
     }
 

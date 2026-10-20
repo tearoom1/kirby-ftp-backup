@@ -305,6 +305,8 @@ class BackupManager
         try {
             $lock = $this->acquireLock();
             if ($lock === null) {
+                // The job files (if any) belong to the run that holds the lock
+                $jobId = null;
                 return ['status' => 'error', 'message' => 'Another backup is already running'];
             }
 
@@ -467,7 +469,10 @@ class BackupManager
         }
 
         try {
-            $this->addDirToZip(kirby()->root('content'), $zip, '', $jobId);
+            $fileCount = $this->addDirToZip(kirby()->root('content'), $zip, '', $jobId);
+            if ($fileCount === 0) {
+                throw new \Exception('The archive contains no files: no content files matched the backup filters');
+            }
         } catch (\Throwable $e) {
             // Drop the queued entries so nothing is written on close
             $zip->unchangeAll();
@@ -482,10 +487,6 @@ class BackupManager
             throw new \Exception('Could not write zip file: ' . $detail);
         }
 
-        // libzip writes no file at all for an archive without entries
-        if (!is_file($filepath)) {
-            throw new \Exception('The archive is empty: no content files matched the backup filters');
-        }
     }
 
     /**
@@ -562,7 +563,7 @@ class BackupManager
     /**
      * Check if a file path should be included based on regex patterns
      */
-    private function shouldIncludeFile(string $relativePath): bool
+    private function shouldIncludeFile(string $relativePath, bool $isDir = false): bool
     {
         $includePatterns = $this->option('includePatterns', []);
         $excludePatterns = $this->option('excludePatterns', []);
@@ -597,8 +598,9 @@ class BackupManager
             }
         }
 
-        // If include patterns are specified, only include matching files
-        if (!empty($includePatterns)) {
+        // Include patterns select files; folders are always walked so
+        // matching files inside them are found
+        if (!empty($includePatterns) && !$isDir) {
             foreach ((array)$includePatterns as $pattern) {
                 if (@preg_match('#' . $pattern . '#i', $normalizedPath)) {
                     return true;
@@ -620,10 +622,14 @@ class BackupManager
     }
 
     /**
-     * Helper function to add directory contents to zip
+     * Add a directory's contents to the zip
+     *
+     * @return int Number of files added
      */
-    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', ?string $jobId = null): void
+    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', ?string $jobId = null): int
     {
+        $fileCount = 0;
+
         foreach (new \DirectoryIterator($dir) as $file) {
             if ($file->isDot()) {
                 continue;
@@ -636,13 +642,13 @@ class BackupManager
                 continue;
             }
 
-            if (!$this->shouldIncludeFile($relativePath)) {
+            if (!$this->shouldIncludeFile($relativePath, $file->isDir())) {
                 continue;
             }
 
             if ($file->isDir()) {
                 $zip->addEmptyDir($relativePath);
-                $this->addDirToZip($filePath, $zip, $relativePath, $jobId);
+                $fileCount += $this->addDirToZip($filePath, $zip, $relativePath, $jobId);
                 continue;
             }
 
@@ -653,7 +659,10 @@ class BackupManager
             if (!$zip->addFile($filePath, $relativePath)) {
                 throw new \Exception("Could not add file to zip: {$relativePath}");
             }
+            $fileCount++;
         }
+
+        return $fileCount;
     }
 
     /**

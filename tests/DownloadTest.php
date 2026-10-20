@@ -51,6 +51,29 @@ class DownloadTest extends PluginTestCase
         $this->assertSame('attachment; filename="backup-2026-01-01-000000.zip"', $headers['Content-Disposition']);
     }
 
+    public function testDownloadRouteStreamsTheArchiveThroughKirby(): void
+    {
+        $path = $this->createLocalBackup('backup-2026-01-01-000000.zip');
+        $bytes = random_bytes(300000);
+        file_put_contents($path, $bytes);
+
+        // Boot Kirby with the plugin in a child process and render the route
+        // like index.php does; the response must survive Kirby's own handling
+        $pluginRoot = $this->root . '/site/plugins';
+        mkdir($pluginRoot, 0777, true);
+        symlink(dirname(__DIR__), $pluginRoot . '/kirby-ftp-backup');
+        $script = sprintf(
+            'require %s; $kirby = new Kirby\Cms\App(["roots" => ["index" => %s]]); $kirby->impersonate("kirby");'
+            . ' ob_start(); echo "\n\n"; echo $kirby->render("ftp-backup/download/backup-2026-01-01-000000.zip");',
+            var_export(dirname(__DIR__) . '/kirby/bootstrap.php', true),
+            var_export($this->root, true)
+        );
+        $output = shell_exec(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script));
+
+        $this->assertSame(strlen($bytes), strlen((string)$output));
+        $this->assertTrue($bytes === $output, 'Downloaded bytes differ from the file');
+    }
+
     public function testStreamedResponseOutputsTheExactFileBytes(): void
     {
         $path = $this->createLocalBackup('backup-2026-01-01-000000.zip');
