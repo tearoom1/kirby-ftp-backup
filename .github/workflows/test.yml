@@ -19,7 +19,7 @@ jobs:
         php: ['8.2', '8.3', '8.4']
         kirby: ['^4.0', '^5.0']
 
-    # Real servers for tests/ServerIntegrationTest.php
+    # Real SFTP server for tests/ServerIntegrationTest.php (FTP runs in the job, see below)
     services:
       sftp:
         image: atmoz/sftp
@@ -27,14 +27,6 @@ jobs:
           - 2222:22
         env:
           SFTP_USERS: tester:testpass:1001::upload
-      ftp:
-        image: delfer/alpine-ftp-server
-        ports:
-          - 2121:21
-          - 21000-21010:21000-21010
-        env:
-          USERS: ftptester|ftppass|/home/ftptester|1002
-          ADDRESS: 127.0.0.1
 
     steps:
       - uses: actions/checkout@v7
@@ -48,21 +40,30 @@ jobs:
       - name: Install dependencies
         run: composer update --no-progress --with "getkirby/cms:${{ matrix.kirby }}"
 
+      - name: Start the FTP test server
+        run: |
+          pip install --quiet pyftpdlib
+          mkdir -p /tmp/ftp-root
+          nohup python -m pyftpdlib -p 2121 -w -u ftptester -P ftppass -d /tmp/ftp-root > /tmp/ftp.log 2>&1 &
+
       # Service containers start without a health check; wait until both servers answer
       - name: Wait for the test servers
         run: |
-          for i in $(seq 1 30); do
-            curl -s --max-time 3 ftp://ftptester:ftppass@127.0.0.1:2121/ >/dev/null \
-              && ssh-keyscan -p 2222 -T 3 127.0.0.1 2>/dev/null | grep -q ssh \
-              && exit 0
+          for i in $(seq 1 45); do
+            ftp=no; sftp=no
+            curl -s --max-time 3 ftp://ftptester:ftppass@127.0.0.1:2121/ >/dev/null && ftp=yes
+            ssh-keyscan -p 2222 -T 3 127.0.0.1 2>/dev/null | grep -q ssh && sftp=yes
+            [ "$ftp$sftp" = "yesyes" ] && exit 0
             sleep 2
           done
-          echo "Test servers did not become ready" && exit 1
+          echo "Test servers did not become ready (ftp: $ftp, sftp: $sftp)"
+          cat /tmp/ftp.log
+          exit 1
 
       - name: Run test suite
         run: composer test
         env:
-          FTP_BACKUP_TEST_FTP: ftp://ftptester:ftppass@127.0.0.1:2121/home/ftptester
+          FTP_BACKUP_TEST_FTP: ftp://ftptester:ftppass@127.0.0.1:2121/
           FTP_BACKUP_TEST_SFTP: sftp://tester:testpass@127.0.0.1:2222/upload
           FTP_BACKUP_TEST_SFTP_RELATIVE: upload
 
