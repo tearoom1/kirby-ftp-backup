@@ -96,6 +96,11 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpRetryDelay` | integer | `5` | Seconds to wait before reconnecting for an FTP/FTPS upload retry |
 | `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
 | `cliOutputOnSuccess` | boolean | `false` | Print successful `run.php` results. Errors are always written to STDERR |
+| `notifyEmail` | string\|array | `null` | Send an email when a run fails or its upload fails (uses Kirby's [email setup](https://getkirby.com/docs/guide/emails)) |
+| `notifyFrom` | string | `null` | Sender of notification emails (default: the first recipient) |
+| `notifyWebhook` | string | `null` | URL that receives each notification as JSON `POST` (e.g. for Slack, ntfy or a monitoring service) |
+| `notifyOnSuccess` | boolean | `false` | Also notify about successful runs |
+| `maxBackupAge` | integer | `0` | Show a warning in the Panel when the newest backup is older than this many hours (`0` = off) |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups. It is never included in a backup, even when it lies inside `content` |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
@@ -166,6 +171,27 @@ This is useful when:
 - FTP server is temporarily unavailable
 - Testing backup creation without uploading
 - Migrating between FTP servers
+
+### Notifications
+
+A backup that silently stops working is only noticed when it is needed. The plugin can report failed runs (and runs where the backup was created but the upload failed) from all triggers: Panel, cron, CLI and URL.
+
+```php
+'tearoom1.kirby-ftp-backup' => [
+    'notifyEmail' => 'you@example.com',
+    'notifyWebhook' => 'https://ntfy.sh/my-site-backups',
+    'maxBackupAge' => 36, // hours
+]
+```
+
+The webhook receives a JSON body like:
+
+```json
+{"site": "https://example.com", "title": "My Site", "time": 1792538403, "status": "warning",
+ "message": "FTP upload failed: …", "filename": "backup-2026-10-20-020000.zip", "uploaded": false}
+```
+
+`status` is `success`, `warning` (backup created, upload failed) or `error`. The Panel shows the result of the last run and, with `maxBackupAge`, warns when the newest backup is too old.
 
 ### Retention Strategies
 

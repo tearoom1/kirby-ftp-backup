@@ -5,6 +5,7 @@ namespace TearoomOne\FtpBackup;
 use Kirby\Cms\App;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
+use Kirby\Http\Remote;
 use Kirby\Http\Response;
 
 /**
@@ -260,6 +261,7 @@ class BackupManager
         return [
             'status' => 'success',
             'stats' => BackupController::getStats($this),
+            'health' => $this->backupHealth(),
             'data' => $this->listBackupFiles()
         ];
     }
@@ -296,8 +298,20 @@ class BackupManager
         if ($jobId !== null && $jobId !== '' && $this->sanitizeJobId($jobId) === '') {
             return ['status' => 'error', 'message' => 'Invalid backup job id'];
         }
-        $jobId = $jobId ?: null;
 
+        $result = $this->runBackup($uploadToFtp, $jobId ?: null);
+
+        // A start rejected because another backup runs says nothing about that backup
+        if (empty($result['concurrent'])) {
+            $this->finishRun($result);
+        }
+        unset($result['concurrent']);
+
+        return $result;
+    }
+
+    private function runBackup(bool $uploadToFtp, ?string $jobId): array
+    {
         $lock = null;
         $ftpClient = null;
         $filepath = null;
@@ -308,8 +322,10 @@ class BackupManager
             if ($lock === null) {
                 // The job files (if any) belong to the run that holds the lock
                 $jobId = null;
-                return ['status' => 'error', 'message' => 'Another backup is already running'];
+                return ['status' => 'error', 'message' => 'Another backup is already running', 'concurrent' => true];
             }
+
+            $this->removeStaleJobFiles();
 
             // Large sites take a while; finish the run even if the request is aborted
             @set_time_limit(0);
@@ -395,6 +411,133 @@ class BackupManager
                 $this->cleanupJobFiles($jobId);
             }
             $this->releaseLock($lock);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Run status and notifications
+    // -------------------------------------------------------------------------
+
+    /**
+     * Remove job files that crashed or older runs left behind
+     */
+    private function removeStaleJobFiles(): void
+    {
+        $limit = time() - 86400;
+        foreach (Dir::read($this->backupDir) as $file) {
+            $path = $this->backupDir . '/' . $file;
+            if (preg_match('/^\.(job|cancel|progress)-/', $file) && (int)@filemtime($path) < $limit) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Status of the most recent run, or null if none was recorded yet
+     */
+    public function lastRun(): ?array
+    {
+        $path = $this->backupDir . '/.last-run.json';
+        $data = is_file($path) ? json_decode((string)file_get_contents($path), true) : null;
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * Whether the newest local backup is older than `maxBackupAge` hours (0 turns the check off)
+     */
+    public function backupHealth(): array
+    {
+        $maxAge = (int)$this->option('maxBackupAge', 0);
+        $latest = $this->listBackupFiles()[0]['modified'] ?? null;
+
+        return [
+            'maxBackupAge' => $maxAge,
+            'latestBackup' => $latest,
+            'stale' => $maxAge > 0 && ($latest === null || $latest < time() - $maxAge * 3600),
+            'lastRun' => $this->lastRun(),
+        ];
+    }
+
+    /**
+     * Record the run and send notifications
+     */
+    private function finishRun(array $result): void
+    {
+        $ftpResult = $result['data']['ftpResult'] ?? [];
+        $status = $result['status'];
+        $message = $result['message'] ?? '';
+        if ($status === 'success' && !($ftpResult['uploaded'] ?? false) && !($ftpResult['disabled'] ?? true)) {
+            // The backup exists locally, but the copy on the server is missing
+            $status = 'warning';
+            $message = $ftpResult['message'] ?? 'FTP upload failed';
+        }
+
+        $run = [
+            'time' => time(),
+            'status' => $status,
+            'message' => $message,
+            'filename' => $result['data']['filename'] ?? null,
+            'uploaded' => (bool)($ftpResult['uploaded'] ?? false),
+        ];
+        @file_put_contents($this->backupDir . '/.last-run.json', json_encode($run));
+
+        if ($status === 'error' || $status === 'warning' || ($status === 'success' && $this->option('notifyOnSuccess', false))) {
+            $this->notify($run);
+        }
+    }
+
+    /**
+     * Send the run result by email and/or webhook; failures are only logged
+     */
+    protected function notify(array $run): void
+    {
+        $kirby = kirby();
+        $site = $kirby->url('index');
+        $title = (string)$kirby->site()->content()->get('title')->value() ?: $site;
+        $subjects = [
+            'success' => 'Backup succeeded',
+            'warning' => 'Backup upload failed',
+            'error' => 'Backup failed',
+        ];
+
+        $recipients = array_filter((array)$this->option('notifyEmail', []));
+        if ($recipients) {
+            try {
+                $recipients = array_values($recipients);
+                $kirby->email([
+                    // Without a configured sender, the first recipient sends to itself
+                    'from' => $this->option('notifyFrom') ?: $recipients[0],
+                    'to' => $recipients,
+                    'subject' => "[{$title}] {$subjects[$run['status']]}",
+                    'body' => implode("\n", [
+                        'Site: ' . $site,
+                        'Time: ' . date('Y-m-d H:i:s', $run['time']),
+                        'Status: ' . $run['status'],
+                        'Backup: ' . ($run['filename'] ?? '-'),
+                        '',
+                        $run['message'],
+                    ]),
+                ]);
+            } catch (\Throwable $e) {
+                error_log('[kirby-ftp-backup] Could not send notification email: ' . $e->getMessage());
+            }
+        }
+
+        $webhook = (string)$this->option('notifyWebhook', '');
+        if ($webhook !== '') {
+            try {
+                $response = Remote::request($webhook, [
+                    'method' => 'POST',
+                    'headers' => ['Content-Type' => 'application/json'],
+                    'data' => json_encode(['site' => $site, 'title' => $title] + $run),
+                    'timeout' => 10,
+                ]);
+                if ($response->code() >= 400) {
+                    throw new \Exception('HTTP ' . $response->code());
+                }
+            } catch (\Throwable $e) {
+                error_log('[kirby-ftp-backup] Could not call notification webhook: ' . $e->getMessage());
+            }
         }
     }
 
