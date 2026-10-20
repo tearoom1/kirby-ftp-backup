@@ -1,3 +1,10 @@
+## [1.9.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.8.0...v1.9.0) (2026-10-20)
+
+
+### Features
+
+* **panel:** backup list as a table with date, size, local and server columns ([abe2713](https://github.com/tearoom1/kirby-ftp-backup/commit/abe2713eaa7793a4b9fdbe3397f374a91762aa2b))
+
 ## [1.8.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.4...v1.8.0) (2026-10-20)
 
 
@@ -33,11 +40,4 @@
 ### Bug Fixes
 
 * show endpoint and cause in FTP connection errors ([55373eb](https://github.com/tearoom1/kirby-ftp-backup/commit/55373eb935299ed30d510eccae3740e60265ece9))
-
-## [1.7.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.0...v1.7.1) (2026-07-09)
-
-
-### Bug Fixes
-
-* serialize release workflows ([d322612](https://github.com/tearoom1/kirby-ftp-backup/commit/d322612c33857be346718c351c01487bd1b6a0bc))
 
