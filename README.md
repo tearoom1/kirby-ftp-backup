@@ -91,7 +91,7 @@ This plugin is licensed under the [MIT License](LICENSE)
 
 ## Screenshots
 
-Screenshots use sample content at 1408 × 902 pixels. Panel views are cropped to the content area. The main image uses the light theme.
+Screenshots use sample content in a 1040 × 598 window at double pixel density (2080 × 1196 pixels). Panel views are cropped to the content area. The main image uses the light theme.
 
 | View | Light | Dark |
 | --- | --- | --- |
