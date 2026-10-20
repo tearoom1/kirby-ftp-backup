@@ -2,7 +2,7 @@
 
 A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP, FTPS or SFTP server.
 
-[![Screenshot](screenshot.jpg)](https://github.com/tearoom1/kirby-ftp-backup)
+[![Screenshot](screenshot-dark.jpg)](https://github.com/tearoom1/kirby-ftp-backup)
 
 ***
 
@@ -91,7 +91,7 @@ This plugin is licensed under the [MIT License](LICENSE)
 
 ## Screenshots
 
-Screenshots use sample content in a 1040 × 598 window at double pixel density (2080 × 1196 pixels). Panel views are cropped to the content area. The main image uses the light theme.
+Screenshots use sample content in a 1040 × 598 window at double pixel density (2080 × 1196 pixels). Panel views are cropped to the content area. The main image uses the dark theme.
 
 | View | Light | Dark |
 | --- | --- | --- |
