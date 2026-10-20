@@ -1145,6 +1145,12 @@ class BackupManager
             ], 404);
         }
 
+        // Discard stray output (e.g. whitespace after a closing PHP tag elsewhere)
+        // that would otherwise be prepended to the archive and corrupt it
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         return Response::download($filepath);
     }
 
