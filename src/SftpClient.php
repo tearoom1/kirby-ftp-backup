@@ -2,8 +2,9 @@
 
 namespace TearoomOne\FtpBackup;
 
+use phpseclib3\Crypt\Common\PrivateKey;
+use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
-use phpseclib3\Crypt\RSA;
 
 /**
  * SFTP client for handling SFTP operations using phpseclib
@@ -55,26 +56,44 @@ class SftpClient implements FtpClientInterface
      */
     public function connect(): void
     {
-        // Create SFTP connection
+        // Load the key first so a bad key is reported as such, not as a login failure
+        $key = $this->privateKey ? $this->loadPrivateKey() : null;
+
         $this->sftp = new SFTP($this->host, $this->port, $this->timeout);
 
         if ($this->keepAlive > 0) {
             $this->sftp->setKeepAlive($this->keepAlive);
         }
 
-        // Authenticate with private key or password
-        if ($this->privateKey) {
-            // Use private key authentication
-            $key = RSA::loadPrivateKey(file_get_contents($this->privateKey), $this->passphrase);
+        try {
+            $loggedIn = $this->sftp->login($this->username, $key ?? $this->password);
+        } catch (\Throwable $e) {
+            throw new \Exception('SFTP connection failed [' . $this->endpoint() . ']: ' . $e->getMessage(), 0, $e);
+        }
 
-            if (!$this->sftp->login($this->username, $key)) {
-                throw new \Exception($this->loginError('Invalid key or passphrase'));
-            }
-        } else {
-            // Use password authentication
-            if (!$this->sftp->login($this->username, $this->password)) {
-                throw new \Exception($this->loginError('Invalid credentials'));
-            }
+        if (!$loggedIn) {
+            throw new \Exception($this->loginError($key ? 'Invalid key or passphrase' : 'Invalid credentials'));
+        }
+    }
+
+    /**
+     * Load the private key file; RSA, ECDSA and Ed25519 keys are supported
+     */
+    private function loadPrivateKey(): PrivateKey
+    {
+        $contents = is_readable($this->privateKey) ? file_get_contents($this->privateKey) : false;
+        if ($contents === false) {
+            throw new \Exception("SFTP private key file is not readable: {$this->privateKey}");
+        }
+
+        try {
+            return PublicKeyLoader::loadPrivateKey($contents, $this->passphrase ?: false);
+        } catch (\Throwable $e) {
+            throw new \Exception(
+                "Could not load SFTP private key {$this->privateKey}: wrong passphrase or unsupported key format",
+                0,
+                $e
+            );
         }
     }
 

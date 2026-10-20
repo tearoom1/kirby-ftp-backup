@@ -156,7 +156,7 @@ class FtpClient implements FtpClientInterface
                 throw $this->error("FTP transfer did not finish: {$remoteFile}");
             } catch (\Throwable $e) {
                 // Never turn a deliberate cancellation into an automatic retry.
-                if ((int)$e->getCode() === 499 || $attempt >= $this->maxRetries) {
+                if ($e instanceof BackupCancelledException || $attempt >= $this->maxRetries) {
                     throw $e;
                 }
 
@@ -182,35 +182,37 @@ class FtpClient implements FtpClientInterface
     }
 
     /**
-     * Create remote directory recursively if it doesn't exist
+     * Create remote directory recursively if it doesn't exist.
+     * A relative path is resolved from the login directory, which stays the
+     * working directory afterwards so relative uploads land in the same place.
      */
     public function createRemoteDirectory(string $directory): void
     {
-        if ($directory === '/' || $directory === '.') {
+        $directory = rtrim($directory, '/');
+        if ($directory === '' || $directory === '.') {
             return;
         }
 
-        $parts = explode('/', $directory);
-        $path = '';
+        $workingDirectory = @ftp_pwd($this->connection);
 
-        foreach ($parts as $part) {
-            if (!$part) {
-                continue;
+        try {
+            if (str_starts_with($directory, '/') && !@ftp_chdir($this->connection, '/')) {
+                throw $this->error('Failed to change to the root directory on FTP server');
             }
 
-            $path .= '/' . $part;
-
-            // Try to change to directory, create if fails
-            if (@ftp_chdir($this->connection, $path) === false) {
-                if (!@ftp_mkdir($this->connection, $path)) {
-                    throw $this->error("Failed to create directory on FTP server: {$path}");
+            foreach (explode('/', $directory) as $part) {
+                if ($part === '' || $part === '.' || @ftp_chdir($this->connection, $part)) {
+                    continue;
                 }
-                ftp_chdir($this->connection, $path);
+                if (!@ftp_mkdir($this->connection, $part) || !@ftp_chdir($this->connection, $part)) {
+                    throw $this->error("Failed to create directory on FTP server: {$directory}");
+                }
+            }
+        } finally {
+            if ($workingDirectory !== false) {
+                @ftp_chdir($this->connection, $workingDirectory);
             }
         }
-
-        // Return to root directory
-        ftp_chdir($this->connection, '/');
     }
 
     /**

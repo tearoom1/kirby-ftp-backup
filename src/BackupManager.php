@@ -6,13 +6,14 @@ use Kirby\Cms\App;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
 use Kirby\Http\Response;
-use Kirby\Toolkit\Data;
 
 /**
  * Manages backup creation, listing, and FTP operations
  */
 class BackupManager
 {
+    private const PROTOCOLS = ['ftp', 'ftps', 'sftp'];
+
     private string $backupDir;
 
     // -------------------------------------------------------------------------
@@ -39,19 +40,25 @@ class BackupManager
         return $this->backupDir . '/.progress-' . $this->sanitizeJobId($jobId);
     }
 
-    private function isCancelled(string $jobId): bool
+    /**
+     * Throw if the user requested cancellation of this job (the flag is consumed)
+     */
+    private function throwIfCancelled(?string $jobId): void
     {
+        if (!$jobId) {
+            return;
+        }
+
         $path = $this->cancelFlagPath($jobId);
         if (file_exists($path)) {
             @unlink($path);
-            return true;
+            throw new BackupCancelledException();
         }
-        return false;
     }
 
-    private function writeProgress(string $jobId, string $phase, int $current, int $total, string $message = ''): void
+    private function writeProgress(?string $jobId, string $phase, int $current, int $total, string $message = ''): void
     {
-        if ($this->sanitizeJobId($jobId) === '') {
+        if (!$jobId || $this->sanitizeJobId($jobId) === '') {
             return;
         }
 
@@ -70,35 +77,29 @@ class BackupManager
 
     public function getProgress(string $jobId): array
     {
-        if ($this->sanitizeJobId($jobId) === '') {
-            return ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+        $unknown = ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+        $path = $this->progressFilePath($jobId);
+
+        if ($this->sanitizeJobId($jobId) === '' || !file_exists($path)) {
+            return $unknown;
         }
 
-        $path = $this->progressFilePath($this->sanitizeJobId($jobId));
-        if (!file_exists($path)) {
-            return ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
-        }
-        $data = json_decode(file_get_contents($path), true);
-        return is_array($data) ? $data : ['phase' => 'unknown', 'current' => 0, 'total' => 0, 'message' => ''];
+        $data = json_decode((string)file_get_contents($path), true);
+        return is_array($data) ? $data : $unknown;
     }
 
     public function cancelBackup(string $jobId): array
     {
-        if ($this->isKnownJob($jobId) === false) {
+        if (!$this->isKnownJob($jobId)) {
             return ['status' => 'error', 'message' => 'Unknown backup job'];
         }
 
-        $path = $this->cancelFlagPath($jobId);
-        file_put_contents($path, '1');
+        file_put_contents($this->cancelFlagPath($jobId), '1');
         return ['status' => 'success', 'message' => 'Cancel signal sent'];
     }
 
     private function markJobActive(string $jobId): void
     {
-        if ($this->sanitizeJobId($jobId) === '') {
-            return;
-        }
-
         file_put_contents($this->jobFilePath($jobId), (string)time());
     }
 
@@ -115,18 +116,49 @@ class BackupManager
     }
 
     /**
+     * Take the lock that prevents two backups from running at the same time
+     *
+     * @return resource|null The lock handle, or null if another backup holds the lock
+     */
+    private function acquireLock()
+    {
+        $handle = @fopen($this->backupDir . '/.lock', 'c');
+        if ($handle === false) {
+            throw new \Exception('Could not open lock file in backup directory: ' . $this->backupDir);
+        }
+
+        if (!flock($handle, LOCK_EX | LOCK_NB)) {
+            fclose($handle);
+            return null;
+        }
+
+        return $handle;
+    }
+
+    /**
+     * @param resource|null $handle
+     */
+    private function releaseLock($handle): void
+    {
+        if ($handle) {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
+    }
+
+    /**
      * Constructor
      */
     public function __construct()
     {
         $kirby = App::instance();
 
-        $dir = option('tearoom1.kirby-ftp-backup.backupDirectory', $kirby->root('content') . '/.backups');
+        $dir = $this->option('backupDirectory', $kirby->root('content') . '/.backups');
         // calculate backup directory from kirby root if not absolute
         if (strpos($dir, '/') !== 0) {
             $dir = dirname($kirby->root('site')) . '/' . $dir;
         }
-        $this->backupDir = $dir;
+        $this->backupDir = rtrim($dir, '/');
 
         // Ensure backup directory exists
         if (!is_dir($this->backupDir)) {
@@ -139,6 +171,11 @@ class BackupManager
         }
     }
 
+    private function option(string $key, mixed $default = null): mixed
+    {
+        return option('tearoom1.kirby-ftp-backup.' . $key, $default);
+    }
+
     /**
      * Get FTP settings
      */
@@ -146,41 +183,72 @@ class BackupManager
     {
         return [
             // Plugin control
-            'enabled' => option('tearoom1.kirby-ftp-backup.enabled', true),
-            'ftpEnabled' => option('tearoom1.kirby-ftp-backup.ftpEnabled', true),
+            'enabled' => $this->option('enabled', true),
+            'ftpEnabled' => (bool)$this->option('ftpEnabled', true),
             // FTP settings
-            'ftpProtocol' => option('tearoom1.kirby-ftp-backup.ftpProtocol', 'ftp'),
-            'ftpHost' => option('tearoom1.kirby-ftp-backup.ftpHost', ''),
-            'ftpPort' => option('tearoom1.kirby-ftp-backup.ftpPort', 21),
-            'ftpUsername' => option('tearoom1.kirby-ftp-backup.ftpUsername', ''),
-            'ftpPassword' => option('tearoom1.kirby-ftp-backup.ftpPassword', ''),
-            'ftpDirectory' => option('tearoom1.kirby-ftp-backup.ftpDirectory', ''),
-            'ftpPassive' => option('tearoom1.kirby-ftp-backup.ftpPassive', true),
-            'ftpPrivateKey' => option('tearoom1.kirby-ftp-backup.ftpPrivateKey'),
-            'ftpPassphrase' => option('tearoom1.kirby-ftp-backup.ftpPassphrase'),
+            'ftpProtocol' => $this->option('ftpProtocol', 'ftp'),
+            'ftpHost' => (string)$this->option('ftpHost', ''),
+            'ftpPort' => $this->option('ftpPort'),
+            'ftpUsername' => (string)$this->option('ftpUsername', ''),
+            'ftpPassword' => (string)$this->option('ftpPassword', ''),
+            'ftpDirectory' => (string)$this->option('ftpDirectory', '/'),
+            'ftpPassive' => (bool)$this->option('ftpPassive', true),
+            'ftpPrivateKey' => $this->option('ftpPrivateKey'),
+            'ftpPassphrase' => $this->option('ftpPassphrase'),
             // General settings
-            'backupDirectory' => option('tearoom1.kirby-ftp-backup.backupDirectory', kirby()->root('content') . '/.backups'),
-            'backupRetention' => option('tearoom1.kirby-ftp-backup.backupRetention', 10),
-            'deleteFromFtp' => option('tearoom1.kirby-ftp-backup.deleteFromFtp', true),
-            'retentionStrategy' => option('tearoom1.kirby-ftp-backup.retentionStrategy', 'simple'),
+            'backupDirectory' => $this->backupDir,
+            'backupRetention' => (int)$this->option('backupRetention', 10),
+            'deleteFromFtp' => (bool)$this->option('deleteFromFtp', true),
+            'retentionStrategy' => $this->option('retentionStrategy', 'simple'),
             'tieredRetention' => [
-                'daily' => option('tearoom1.kirby-ftp-backup.tieredRetention.daily', 10),
-                'weekly' => option('tearoom1.kirby-ftp-backup.tieredRetention.weekly', 4),
-                'monthly' => option('tearoom1.kirby-ftp-backup.tieredRetention.monthly', 6)
+                'daily' => $this->option('tieredRetention.daily', 10),
+                'weekly' => $this->option('tieredRetention.weekly', 4),
+                'monthly' => $this->option('tieredRetention.monthly', 6)
             ],
             // File filtering
-            'includePatterns' => option('tearoom1.kirby-ftp-backup.includePatterns', []),
-            'excludePatterns' => option('tearoom1.kirby-ftp-backup.excludePatterns', []),
-            'excludePaths' => option('tearoom1.kirby-ftp-backup.excludePaths', []),
-            'excludeContentWatch' => option('tearoom1.kirby-ftp-backup.excludeContentWatch', false),
-            'excludeDrafts' => option('tearoom1.kirby-ftp-backup.excludeDrafts', false),
-            // Connection timeout
-            'ftpTimeout' => (int)option('tearoom1.kirby-ftp-backup.ftpTimeout', 30),
-            'ftpMaxRetries' => (int)option('tearoom1.kirby-ftp-backup.ftpMaxRetries', 3),
-            'ftpRetryDelay' => (int)option('tearoom1.kirby-ftp-backup.ftpRetryDelay', 5),
-            'ftpUsePasvAddress' => (bool)option('tearoom1.kirby-ftp-backup.ftpUsePasvAddress', true),
-            'ftpKeepAlive' => (int)option('tearoom1.kirby-ftp-backup.ftpKeepAlive', 0)
+            'includePatterns' => $this->option('includePatterns', []),
+            'excludePatterns' => $this->option('excludePatterns', []),
+            'excludePaths' => $this->option('excludePaths', []),
+            'excludeContentWatch' => $this->option('excludeContentWatch', false),
+            'excludeDrafts' => $this->option('excludeDrafts', false),
+            // Connection behaviour
+            'ftpTimeout' => (int)$this->option('ftpTimeout', 30),
+            'ftpMaxRetries' => (int)$this->option('ftpMaxRetries', 3),
+            'ftpRetryDelay' => (int)$this->option('ftpRetryDelay', 5),
+            'ftpUsePasvAddress' => (bool)$this->option('ftpUsePasvAddress', true),
+            'ftpKeepAlive' => (int)$this->option('ftpKeepAlive', 0)
         ];
+    }
+
+    /**
+     * Describe what is missing from the FTP settings (empty string if they are complete)
+     */
+    public function ftpConfigurationError(?array $settings = null): string
+    {
+        $settings ??= $this->getSettings();
+        $protocol = $settings['ftpProtocol'];
+
+        if (!in_array($protocol, self::PROTOCOLS, true)) {
+            return "Invalid FTP settings: unknown ftpProtocol '{$protocol}' (use 'ftp', 'ftps' or 'sftp')";
+        }
+        if ($settings['ftpHost'] === '') {
+            return 'Invalid FTP settings: ftpHost is not set';
+        }
+        // The password may legitimately be empty (key login or anonymous FTP)
+        if ($settings['ftpUsername'] === '') {
+            return 'Invalid FTP settings: ftpUsername is not set';
+        }
+
+        return '';
+    }
+
+    /**
+     * Whether backups will be uploaded: FTP is enabled and fully configured
+     */
+    public function isFtpConfigured(): bool
+    {
+        $settings = $this->getSettings();
+        return $settings['ftpEnabled'] && $this->ftpConfigurationError($settings) === '';
     }
 
     /**
@@ -190,35 +258,31 @@ class BackupManager
     {
         return [
             'status' => 'success',
-            'stats' => BackupController::getStats(),
-            'data' => self::listBackupFiles()
+            'stats' => BackupController::getStats($this),
+            'data' => $this->listBackupFiles()
         ];
     }
 
     /**
-     * List available backups
+     * List all zip files in the backup directory, newest first
      */
     public function listBackupFiles(): array
     {
-        $files = Dir::read($this->backupDir);
         $backups = [];
 
-        foreach ($files as $file) {
+        foreach (Dir::read($this->backupDir) as $file) {
             if (F::extension($file) === 'zip') {
                 $path = $this->backupDir . '/' . $file;
                 $backups[] = [
                     'filename' => $file,
                     'size' => F::size($path),
                     'modified' => F::modified($path),
-                    'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . $file
+                    'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . rawurlencode($file)
                 ];
             }
         }
 
-        // Sort by modified date (newest first)
-        usort($backups, function ($a, $b) {
-            return $b['modified'] <=> $a['modified'];
-        });
+        usort($backups, fn ($a, $b) => $b['modified'] <=> $a['modified']);
 
         return $backups;
     }
@@ -228,72 +292,64 @@ class BackupManager
      */
     public function createBackup(bool $uploadToFtp = true, ?string $jobId = null): array
     {
-        $ftpClient = null;
-        try {
-            if ($jobId) {
-                if ($this->sanitizeJobId($jobId) === '') {
-                    return ['status' => 'error', 'message' => 'Invalid backup job id'];
-                }
+        if ($jobId !== null && $jobId !== '' && $this->sanitizeJobId($jobId) === '') {
+            return ['status' => 'error', 'message' => 'Invalid backup job id'];
+        }
+        $jobId = $jobId ?: null;
 
-                $this->markJobActive($jobId);
-                $this->writeProgress($jobId, 'starting', 0, 0, 'Preparing backup…');
+        $lock = null;
+        $ftpClient = null;
+        $filepath = null;
+        $archiveComplete = false;
+
+        try {
+            $lock = $this->acquireLock();
+            if ($lock === null) {
+                return ['status' => 'error', 'message' => 'Another backup is already running'];
             }
 
-            // Generate filename with date
-            $date = date('Y-m-d-His');
-            $filePrefix = option('tearoom1.kirby-ftp-backup.filePrefix', 'backup-');
-            $filename = "{$filePrefix}{$date}.zip";
+            // Large sites take a while; finish the run even if the request is aborted
+            @set_time_limit(0);
+            ignore_user_abort(true);
+
+            if ($jobId) {
+                $this->markJobActive($jobId);
+            }
+            $this->writeProgress($jobId, 'starting', 0, 0, 'Preparing backup…');
+
+            $filename = $this->backupFilename(time());
             $filepath = $this->backupDir . '/' . $filename;
 
-            // Create zip archive of content folder
-            $contentDir = kirby()->root('content');
+            $this->writeProgress($jobId, 'zip', 0, 0, 'Compressing archive…');
+            $this->createArchive($filepath, $jobId);
+            $archiveComplete = true;
 
-            if ($jobId) {
-                $this->writeProgress($jobId, 'zip', 0, 0, 'Compressing archive…');
-            }
-
-            $zip = new \ZipArchive();
-            if ($zip->open($filepath, \ZipArchive::CREATE) !== true) {
-                throw new \Exception("Cannot create zip file");
-            }
-
-            $this->addDirToZip($contentDir, $zip, '', '/.backups/', $jobId);
-            $zip->close();
-
-            // Check after compression finishes — close() is blocking so this is
-            // the earliest point we can react to a cancel pressed during that phase.
-            if ($jobId && $this->isCancelled($jobId)) {
-                throw new \RuntimeException('Backup cancelled by user', 499);
-            }
+            // close() is blocking, so this is the earliest point to react
+            // to a cancel pressed while the archive was being written
+            $this->throwIfCancelled($jobId);
 
             $settings = $this->getSettings();
-
-            // Check if FTP is enabled
-            $ftpEnabled = option('tearoom1.kirby-ftp-backup.ftpEnabled', true);
-
-            // Upload to FTP if requested and FTP is enabled
+            $ftpEnabled = $settings['ftpEnabled'];
             $ftpResult = ['uploaded' => false, 'disabled' => !$ftpEnabled];
+
             if ($uploadToFtp && $ftpEnabled) {
-                if ($jobId) {
-                    $this->writeProgress($jobId, 'upload', 0, 1, 'Uploading to FTP server…');
+                $this->writeProgress($jobId, 'upload', 0, 1, 'Uploading to FTP server…');
+                try {
+                    $ftpClient = $this->createFtpClient($settings);
+                    $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename, $jobId);
+                } catch (BackupCancelledException $e) {
+                    throw $e;
+                } catch (\Throwable $e) {
+                    $ftpResult = ['uploaded' => false, 'message' => 'FTP upload failed: ' . $e->getMessage()];
                 }
-                $ftpClient = $this->initFtpClient();
-                $ftpResult = $this->uploadToFtp($ftpClient, $settings, $filepath, $filename, $jobId);
                 $ftpResult['disabled'] = false;
 
-                if ($jobId && $this->isCancelled($jobId)) {
-                    throw new \RuntimeException('Backup cancelled by user', 499);
-                }
-
-                // Cleanup old backups
-                if ($jobId) {
-                    $this->writeProgress($jobId, 'cleanup', 0, 1, 'Cleaning up old backups…');
-                }
-                $this->cleanupOldBackups($ftpClient, $settings, $jobId);
-            } else {
-                // FTP disabled, only cleanup local backups
-                $this->applySimpleRetention($jobId);
+                $this->throwIfCancelled($jobId);
             }
+
+            $this->writeProgress($jobId, 'cleanup', 0, 1, 'Cleaning up old backups…');
+            // Only rotate the server when this run actually added a backup there
+            $this->cleanupOldBackups($ftpResult['uploaded'] ? $ftpClient : null, $settings, $jobId);
 
             $message = 'Backup created successfully';
             if (!$ftpEnabled) {
@@ -302,9 +358,7 @@ class BackupManager
                 $message .= ' and uploaded to FTP server';
             }
 
-            if ($jobId) {
-                $this->writeProgress($jobId, 'done', 1, 1, $message);
-            }
+            $this->writeProgress($jobId, 'done', 1, 1, $message);
 
             return [
                 'status' => 'success',
@@ -315,41 +369,122 @@ class BackupManager
                     'ftpResult' => $ftpResult
                 ]
             ];
-        } catch (\RuntimeException $e) {
-            if ($e->getCode() === 499) {
-                // User-initiated cancellation
-                if (isset($filepath) && file_exists($filepath)) {
-                    @unlink($filepath);
-                }
-                if ($jobId) {
-                    $this->writeProgress($jobId, 'cancelled', 0, 0, 'Backup was cancelled');
-                }
-                return ['status' => 'cancelled', 'message' => 'Backup was cancelled'];
+        } catch (BackupCancelledException $e) {
+            if ($filepath && file_exists($filepath)) {
+                @unlink($filepath);
             }
+            $this->writeProgress($jobId, 'cancelled', 0, 0, 'Backup was cancelled');
+            return ['status' => 'cancelled', 'message' => 'Backup was cancelled'];
+        } catch (\Throwable $e) {
             error_log('[kirby-ftp-backup] Backup failed: ' . $e->getMessage());
-            if ($jobId) {
-                $this->writeProgress($jobId, 'error', 0, 0, $e->getMessage());
+            // Never leave a half-written archive that looks like a valid backup
+            if (!$archiveComplete && $filepath && file_exists($filepath)) {
+                @unlink($filepath);
             }
-            return [
-                'status' => 'error',
-                'message' => 'Backup failed: ' . $e->getMessage()
-            ];
-        } catch (\Exception $e) {
-            error_log('[kirby-ftp-backup] Backup failed: ' . $e->getMessage());
-            if ($jobId) {
-                $this->writeProgress($jobId, 'error', 0, 0, $e->getMessage());
-            }
+            $this->writeProgress($jobId, 'error', 0, 0, $e->getMessage());
             return [
                 'status' => 'error',
                 'message' => 'Backup failed: ' . $e->getMessage()
             ];
         } finally {
-            if ($ftpClient) {
-                $ftpClient->disconnect();
-            }
+            $ftpClient?->disconnect();
             if ($jobId) {
                 $this->cleanupJobFiles($jobId);
             }
+            $this->releaseLock($lock);
+        }
+    }
+
+    /**
+     * Filename for a backup created at the given time; a numeric suffix
+     * keeps backups from the same second apart
+     */
+    private function backupFilename(int $time): string
+    {
+        $base = $this->option('filePrefix', 'backup-') . date('Y-m-d-His', $time);
+        $filename = $base . '.zip';
+
+        for ($sequence = 2; file_exists($this->backupDir . '/' . $filename); $sequence++) {
+            $filename = "{$base}-{$sequence}.zip";
+        }
+
+        return $filename;
+    }
+
+    /**
+     * Pick the backups this plugin created from a list of filenames, newest first.
+     * Anything else (other prefixes, manual uploads, unknown names) is ignored,
+     * so retention never deletes files it does not own.
+     */
+    private function ownBackups(array $filenames): array
+    {
+        $prefix = preg_quote((string)$this->option('filePrefix', 'backup-'), '/');
+        $pattern = '/^' . $prefix . '(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d+))?\.zip$/';
+
+        $backups = [];
+        foreach ($filenames as $filename) {
+            if (!preg_match($pattern, $filename, $m)) {
+                continue;
+            }
+            $timestamp = mktime((int)$m[4], (int)$m[5], (int)$m[6], (int)$m[2], (int)$m[3], (int)$m[1]);
+            $backups[] = [
+                'filename' => $filename,
+                'timestamp' => $timestamp,
+                'sequence' => (int)($m[7] ?? 1),
+            ];
+        }
+
+        usort($backups, fn ($a, $b) => [$b['timestamp'], $b['sequence']] <=> [$a['timestamp'], $a['sequence']]);
+
+        return $backups;
+    }
+
+    /**
+     * Decide which of the given files the retention settings no longer keep
+     */
+    private function selectBackupsToDelete(array $filenames, array $settings): array
+    {
+        $backups = $this->ownBackups($filenames);
+
+        if ($settings['retentionStrategy'] === 'tiered') {
+            $keep = array_column($this->applyTieredRetentionStrategy($backups, $settings['tieredRetention']), 'filename');
+            return array_values(array_diff(array_column($backups, 'filename'), $keep));
+        }
+
+        // Always keep at least the newest backup
+        $retention = max(1, $settings['backupRetention']);
+        return array_column(array_slice($backups, $retention), 'filename');
+    }
+
+    /**
+     * Write the content folder into a new zip archive
+     */
+    private function createArchive(string $filepath, ?string $jobId): void
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($filepath, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) {
+            throw new \Exception("Cannot create zip file: {$filepath}");
+        }
+
+        try {
+            $this->addDirToZip(kirby()->root('content'), $zip, '', $jobId);
+        } catch (\Throwable $e) {
+            // Drop the queued entries so nothing is written on close
+            $zip->unchangeAll();
+            @$zip->close();
+            throw $e;
+        }
+
+        // Files are only read here, so unreadable files surface now
+        error_clear_last();
+        if (@$zip->close() !== true) {
+            $detail = error_get_last()['message'] ?? 'unknown error';
+            throw new \Exception('Could not write zip file: ' . $detail);
+        }
+
+        // libzip writes no file at all for an archive without entries
+        if (!is_file($filepath)) {
+            throw new \Exception('The archive is empty: no content files matched the backup filters');
         }
     }
 
@@ -358,141 +493,70 @@ class BackupManager
      */
     private function uploadToFtp(FtpClientInterface $ftpClient, array $settings, string $localFile, string $remoteFilename, ?string $jobId = null): array
     {
-        try {
-
-            $directory = $settings['ftpDirectory'] ?? '/';
-
-            $fileSize = $jobId ? (int)filesize($localFile) : 0;
-            $onProgress = $jobId ? function (int $sent, int $total) use ($jobId, $fileSize) {
-                if ($this->isCancelled($jobId)) {
-                    throw new \RuntimeException('Backup cancelled by user', 499);
-                }
-                // Only write progress when we have real byte info (SFTP)
-                if ($sent > 0) {
-                    $this->writeProgress($jobId, 'upload', $sent, $total ?: $fileSize, 'Uploading to FTP server…');
-                }
-            } : null;
-
-            if ($this->isLocalDev()) {
-                echo "Would upload: {$localFile} to " .$directory . '/' . $remoteFilename. "\n";
-            } else {
-                $ftpClient->upload($localFile, $directory . '/' . $remoteFilename, $onProgress);
+        $onProgress = $jobId ? function (int $sent, int $total) use ($jobId) {
+            $this->throwIfCancelled($jobId);
+            // Only write progress when we have real byte info (SFTP)
+            if ($sent > 0) {
+                $this->writeProgress($jobId, 'upload', $sent, $total, 'Uploading to FTP server…');
             }
+        } : null;
 
-            return [
-                'uploaded' => true,
-                'message' => 'File uploaded to FTP server'
-            ];
-        } catch (\RuntimeException $e) {
-            if ($e->getCode() === 499) {
-                throw $e;
-            }
+        $ftpClient->upload($localFile, $this->remotePath($settings['ftpDirectory'], $remoteFilename), $onProgress);
 
-            return [
-                'uploaded' => false,
-                'message' => 'FTP upload failed: ' . $e->getMessage()
-            ];
-        } catch (\Exception $e) {
-            return [
-                'uploaded' => false,
-                'message' => 'FTP upload failed: ' . $e->getMessage()
-            ];
-        }
+        return [
+            'uploaded' => true,
+            'message' => 'File uploaded to FTP server'
+        ];
     }
 
     /**
-     * Remove a backup file from the FTP server
+     * Join the configured remote directory and a filename; a relative
+     * directory stays relative to the login directory
      */
-    private function removeFromFtp(FtpClientInterface $ftpClient, array $settings, string $filename): array
+    private function remotePath(string $directory, string $filename): string
     {
-        try {
-
-
-            $directory = $settings['ftpDirectory'] ?? '/';
-            $ftpClient->delete($directory . '/' . $filename);
-
-            return [
-                'deleted' => true,
-                'message' => 'File deleted from FTP server'
-            ];
-        } catch (\Exception $e) {
-            return [
-                'deleted' => false,
-                'message' => 'FTP deletion failed: ' . $e->getMessage()
-            ];
-        }
+        return rtrim($directory, '/') . '/' . $filename;
     }
 
     /**
-     * Initialize the FTP client with settings
+     * Create and connect the client for the configured protocol
      */
-    private function initFtpClient(): FtpClientInterface
+    protected function createFtpClient(array $settings): FtpClientInterface
     {
-        $settings = $this->getSettings();
-
-        // Default to regular FTP
-        $ftpProtocol = $settings['ftpProtocol'] ?? 'ftp';
-
-        // Check if essential settings are available
-        if (!in_array($ftpProtocol, ['ftp', 'ftps', 'sftp'])) {
-            throw new \Exception("Invalid FTP settings: unknown ftpProtocol '{$ftpProtocol}' (use 'ftp', 'ftps' or 'sftp')");
-        }
-        if (empty($settings['ftpHost'])) {
-            throw new \Exception('Invalid FTP settings: ftpHost is not set');
-        }
-        if (!$this->hasCredentials($settings)) {
-            throw new \Exception('Invalid FTP settings: ftpUsername and ftpPassword (or ftpPrivateKey for SFTP) are required');
+        $error = $this->ftpConfigurationError($settings);
+        if ($error !== '') {
+            throw new \Exception($error);
         }
 
-        // Check which connection type to use
-        if ($ftpProtocol === 'sftp') {
-            return $this->initSftpClient($settings);
+        if ($settings['ftpProtocol'] === 'sftp') {
+            $client = new SftpClient(
+                $settings['ftpHost'],
+                (int)($settings['ftpPort'] ?? 22),
+                $settings['ftpUsername'],
+                $settings['ftpPassword'],
+                $settings['ftpPrivateKey'] ?: null,
+                $settings['ftpPassphrase'] ?: null,
+                $settings['ftpTimeout'],
+                $settings['ftpKeepAlive']
+            );
+        } else {
+            $client = new FtpClient(
+                $settings['ftpHost'],
+                (int)($settings['ftpPort'] ?? 21),
+                $settings['ftpUsername'],
+                $settings['ftpPassword'],
+                $settings['ftpProtocol'] === 'ftps',
+                $settings['ftpPassive'],
+                $settings['ftpTimeout'],
+                $settings['ftpMaxRetries'],
+                $settings['ftpRetryDelay'],
+                $settings['ftpUsePasvAddress']
+            );
         }
-        return $this->initStdFtpClient($settings, $ftpProtocol);
 
-    }
+        $client->connect();
 
-    /**
-     * Initialize the SFTP client with settings
-     */
-    private function initSftpClient($settings): SftpClient
-    {
-        // Create and connect SFTP client
-        $sftpClient = new SftpClient(
-            $settings['ftpHost'],
-            (int)($settings['ftpPort'] ?? 22),
-            $settings['ftpUsername'],
-            $settings['ftpPassword'] ?? '',
-            $settings['ftpPrivateKey'] ?? null,
-            $settings['ftpPassphrase'] ?? null,
-            $settings['ftpTimeout'] ?? 30,
-            $settings['ftpKeepAlive'] ?? 0
-        );
-
-        $sftpClient->connect();
-
-        return $sftpClient;
-    }
-
-    public function initStdFtpClient(array $settings, mixed $ftpProtocol): FtpClient
-    {
-        // Create and connect FTP client
-        $ftpClient = new FtpClient(
-            $settings['ftpHost'],
-            (int)($settings['ftpPort'] ?? 21),
-            $settings['ftpUsername'],
-            $settings['ftpPassword'],
-            $ftpProtocol === 'ftps',
-            (bool)($settings['ftpPassive'] ?? true),
-            $settings['ftpTimeout'] ?? 30,
-            $settings['ftpMaxRetries'] ?? 3,
-            $settings['ftpRetryDelay'] ?? 5,
-            (bool)($settings['ftpUsePasvAddress'] ?? true)
-        );
-
-        $ftpClient->connect();
-
-        return $ftpClient;
+        return $client;
     }
 
     /**
@@ -500,216 +564,112 @@ class BackupManager
      */
     private function shouldIncludeFile(string $relativePath): bool
     {
-        $includePatterns = option('tearoom1.kirby-ftp-backup.includePatterns', []);
-        $excludePatterns = option('tearoom1.kirby-ftp-backup.excludePatterns', []);
-        $excludePaths = option('tearoom1.kirby-ftp-backup.excludePaths', []);
+        $includePatterns = $this->option('includePatterns', []);
+        $excludePatterns = $this->option('excludePatterns', []);
+        $excludePaths = $this->option('excludePaths', []);
 
         // Normalize path separators for consistent matching
         $normalizedPath = ltrim(str_replace('\\', '/', $relativePath), '/');
 
-        if (option('tearoom1.kirby-ftp-backup.excludeContentWatch', false) && basename($normalizedPath) === '.content-watch.json') {
+        if ($this->option('excludeContentWatch', false) && basename($normalizedPath) === '.content-watch.json') {
             return false;
         }
 
-        if (option('tearoom1.kirby-ftp-backup.excludeDrafts', false) && preg_match('#(^|/)_drafts(/|$)#', $normalizedPath) === 1) {
+        if ($this->option('excludeDrafts', false) && preg_match('#(^|/)_drafts(/|$)#', $normalizedPath) === 1) {
             return false;
         }
 
-        if (!empty($excludePaths)) {
-            foreach ((array)$excludePaths as $path) {
-                $path = trim(str_replace('\\', '/', (string)$path), '/');
-                if ($path === '') {
-                    continue;
-                }
+        foreach ((array)$excludePaths as $path) {
+            $path = trim(str_replace('\\', '/', (string)$path), '/');
+            if ($path === '') {
+                continue;
+            }
 
-                if ($normalizedPath === $path || str_starts_with($normalizedPath, $path . '/') || fnmatch($path, $normalizedPath)) {
-                    return false;
-                }
+            if ($normalizedPath === $path || str_starts_with($normalizedPath, $path . '/') || fnmatch($path, $normalizedPath)) {
+                return false;
             }
         }
 
-        // Always exclude if matches exclude pattern
-        if (!empty($excludePatterns)) {
-            foreach ((array)$excludePatterns as $pattern) {
-                // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
-                $regexPattern = '#' . $pattern . '#i';
-                if (@preg_match($regexPattern, $normalizedPath)) {
-                    return false;
-                }
+        // Patterns get # delimiters (to avoid conflicts with / in paths) and are case-insensitive
+        foreach ((array)$excludePatterns as $pattern) {
+            if (@preg_match('#' . $pattern . '#i', $normalizedPath)) {
+                return false;
             }
         }
 
         // If include patterns are specified, only include matching files
         if (!empty($includePatterns)) {
             foreach ((array)$includePatterns as $pattern) {
-                // Add delimiters and case-insensitive flag (using # to avoid conflicts with / in paths)
-                $regexPattern = '#' . $pattern . '#i';
-                if (@preg_match($regexPattern, $normalizedPath)) {
+                if (@preg_match('#' . $pattern . '#i', $normalizedPath)) {
                     return true;
                 }
             }
-            return false; // No include pattern matched
+            return false;
         }
 
-        // No include patterns specified, include by default
         return true;
+    }
+
+    /**
+     * Whether a directory is the backup directory (or the legacy default
+     * `.backups` folder), which must never end up in an archive
+     */
+    private function isBackupDirectory(string $path, string $relativePath): bool
+    {
+        return $relativePath === '.backups' || realpath($path) === realpath($this->backupDir);
     }
 
     /**
      * Helper function to add directory contents to zip
      */
-    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', string $exclude = '', ?string $jobId = null): void
+    private function addDirToZip(string $dir, \ZipArchive $zip, string $zipDir = '', ?string $jobId = null): void
     {
-        $files = new \DirectoryIterator($dir);
-
-        foreach ($files as $file) {
+        foreach (new \DirectoryIterator($dir) as $file) {
             if ($file->isDot()) {
                 continue;
             }
 
             $filePath = $file->getPathname();
-            $relativePath = $zipDir . '/' . $file->getFilename();
+            $relativePath = ltrim($zipDir . '/' . $file->getFilename(), '/');
 
-            // Skip excluded paths (legacy exclude parameter)
-            if ($exclude && strpos($relativePath, $exclude) !== false) {
+            if ($file->isDir() && $this->isBackupDirectory($filePath, $relativePath)) {
                 continue;
             }
 
-            // Apply regex-based filtering
             if (!$this->shouldIncludeFile($relativePath)) {
                 continue;
             }
 
             if ($file->isDir()) {
-                $zip->addEmptyDir(ltrim($relativePath, '/'));
-                $this->addDirToZip($filePath, $zip, $relativePath, $exclude, $jobId);
-            } else {
-                // Check for cancellation before each file so large files
-                // do not block the cancel signal until after they are queued.
-                if ($jobId && $this->isCancelled($jobId)) {
-                    throw new \RuntimeException('Backup cancelled by user', 499);
-                }
+                $zip->addEmptyDir($relativePath);
+                $this->addDirToZip($filePath, $zip, $relativePath, $jobId);
+                continue;
+            }
 
-                $zip->addFile($filePath, ltrim($relativePath, '/'));
+            // Check for cancellation before each file so large files
+            // do not block the cancel signal until after they are queued.
+            $this->throwIfCancelled($jobId);
+
+            if (!$zip->addFile($filePath, $relativePath)) {
+                throw new \Exception("Could not add file to zip: {$relativePath}");
             }
         }
     }
 
     /**
-     * Clean up old backups based on retention settings
+     * Apply the retention settings locally and, if a client is given, on the FTP server
      */
-    public function cleanupOldBackups(FtpClientInterface $ftpClient, array $settings, ?string $jobId = null): void
+    public function cleanupOldBackups(?FtpClientInterface $ftpClient, array $settings, ?string $jobId = null): void
     {
-        $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
-
-        if ($retentionStrategy === 'tiered') {
-            $this->applyTieredRetention($jobId);
-        } else {
-            $this->applySimpleRetention($jobId);
+        foreach ($this->selectBackupsToDelete(Dir::read($this->backupDir), $settings) as $file) {
+            $this->throwIfCancelled($jobId);
+            F::remove($this->backupDir . '/' . $file);
         }
 
         $this->throwIfCancelled($jobId);
 
-        if ($settings['deleteFromFtp']) {
+        if ($ftpClient && $settings['deleteFromFtp']) {
             $this->cleanupFtpBackups($ftpClient, $settings, $jobId);
-        }
-    }
-
-    private function throwIfCancelled(?string $jobId): void
-    {
-        if ($jobId && $this->isCancelled($jobId)) {
-            throw new \RuntimeException('Backup cancelled by user', 499);
-        }
-    }
-
-    /**
-     * Apply simple retention strategy (keep X most recent backups)
-     */
-    private function applySimpleRetention(?string $jobId = null): void
-    {
-        $settings = $this->getSettings();
-        $retention = $settings['backupRetention'] ?? 10;
-
-        $files = Dir::read($this->backupDir);
-
-        $backups = [];
-        foreach ($files as $file) {
-            if (F::extension($file) === 'zip') {
-                $path = $this->backupDir . '/' . $file;
-                $backups[$file] = F::modified($path);
-            }
-        }
-
-        // Sort by modified date (oldest first)
-        asort($backups);
-
-        // Delete oldest files if we have more than retention limit
-        $count = count($backups);
-        if ($count > $retention) {
-            $toDelete = array_slice(array_keys($backups), 0, $count - $retention);
-
-            foreach ($toDelete as $file) {
-                $this->throwIfCancelled($jobId);
-
-                if ($this->isLocalDev()) {
-                    echo "Would delete from local: {$file}\n";
-                } else {
-                    F::remove($this->backupDir . '/' . $file);
-                }
-            }
-        }
-    }
-
-    /**
-     * Apply tiered retention strategy:
-     * - Keep all daily backups for X days
-     * - Then keep one backup per 7-day period for Y periods
-     * - Then keep one backup per 30-day period for Z periods
-     */
-    private function applyTieredRetention(?string $jobId = null): void
-    {
-        $settings = $this->getSettings();
-        $tieredSettings = $settings['tieredRetention'] ?? [
-            'daily' => 10,
-            'weekly' => 4,
-            'monthly' => 6
-        ];
-
-        // Get all backup files
-        $files = Dir::read($this->backupDir);
-        $backups = [];
-
-        foreach ($files as $file) {
-            if (F::extension($file) === 'zip') {
-                $path = $this->backupDir . '/' . $file;
-                $modified = F::modified($path);
-                $backups[] = [
-                    'filename' => $file,
-                    'path' => $path,
-                    'date' => date('Y-m-d', $modified),
-                    'timestamp' => $modified
-                ];
-            }
-        }
-
-        // Apply tiered retention
-        $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
-
-        // Delete backups that aren't in the keep list
-        $keepFilenames = array_map(function ($backup) {
-            return $backup['filename'];
-        }, $keepBackups);
-
-        foreach ($backups as $backup) {
-            if (!in_array($backup['filename'], $keepFilenames)) {
-                $this->throwIfCancelled($jobId);
-
-                if ($this->isLocalDev()) {
-                    echo "Would delete from local: {$backup['filename']}\n";
-                } else {
-                    F::remove($backup['path']);
-                }
-            }
         }
     }
 
@@ -748,48 +708,40 @@ class BackupManager
 
         // 2. WEEKLY PERIOD: Keep oldest backup in each 7-day period
         for ($week = 0; $week < $weeklyWeeks; $week++) {
-            $weekStart = $dailyDays + ($week * 7);
-            $weekEnd = $dailyDays + (($week + 1) * 7);
-
-            $weeklyBackups = array_filter($backups, function($backup) use ($now, $weekStart, $weekEnd) {
-                $ageDays = ($now - $backup['timestamp']) / 86400;
-                return $ageDays > $weekStart && $ageDays <= $weekEnd;
-            });
-
-            if (!empty($weeklyBackups)) {
-                // Keep the oldest backup in this week (furthest timestamp)
-                $oldestWeekly = array_reduce($weeklyBackups, function($oldest, $current) {
-                    return ($oldest === null || $current['timestamp'] < $oldest['timestamp']) ? $current : $oldest;
-                });
-                $keepBackups[] = $this->markBackup($oldestWeekly, 'weekly');
+            $oldest = $this->oldestBetween($backups, $now, $dailyDays + ($week * 7), $dailyDays + (($week + 1) * 7));
+            if ($oldest) {
+                $keepBackups[] = $this->markBackup($oldest, 'weekly');
             }
         }
 
         // 3. MONTHLY PERIOD: Keep oldest backup in each 30-day period
+        $monthlyStart = $dailyDays + ($weeklyWeeks * 7);
         for ($month = 0; $month < $monthlyMonths; $month++) {
-            $monthStart = $dailyDays + ($weeklyWeeks * 7) + ($month * 30);
-            $monthEnd = $dailyDays + ($weeklyWeeks * 7) + (($month + 1) * 30);
-
-            $monthlyBackups = array_filter($backups, function($backup) use ($now, $monthStart, $monthEnd) {
-                $ageDays = ($now - $backup['timestamp']) / 86400;
-                return $ageDays > $monthStart && $ageDays <= $monthEnd;
-            });
-
-            if (!empty($monthlyBackups)) {
-                // Keep the oldest backup in this month (furthest timestamp)
-                $oldestMonthly = array_reduce($monthlyBackups, function($oldest, $current) {
-                    return ($oldest === null || $current['timestamp'] < $oldest['timestamp']) ? $current : $oldest;
-                });
-                $keepBackups[] = $this->markBackup($oldestMonthly, 'monthly');
+            $oldest = $this->oldestBetween($backups, $now, $monthlyStart + ($month * 30), $monthlyStart + (($month + 1) * 30));
+            if ($oldest) {
+                $keepBackups[] = $this->markBackup($oldest, 'monthly');
             }
         }
 
         // 4. ALWAYS KEEP OLDEST as anchor
         $this->ensureOldestBackup($backups, $keepBackups);
 
-        $this->debugRetention($backups, $keepBackups, $dailyDays, $weeklyWeeks, $monthlyMonths);
-
         return $keepBackups;
+    }
+
+    /**
+     * The oldest backup whose age in days lies in (startDays, endDays]
+     */
+    private function oldestBetween(array $backups, int $now, int $startDays, int $endDays): ?array
+    {
+        $oldest = null;
+        foreach ($backups as $backup) {
+            $ageDays = ($now - $backup['timestamp']) / 86400;
+            if ($ageDays > $startDays && $ageDays <= $endDays && ($oldest === null || $backup['timestamp'] < $oldest['timestamp'])) {
+                $oldest = $backup;
+            }
+        }
+        return $oldest;
     }
 
     private function markBackup(array $backup, string $type): array
@@ -807,17 +759,14 @@ class BackupManager
         // Check if we have any monthly backups already kept
         $monthlyBackups = array_filter(
             $keepBackups,
-            fn ($backup) =>
-            isset($backup['retention']) && $backup['retention'] === 'monthly'
+            fn ($backup) => ($backup['retention'] ?? null) === 'monthly'
         );
 
         // If we have monthly backups, the oldest monthly backup is our anchor
         if (!empty($monthlyBackups)) {
-            // Sort monthly backups by timestamp (oldest first)
             usort($monthlyBackups, fn ($a, $b) => $a['timestamp'] - $b['timestamp']);
             $oldestMonthly = $monthlyBackups[0];
 
-            // Update the oldest monthly backup to be the anchor
             foreach ($keepBackups as &$backup) {
                 if ($backup['filename'] === $oldestMonthly['filename']) {
                     $backup['retention'] = 'oldest-anchor';
@@ -831,131 +780,49 @@ class BackupManager
         $oldest = end($allBackups);
         $oldest['retention'] = 'oldest-anchor';
 
-        // Add if not already kept
-        $filenames = array_column($keepBackups, 'filename');
-        if (!in_array($oldest['filename'], $filenames)) {
+        if (!in_array($oldest['filename'], array_column($keepBackups, 'filename'), true)) {
             $keepBackups[] = $oldest;
         }
     }
 
-    private function debugRetention(array $all, array $keep, int $daily, int $weekly, int $monthly): void
-    {
-        if (!$this->isLocalDev()) {
-            return;
-        }
-
-        echo "=== TIERED RETENTION ===\n";
-        echo "Settings: {$daily}d daily, {$weekly}w weekly, {$monthly}m monthly\n";
-        echo "Keeping " . count($keep) . " of " . count($all) . " backups:\n";
-        foreach ($keep as $backup) {
-            echo "- [{$backup['retention']}] {$backup['filename']}\n";
-        }
-    }
-
-
     /**
-     * Clean up old backups from FTP server based on retention setting
+     * Remove backups from the FTP server that the retention settings no longer keep
      */
-    public function cleanupFtpBackups($ftpClient, $settings, ?string $jobId = null): array
+    public function cleanupFtpBackups(FtpClientInterface $ftpClient, array $settings, ?string $jobId = null): array
     {
         try {
-            $directory = $settings['ftpDirectory'] ?? '/';
+            $directory = $settings['ftpDirectory'];
             $this->throwIfCancelled($jobId);
-            $files = $ftpClient->listDirectory($directory);
-            $this->throwIfCancelled($jobId);
+            $toDelete = $this->selectBackupsToDelete($ftpClient->listDirectory($directory), $settings);
 
-            // Filter to .zip files only
-            $backupFiles = array_filter($files, fn ($file) => substr($file, -4) === '.zip');
-
-            $toDelete = $this->determineFilesToDelete($backupFiles, $settings);
-            $deletedCount = $this->deleteFilesFromFtp($toDelete, $ftpClient, $settings, $jobId);
-
-            return [
-                'success' => true,
-                'message' => "Deleted {$deletedCount} old backups from FTP server"
-            ];
-
-        } catch (\RuntimeException $e) {
-            if ($e->getCode() === 499) {
-                throw $e;
+            $failed = [];
+            foreach ($toDelete as $file) {
+                $this->throwIfCancelled($jobId);
+                try {
+                    $ftpClient->delete($this->remotePath($directory, $file));
+                } catch (\Throwable $e) {
+                    $failed[] = $e->getMessage();
+                }
             }
 
+            if ($failed) {
+                error_log('[kirby-ftp-backup] Could not delete old FTP backups: ' . implode('; ', $failed));
+            }
+
+            $deleted = count($toDelete) - count($failed);
+            return [
+                'success' => empty($failed),
+                'message' => "Deleted {$deleted} old backups from FTP server"
+            ];
+        } catch (BackupCancelledException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            error_log('[kirby-ftp-backup] Error cleaning up FTP backups: ' . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Error cleaning up FTP backups: ' . $e->getMessage()
             ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Error cleaning up FTP backups: ' . $e->getMessage()
-            ];
         }
-    }
-
-    /**
-     * Determine which files to delete based on retention strategy
-     */
-    private function determineFilesToDelete(array $backupFiles, array $settings): array
-    {
-        $retentionStrategy = $settings['retentionStrategy'] ?? 'simple';
-
-        if ($retentionStrategy === 'tiered') {
-            return $this->getTieredFilesToDelete($backupFiles, $settings);
-        }
-
-        return $this->getSimpleFilesToDelete($backupFiles, $settings);
-    }
-
-    /**
-     * Get files to delete using tiered retention
-     */
-    private function getTieredFilesToDelete(array $backupFiles, array $settings): array
-    {
-        $backups = $this->prepareFtpBackupsForTieredRetention($backupFiles);
-        $tieredSettings = $settings['tieredRetention'] ?? [
-            'daily' => 10,
-            'weekly' => 4,
-            'monthly' => 6
-        ];
-
-        $keepBackups = $this->applyTieredRetentionStrategy($backups, $tieredSettings);
-        $keepFilenames = array_column($keepBackups, 'filename');
-
-        return array_filter($backupFiles, fn ($file) => !in_array($file, $keepFilenames));
-    }
-
-    /**
-     * Get files to delete using simple retention
-     */
-    private function getSimpleFilesToDelete(array $backupFiles, array $settings): array
-    {
-        $retention = $settings['backupRetention'] ?? 10;
-
-        // Sort files by name (assuming they contain dates/timestamps)
-        usort($backupFiles, fn ($a, $b) => strcmp($b, $a));
-
-        return array_slice($backupFiles, $retention);
-    }
-
-    /**
-     * Delete files from FTP server
-     */
-    private function deleteFilesFromFtp(array $filesToDelete, $ftpClient, array $settings, ?string $jobId = null): int
-    {
-        $deletedCount = 0;
-
-        foreach ($filesToDelete as $file) {
-            $this->throwIfCancelled($jobId);
-
-            if ($this->isLocalDev()) {
-                echo "Would delete from FTP: {$file}\n";
-            } else {
-                $this->removeFromFtp($ftpClient, $settings, $file);
-            }
-            $deletedCount++;
-        }
-
-        return $deletedCount;
     }
 
     /**
@@ -963,8 +830,9 @@ class BackupManager
      */
     public function getFtpServerStats(): array
     {
-        // Check if FTP is enabled
-        if (!option('tearoom1.kirby-ftp-backup.ftpEnabled', true)) {
+        $settings = $this->getSettings();
+
+        if (!$settings['ftpEnabled']) {
             return [
                 'status' => 'error',
                 'message' => 'FTP is disabled'
@@ -972,65 +840,56 @@ class BackupManager
         }
 
         $ftpClient = null;
-        $settings = $this->getSettings();
-        $directory = $settings['ftpDirectory'] ?? '/';
-        $protocol = $settings['ftpProtocol'] ?? 'ftp';
+        $directory = $settings['ftpDirectory'];
+        $protocol = $settings['ftpProtocol'];
         $connection = [
-            'host' => $settings['ftpHost'] ?? '',
+            'host' => $settings['ftpHost'],
             'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
             'path' => $directory,
-            'protocol' => strtoupper($protocol)
+            'protocol' => strtoupper((string)$protocol)
         ];
 
         try {
-            $ftpClient = $this->initFtpClient();
+            $ftpClient = $this->createFtpClient($settings);
 
-            // List files on the FTP server
-            $files = $ftpClient->listDirectory($directory);
-
-            // Filter to only include .zip files and get their details
             $backupFiles = [];
             $totalSize = 0;
             $latestModified = 0;
 
-            foreach ($files as $file) {
-                if (substr($file, -4) === '.zip') {
-                    try {
-                        // Try to get file size and modified time
-                        $fileSize = $ftpClient->getFileSize($directory . '/' . $file);
-                        $fileModified = $ftpClient->getModifiedTime($directory . '/' . $file);
+            foreach ($ftpClient->listDirectory($directory) as $file) {
+                if (F::extension($file) !== 'zip') {
+                    continue;
+                }
 
-                        $backupFiles[] = [
-                            'filename' => $file,
-                            'size' => $fileSize,
-                            'formattedSize' => BackupController::formatSize($fileSize),
-                            'modified' => $fileModified,
-                            'formattedDate' => date('Y-m-d H:i:s', $fileModified)
-                        ];
+                try {
+                    $path = $this->remotePath($directory, $file);
+                    $fileSize = $ftpClient->getFileSize($path);
+                    $fileModified = $ftpClient->getModifiedTime($path);
 
-                        $totalSize += $fileSize;
-                        if ($fileModified > $latestModified) {
-                            $latestModified = $fileModified;
-                        }
-                    } catch (\Exception $e) {
-                        // Skip files we can't get details for
-                        $backupFiles[] = [
-                            'filename' => $file,
-                            'size' => 0,
-                            'formattedSize' => 'Unknown',
-                            'modified' => 0,
-                            'formattedDate' => 'Unknown'
-                        ];
-                    }
+                    $backupFiles[] = [
+                        'filename' => $file,
+                        'size' => $fileSize,
+                        'formattedSize' => BackupController::formatSize($fileSize),
+                        'modified' => $fileModified,
+                        'formattedDate' => date('Y-m-d H:i:s', $fileModified)
+                    ];
+
+                    $totalSize += $fileSize;
+                    $latestModified = max($latestModified, $fileModified);
+                } catch (\Throwable $e) {
+                    // Still list files we can't get details for
+                    $backupFiles[] = [
+                        'filename' => $file,
+                        'size' => 0,
+                        'formattedSize' => 'Unknown',
+                        'modified' => 0,
+                        'formattedDate' => 'Unknown'
+                    ];
                 }
             }
 
-            // Sort by modified date (newest first)
-            usort($backupFiles, function ($a, $b) {
-                return $b['modified'] <=> $a['modified'];
-            });
+            usort($backupFiles, fn ($a, $b) => $b['modified'] <=> $a['modified']);
 
-            // Return stats
             return [
                 'status' => 'success',
                 'data' => [
@@ -1042,8 +901,7 @@ class BackupManager
                     'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
                 ]
             ];
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[kirby-ftp-backup] Error retrieving FTP server stats: ' . $e->getMessage());
             return [
                 'status' => 'error',
@@ -1051,76 +909,8 @@ class BackupManager
                 'connection' => $connection
             ];
         } finally {
-            if ($ftpClient) {
-                $ftpClient->disconnect();
-            }
+            $ftpClient?->disconnect();
         }
-    }
-
-    /**
-     * Prepare FTP backup files for tiered retention by extracting dates from filenames
-     */
-    private function prepareFtpBackupsForTieredRetention(array $files): array
-    {
-        $backups = [];
-        $now = time();
-
-        foreach ($files as $filename) {
-            // Try to extract date from filename using regex
-            if (preg_match('/(\d{4})[-_]?(\d{2})[-_]?(\d{2})[-_]?(\d{2})?[-_]?(\d{2})?[-_]?(\d{2})?/i', $filename, $matches)) {
-                $year = $matches[1];
-                $month = $matches[2];
-                $day = $matches[3];
-
-                // Handle hour/minute/second if available
-                $hour = isset($matches[4]) ? $matches[4] : '00';
-                $minute = isset($matches[5]) ? $matches[5] : '00';
-                $second = isset($matches[6]) ? $matches[6] : '00';
-
-                $dateString = "{$year}-{$month}-{$day} {$hour}:{$minute}:{$second}";
-                $timestamp = strtotime($dateString);
-
-                // If we got a valid timestamp
-                if ($timestamp) {
-                    $backups[] = [
-                        'filename' => $filename,
-                        'timestamp' => $timestamp,
-                        'date' => date('Y-m-d', $timestamp),
-                        'month' => date('Y-m', $timestamp),
-                        'week' => date('Y-W', $timestamp)
-                    ];
-                }
-            } else {
-                // If we can't parse the date, put it at the bottom of the list
-                // This ensures we don't delete files we can't parse properly
-                $backups[] = [
-                    'filename' => $filename,
-                    'timestamp' => 0, // Very old timestamp ensures it's at bottom of list
-                    'date' => '',
-                    'month' => '',
-                    'week' => ''
-                ];
-            }
-        }
-
-        return $backups;
-    }
-
-    /**
-     * Get files to delete using simple retention (keep X most recent)
-     */
-    private function getFilesToDeleteSimple(array $files): array
-    {
-        $settings = $this->getSettings();
-        $retention = $settings['backupRetention'] ?? 10;
-
-        // Sort files by name (assuming they contain dates/timestamps in format)
-        usort($files, function ($a, $b) {
-            return strcmp($b, $a); // Sort in descending order (newest first)
-        });
-
-        // Keep only the specified number of backups
-        return array_slice($files, $retention);
     }
 
     /**
@@ -1138,39 +928,19 @@ class BackupManager
 
         $filepath = $this->backupDir . '/' . $filename;
 
-        if (!F::exists($filepath)) {
+        if (!is_file($filepath)) {
             return Response::json([
                 'status' => 'error',
                 'message' => 'Backup file not found'
             ], 404);
         }
 
-        // Discard stray output (e.g. whitespace after a closing PHP tag elsewhere)
-        // that would otherwise be prepended to the archive and corrupt it
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-
-        return Response::download($filepath);
-    }
-
-    private function hasCredentials(array $settings): bool
-    {
-        // do not check for password as it may be empty
-        return !empty($settings['ftpUsername']) || !empty($settings['ftpPrivateKey']);
-    }
-
-    /**
-     * @return bool
-     */
-    public function isLocalDev(): bool
-    {
-        return false && option('debug', false) && defined('STDIN');
+        return new FileDownloadResponse($filepath);
     }
 
     /**
      * Execute backup and format result message
-     * Unified method for both CLI and URL execution
+     * Unified method for CLI, cron and URL execution
      *
      * @param bool $uploadToFtp Whether to upload to FTP server
      * @return array ['success' => bool, 'message' => string, 'exitCode' => int]
@@ -1180,33 +950,33 @@ class BackupManager
         try {
             $result = $this->createBackup($uploadToFtp);
 
-            if ($result['status'] === 'success') {
-                $message = "Backup created successfully: " . ($result['data']['filename'] ?? 'unknown');
-                $ftpResult = $result['data']['ftpResult'] ?? [];
-
-                if ($ftpResult['uploaded'] ?? false) {
-                    $message .= "\n" . ($ftpResult['message'] ?? '');
-                } elseif (!($ftpResult['disabled'] ?? false)) {
-                    return [
-                        'success' => false,
-                        'message' => 'Backup created locally but FTP upload failed: ' . ($ftpResult['message'] ?? 'Unknown error'),
-                        'exitCode' => 1
-                    ];
-                }
-
-                return [
-                    'success' => true,
-                    'message' => $message,
-                    'exitCode' => 0
-                ];
-            } else {
+            if ($result['status'] !== 'success') {
                 return [
                     'success' => false,
                     'message' => 'Error creating backup: ' . ($result['message'] ?? 'Unknown error'),
                     'exitCode' => 1
                 ];
             }
-        } catch (\Exception $e) {
+
+            $message = 'Backup created successfully: ' . ($result['data']['filename'] ?? 'unknown');
+            $ftpResult = $result['data']['ftpResult'] ?? [];
+
+            if ($ftpResult['uploaded'] ?? false) {
+                $message .= "\n" . ($ftpResult['message'] ?? '');
+            } elseif (!($ftpResult['disabled'] ?? false)) {
+                return [
+                    'success' => false,
+                    'message' => 'Backup created locally but FTP upload failed: ' . ($ftpResult['message'] ?? 'Unknown error'),
+                    'exitCode' => 1
+                ];
+            }
+
+            return [
+                'success' => true,
+                'message' => $message,
+                'exitCode' => 0
+            ];
+        } catch (\Throwable $e) {
             return [
                 'success' => false,
                 'message' => 'Fatal error: ' . $e->getMessage(),

@@ -360,6 +360,10 @@ export default {
     this.checkFtpSettings();
   },
 
+  beforeDestroy() {
+    this.stopProgressPolling();
+  },
+
   methods: {
     formatConnection(connection) {
       if (!connection) {
@@ -369,7 +373,7 @@ export default {
       const protocol = connection.protocol ? `${connection.protocol.toLowerCase()}://` : '';
       const host = connection.host || '(no host configured)';
       const port = connection.port ? `:${connection.port}` : '';
-      const path = connection.path || '/';
+      const path = connection.path ? connection.path.replace(/^(?!\/)/, '/') : '/';
 
       return `${protocol}${host}${port}${path}`;
     },
@@ -488,7 +492,9 @@ export default {
       this.startProgressPolling();
 
       try {
-        const rawResponse = await fetch('/api/ftp-backup/create', {
+        // Plain fetch so a non-JSON reply (e.g. a proxy timeout page) can be explained;
+        // the API URL respects installations in a subfolder and custom API slugs
+        const rawResponse = await fetch(window.panel.urls.api + '/ftp-backup/create', {
           method: 'POST',
           credentials: 'same-origin',
           headers: {
@@ -624,7 +630,8 @@ export default {
             }
             // Check if FTP is not configured
             else if (!response.data.configured) {
-              this.showFtpWarning('FTP settings are not configured. Backups will be created locally only.', true);
+              const reason = response.data.reason ? ` (${response.data.reason})` : '';
+              this.showFtpWarning(`FTP settings are not configured${reason}. Backups will be created locally only.`, true);
             }
             // FTP is enabled and configured
             else {

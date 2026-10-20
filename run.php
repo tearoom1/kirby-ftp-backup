@@ -5,7 +5,7 @@
  *
  * This script is designed to be called from a cron job to create and upload backups automatically.
  * Example crontab entry to run daily at 2 AM:
- * 0 2 * * * /usr/bin/php /path/to/site/ftp-backup.php
+ * 0 2 * * * /usr/bin/php /path/to/site/plugins/kirby-ftp-backup/run.php
  */
 
 // check if we are indeed on the command line
@@ -60,8 +60,12 @@ if (!file_exists($bootstrapFile)) {
 }
 require $bootstrapFile;
 
-// Initialize Kirby
-$kirby = new Kirby\Cms\App(['options' => ['url' => '/']]);
+// Initialize Kirby with the root directory as its index, so config and
+// content are read from there even if the kirby folder is a symlink
+$kirby = new Kirby\Cms\App([
+    'roots' => ['index' => realpath($rootDir)],
+    'options' => ['url' => '/'],
+]);
 
 // Initialize the backup manager and create a backup
 $backupManager = new TearoomOne\FtpBackup\BackupManager();

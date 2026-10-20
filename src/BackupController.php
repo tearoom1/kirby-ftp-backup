@@ -2,12 +2,8 @@
 
 namespace TearoomOne\FtpBackup;
 
-use Kirby\Http\Response;
-use Kirby\Http\Request;
-use Kirby\Toolkit\Str;
-
 /**
- * Controller for panel views
+ * Access control and helpers for the Panel view
  */
 class BackupController
 {
@@ -35,35 +31,21 @@ class BackupController
     /**
      * Get backup statistics
      */
-    public static function getStats(): array
+    public static function getStats(?BackupManager $manager = null): array
     {
-        $manager = new BackupManager();
-        $backups = $manager->listBackupFiles();
-
-        $totalSize = 0;
-        $latestBackup = null;
-        $count = 0;
-
-        if (isset($backups) && is_array($backups)) {
-            $count = count($backups);
-
-            foreach ($backups as $backup) {
-                $totalSize += $backup['size'] ?? 0;
-
-                if (!$latestBackup || ($backup['modified'] ?? 0) > ($latestBackup['modified'] ?? 0)) {
-                    $latestBackup = $backup;
-                }
-            }
-        }
+        $backups = ($manager ?? new BackupManager())->listBackupFiles();
+        // listBackupFiles() is sorted newest first
+        $latest = $backups[0] ?? null;
+        $totalSize = array_sum(array_column($backups, 'size'));
 
         return [
-            'count' => $count,
+            'count' => count($backups),
             'totalSize' => $totalSize,
-            'latestBackup' => $latestBackup ? [
-                'filename' => $latestBackup['filename'],
-                'size' => $latestBackup['size'],
-                'modified' => $latestBackup['modified'],
-                'formattedDate' => date('Y-m-d H:i:s', $latestBackup['modified'])
+            'latestBackup' => $latest ? [
+                'filename' => $latest['filename'],
+                'size' => $latest['size'],
+                'modified' => $latest['modified'],
+                'formattedDate' => date('Y-m-d H:i:s', $latest['modified'])
             ] : null,
             'formattedTotalSize' => self::formatSize($totalSize)
         ];
@@ -83,16 +65,5 @@ class BackupController
         $bytes /= pow(1024, $pow);
 
         return round($bytes, 2) . ' ' . $units[$pow];
-    }
-
-    /**
-     * Get the cron command to be used in system crontab
-     */
-    public static function getCronCommand(): string
-    {
-        $php = PHP_BINARY;
-        $script = kirby()->root('site') . '/plugins/kirby-ftp-backup/run.php';
-
-        return "{$php} {$script}";
     }
 }

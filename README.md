@@ -40,12 +40,12 @@ All configuration is handled through Kirby's option system. Add the following to
     // FTP Connection Settings
     'ftpProtocol' => 'ftps',
     'ftpHost' => 'your-ftp-host.com',
-    'ftpPort' => 21,
+    'ftpPort' => 21,                             // Defaults to 21 (FTP/FTPS) or 22 (SFTP)
     'ftpUsername' => 'your-username',
     'ftpPassword' => 'your-password',
     'ftpDirectory' => 'backups',
     'ftpPassive' => true,
-    'ftpPrivateKey' => 'path/to/private/key.pem',
+    'ftpPrivateKey' => '/path/to/private/key',   // SFTP only: RSA, ECDSA or Ed25519 key file
     'ftpPassphrase' => 'your-passphrase',
     'ftpTimeout' => 30,
     'ftpMaxRetries' => 3,
@@ -83,23 +83,23 @@ All configuration is handled through Kirby's option system. Add the following to
 | `ftpEnabled` | boolean | `true` | Enable/disable FTP uploads (backups still created locally)       |
 | `ftpProtocol` | string | `'ftp'` | FTP protocol: 'ftp', 'ftps' or 'sftp'                            |
 | `ftpHost` | string | `''` | FTP server hostname                                              |
-| `ftpPort` | integer | `21` | FTP server port                                                  |
+| `ftpPort` | integer | `21` / `22` | Server port. Defaults to `21` for FTP/FTPS and `22` for SFTP |
 | `ftpUsername` | string | `''` | FTP username                                                     |
 | `ftpPassword` | string | `''` | FTP password                                                     |
-| `ftpDirectory` | string | `'/'` | Remote directory to store backups                                |
+| `ftpDirectory` | string | `'/'` | Remote directory to store backups. A relative path (e.g. `'backups'`) is resolved from the login directory |
 | `ftpPassive` | boolean | `true` | Use passive mode                                                 |
 | `ftpUsePasvAddress` | boolean | `true` | FTP/FTPS: connect the data channel to the IP announced in the PASV reply. Set to `false` when the server announces a wrong or internal IP (e.g. after a server move); the data channel then uses `ftpHost` |
-| `ftpPrivateKey` | string | `''` | Path to private key file                                         |
-| `ftpPassphrase` | string | `''` | Passphrase for private key                                       |
+| `ftpPrivateKey` | string | `null` | SFTP: path to a private key file (RSA, ECDSA or Ed25519, OpenSSH/PEM/PuTTY format). `ftpUsername` is still required |
+| `ftpPassphrase` | string | `null` | Passphrase for the private key, if it is encrypted |
 | `ftpTimeout` | integer | `30` | Socket response timeout in seconds (see Advanced Options) |
 | `ftpMaxRetries` | integer | `3` | Number of reconnect-and-resume attempts after an FTP/FTPS upload failure |
 | `ftpRetryDelay` | integer | `5` | Seconds to wait before reconnecting for an FTP/FTPS upload retry |
 | `ftpKeepAlive` | integer | `0` | SFTP only. SSH keepalive interval in seconds, `0` = disabled (see Advanced Options) |
 | `cliOutputOnSuccess` | boolean | `false` | Print successful `run.php` results. Errors are always written to STDERR |
-| `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups |
+| `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups. It is never included in a backup, even when it lies inside `content` |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |
-| `filePrefix` | string | `'backup-'` | Prefix for backup filenames                                      |
+| `filePrefix` | string | `'backup-'` | Prefix for backup filenames. Retention only ever deletes files with this prefix (see Retention Strategies) |
 | `retentionStrategy` | string | `'simple'` | Backup retention strategy: 'simple' or 'tiered'                  |
 | `tieredRetention` | array | see below | Settings for tiered retention strategy                           |
 | `includePatterns` | array | `[]` | Regex patterns (no delimiters, case-insensitive) - if not empty, only matching files are included |
@@ -169,7 +169,9 @@ This is useful when:
 
 ### Retention Strategies
 
-The plugin supports two retention strategies for managing old backups:
+The plugin supports two retention strategies for managing old backups. Both apply to the local backup directory and, with `deleteFromFtp`, to the FTP directory after a successful upload.
+
+Retention only touches files the plugin created itself, recognised by their name: `filePrefix` followed by the creation time, e.g. `backup-2026-10-20-020000.zip`. Other files in the same directory, such as manual exports or backups of another site with a different prefix, are never deleted. If you change `filePrefix`, older backups with the previous prefix are kept and have to be removed by hand.
 
 #### Simple Retention
 
@@ -279,7 +281,7 @@ The plugin adds a "FTP Backup" area to your Kirby Panel:
 
 - View all available backups
 - Create new backups manually with live progress indication
-- Cancel a running backup
+- Cancel a running backup (only one backup runs at a time; a second start is rejected)
 - Download existing backups
 - View backup statistics (count, total size, latest backup)
 - View FTP server stats and file listing
@@ -342,6 +344,14 @@ The `run.php` script handles:
 - Cleaning up old backups based on the retention setting
 - Optionally printing successful runs, controlled by configuration or `--silent`/`--verbose`
 - Writing a message to STDERR and returning exit code `1` on failure
+
+### Kirby CLI
+
+If the [Kirby CLI](https://github.com/getkirby/cli) is installed, a backup can also be started with:
+
+```bash
+kirby ftp-backup:create
+```
 
 ## URL-Based Backup Execution
 

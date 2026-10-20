@@ -2,18 +2,18 @@
 
 namespace TearoomOne\FtpBackup\Tests;
 
-use PHPUnit\Framework\TestCase;
 use TearoomOne\FtpBackup\BackupManager;
 
 /**
  * Test class for backup retention strategies
  */
-class BackupRetentionTest extends TestCase
+class BackupRetentionTest extends PluginTestCase
 {
     private BackupManager $backupManager;
 
     public function setUp(): void
     {
+        parent::setUp();
         $this->backupManager = new BackupManager();
     }
 
@@ -452,38 +452,27 @@ class BackupRetentionTest extends TestCase
     }
 
     /**
-     * Test the prepareFtpBackupsForTieredRetention method
+     * Only filenames in the plugin's own format count as backups
      */
-    public function testPrepareFtpBackupsForTieredRetention()
+    public function testOnlyOwnBackupFilenamesAreRecognised()
     {
-        $testFiles = [
+        $method = new \ReflectionMethod($this->backupManager, 'ownBackups');
+
+        $result = $method->invoke($this->backupManager, [
             'backup-2024-01-15-143022.zip',
-            'backup-2024-02-20-091530.zip',
+            'backup-2024-02-20-091530-2.zip',
             'backup-2023-12-01.zip',
             'invalid-filename.zip',
-            'backup_2024_03_10_120000.zip'
-        ];
+            'other-2024-03-10-120000.zip',
+            'backup-2024-03-10-120000.zip.part',
+        ]);
 
-        $reflection = new \ReflectionClass($this->backupManager);
-        $method = $reflection->getMethod('prepareFtpBackupsForTieredRetention');
-        $method->setAccessible(true);
-
-        $result = $method->invoke($this->backupManager, $testFiles);
-
-        $this->assertCount(5, $result);
-
-        // Check that valid dates are parsed correctly
-        $validBackups = array_filter($result, function($backup) {
-            return $backup['timestamp'] > 0;
-        });
-
-        $this->assertCount(4, $validBackups, 'Should parse 4 valid date formats');
-
-        // Check that invalid filename gets timestamp 0
-        $invalidBackup = array_filter($result, function($backup) {
-            return $backup['filename'] === 'invalid-filename.zip';
-        });
-
-        $this->assertEquals(0, reset($invalidBackup)['timestamp'], 'Invalid filename should get timestamp 0');
+        $this->assertSame(
+            ['backup-2024-02-20-091530-2.zip', 'backup-2024-01-15-143022.zip'],
+            array_column($result, 'filename'),
+            'Own backups should be recognised and sorted newest first'
+        );
+        $this->assertSame(mktime(14, 30, 22, 1, 15, 2024), $result[1]['timestamp']);
+        $this->assertSame(2, $result[0]['sequence']);
     }
 }

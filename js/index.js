@@ -1,4 +1,3 @@
-import { ref, reactive, computed } from 'vue';
 import './index.css';
 import FtpBackupView from './components/FtpBackupView.vue';
 

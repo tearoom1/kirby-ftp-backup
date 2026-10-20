@@ -1,13 +1,11 @@
 <?php
 
-
-// Load Kirby
-$bootstrapFile = realpath('kirby/bootstrap.php');
+// Load Kirby (installed into ./kirby as a dev dependency)
+$bootstrapFile = dirname(__DIR__) . '/kirby/bootstrap.php';
 if (!file_exists($bootstrapFile)) {
-    die('Could not find bootstrap file: ' . $bootstrapFile);
+    die('Could not find bootstrap file: ' . $bootstrapFile . PHP_EOL);
 }
 require $bootstrapFile;
 
-// Initialize Kirby
-$kirby = new Kirby\Cms\App();
-
+require __DIR__ . '/PluginTestCase.php';
+require __DIR__ . '/FakeFtpClient.php';
