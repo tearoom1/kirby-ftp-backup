@@ -48,6 +48,17 @@ jobs:
       - name: Install dependencies
         run: composer update --no-progress --with "getkirby/cms:${{ matrix.kirby }}"
 
+      # Service containers start without a health check; wait until both servers answer
+      - name: Wait for the test servers
+        run: |
+          for i in $(seq 1 30); do
+            curl -s --max-time 3 ftp://ftptester:ftppass@127.0.0.1:2121/ >/dev/null \
+              && ssh-keyscan -p 2222 -T 3 127.0.0.1 2>/dev/null | grep -q ssh \
+              && exit 0
+            sleep 2
+          done
+          echo "Test servers did not become ready" && exit 1
+
       - name: Run test suite
         run: composer test
         env:
@@ -68,8 +79,9 @@ jobs:
           php-version: '8.3'
           extensions: ftp, zip
 
-      - name: Validate composer.json and composer.lock
-        run: composer validate
+      # The release workflow bumps "version" in composer.json, which always outdates the lock hash
+      - name: Validate composer.json
+        run: composer validate --no-check-lock
 
       - name: Install dependencies
         run: composer install --no-progress
