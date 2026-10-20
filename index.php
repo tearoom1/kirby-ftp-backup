@@ -100,6 +100,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'urlExecutionEnabled' => false, // Enable/disable URL-based backup execution
     ],
 
+    'translations' => require __DIR__ . '/src/translations.php',
+
     // Panel areas registration
     'areas' => [
         'ftp-backup' => require __DIR__ . '/src/areas/ftp-backup.php',
@@ -195,6 +197,15 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                             'reason' => $manager->ftpConfigurationError(),
                         ]
                     ];
+                })
+            ],
+            // Check the FTP setup without creating a backup
+            [
+                'pattern' => 'ftp-backup/test-connection',
+                'method' => 'POST',
+                'action' => $guarded('testing the connection', function () {
+                    // A failed test is a valid result, not a failed request
+                    return ['status' => 'success', 'data' => (new BackupManager())->testConnection()];
                 })
             ],
             // Get FTP server stats and file list

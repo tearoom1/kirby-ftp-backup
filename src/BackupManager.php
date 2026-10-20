@@ -272,8 +272,10 @@ class BackupManager
     public function listBackupFiles(): array
     {
         $backups = [];
+        $files = Dir::read($this->backupDir);
+        $deleteNext = $this->deletedByNextRun($files, $this->getSettings());
 
-        foreach (Dir::read($this->backupDir) as $file) {
+        foreach ($files as $file) {
             if (F::extension($file) === 'zip') {
                 $path = $this->backupDir . '/' . $file;
                 $backups[] = [
@@ -281,12 +283,13 @@ class BackupManager
                     'size' => F::size($path),
                     'modified' => F::modified($path),
                     'protected' => in_array($file, $this->protectedBackups(), true),
+                    'deleteNext' => in_array($file, $deleteNext, true),
                     'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . rawurlencode($file)
                 ];
             }
         }
 
-        usort($backups, fn ($a, $b) => $b['modified'] <=> $a['modified']);
+        usort($backups, fn ($a, $b) => [$b['modified'], $b['filename']] <=> [$a['modified'], $a['filename']]);
 
         return $backups;
     }
@@ -602,6 +605,15 @@ class BackupManager
         // Always keep at least the newest backup
         $retention = max(1, $settings['backupRetention']);
         return array_column(array_slice($backups, $retention), 'filename');
+    }
+
+    /**
+     * Files the next run will delete: it adds one backup, then applies retention
+     */
+    private function deletedByNextRun(array $filenames, array $settings): array
+    {
+        $next = $this->option('filePrefix', 'backup-') . date('Y-m-d-His') . '-999999.zip';
+        return array_values(array_diff($this->selectBackupsToDelete([...$filenames, $next], $settings), [$next]));
     }
 
     /**
@@ -1083,6 +1095,84 @@ class BackupManager
     }
 
     /**
+     * Where backups go, for display (no credentials)
+     */
+    private function connectionInfo(array $settings): array
+    {
+        $protocol = (string)$settings['ftpProtocol'];
+        return [
+            'host' => $settings['ftpHost'],
+            'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
+            'path' => $settings['ftpDirectory'],
+            'protocol' => strtoupper($protocol)
+        ];
+    }
+
+    /**
+     * Check the FTP setup step by step without creating a backup:
+     * settings, connection, writing (and removing) a test file, listing backups
+     */
+    public function testConnection(): array
+    {
+        $settings = $this->getSettings();
+        $directory = $settings['ftpDirectory'];
+        $steps = [];
+        $ftpClient = null;
+        $tmp = null;
+
+        $result = function (bool $ok) use (&$steps, $settings): array {
+            return ['status' => $ok ? 'success' : 'error', 'steps' => $steps, 'connection' => $this->connectionInfo($settings)];
+        };
+        $step = function (string $name, bool $ok, string $message, array $data = []) use (&$steps, $directory): void {
+            $steps[] = ['step' => $name, 'ok' => $ok, 'message' => $message, 'directory' => $directory] + $data;
+        };
+
+        $error = $settings['ftpEnabled'] ? $this->ftpConfigurationError($settings) : 'FTP uploads are disabled (ftpEnabled)';
+        if ($error !== '') {
+            $step('settings', false, $error);
+            return $result(false);
+        }
+        $step('settings', true, 'Settings are complete');
+
+        try {
+            try {
+                $ftpClient = $this->createFtpClient($settings);
+                $step('connect', true, 'Connected and logged in');
+            } catch (\Throwable $e) {
+                $step('connect', false, $e->getMessage());
+                return $result(false);
+            }
+
+            try {
+                $tmp = (string)tempnam(sys_get_temp_dir(), 'ftpbk');
+                file_put_contents($tmp, 'kirby-ftp-backup connection test');
+                $remote = $this->remotePath($directory, '.ftp-backup-test-' . bin2hex(random_bytes(4)) . '.txt');
+                $ftpClient->upload($tmp, $remote);
+                $ftpClient->delete($remote);
+                $step('write', true, 'Wrote and removed a test file in ' . $directory);
+            } catch (\Throwable $e) {
+                $step('write', false, $e->getMessage());
+                return $result(false);
+            }
+
+            try {
+                $count = count($this->ownBackups($ftpClient->listDirectory($directory)));
+                $step('list', true, "Found {$count} backups in {$directory}", ['count' => $count]);
+            } catch (\Throwable $e) {
+                $step('list', false, $e->getMessage());
+                return $result(false);
+            }
+        } finally {
+            $ftpClient?->disconnect();
+            if ($tmp) {
+                @unlink($tmp);
+            }
+        }
+
+        return $result(true);
+    }
+
+    /**
      * Get stats and file list from the FTP server
      */
     public function getFtpServerStats(): array
@@ -1098,13 +1188,7 @@ class BackupManager
 
         $ftpClient = null;
         $directory = $settings['ftpDirectory'];
-        $protocol = $settings['ftpProtocol'];
-        $connection = [
-            'host' => $settings['ftpHost'],
-            'port' => (int)($settings['ftpPort'] ?? ($protocol === 'sftp' ? 22 : 21)),
-            'path' => $directory,
-            'protocol' => strtoupper((string)$protocol)
-        ];
+        $connection = $this->connectionInfo($settings);
 
         try {
             $ftpClient = $this->createFtpClient($settings);
@@ -1112,8 +1196,11 @@ class BackupManager
             $backupFiles = [];
             $totalSize = 0;
             $latestModified = 0;
+            $files = $ftpClient->listDirectory($directory);
+            $deleteNext = $settings['deleteFromFtp'] ? $this->deletedByNextRun($files, $settings) : [];
+            $protected = $this->protectedBackups();
 
-            foreach ($ftpClient->listDirectory($directory) as $file) {
+            foreach ($files as $file) {
                 if (F::extension($file) !== 'zip') {
                     continue;
                 }
@@ -1128,7 +1215,9 @@ class BackupManager
                         'size' => $fileSize,
                         'formattedSize' => BackupController::formatSize($fileSize),
                         'modified' => $fileModified,
-                        'formattedDate' => date('Y-m-d H:i:s', $fileModified)
+                        'formattedDate' => date('Y-m-d H:i:s', $fileModified),
+                        'protected' => in_array($file, $protected, true),
+                        'deleteNext' => in_array($file, $deleteNext, true),
                     ];
 
                     $totalSize += $fileSize;
@@ -1140,7 +1229,9 @@ class BackupManager
                         'size' => 0,
                         'formattedSize' => 'Unknown',
                         'modified' => 0,
-                        'formattedDate' => 'Unknown'
+                        'formattedDate' => 'Unknown',
+                        'protected' => in_array($file, $protected, true),
+                        'deleteNext' => in_array($file, $deleteNext, true),
                     ];
                 }
             }

@@ -8,11 +8,12 @@ A Kirby CMS plugin that creates backups of your site content and uploads them to
 
 ## Features
 
-- Create ZIP backups of your site content
-- Automatic upload to FTP server
-- Configurable backup retention
-- Panel interface for manual backups and downloads
-- Scheduled backups via cron job
+- Create ZIP backups of your site content, optionally with extra paths (e.g. accounts) and AES-256 encryption
+- Upload to an FTP, FTPS or SFTP server (password or RSA/ECDSA/Ed25519 key), with byte progress and size check
+- Simple or tiered retention, locally and on the server; protected backups are never deleted
+- Notifications by email or webhook when a run fails, and a Panel warning when the newest backup is too old
+- Panel interface (English and German): one list of local and server backups, download, protect, delete, connection test
+- Scheduled backups via cron job, Kirby CLI or URL
 
 ## Installation
 

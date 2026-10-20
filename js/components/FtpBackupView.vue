@@ -8,8 +8,8 @@
         variant="filled"
         size="sm"
         theme="empty"
-        title="Support FTP Backup"
-        aria-label="Support FTP Backup"
+        :title="t('sponsor.label')"
+        :aria-label="t('sponsor.label')"
         @click="$refs.sponsorDropdown.toggle()"
       />
       <k-dropdown-content
@@ -17,23 +17,34 @@
         align-x="end"
       >
         <div class="k-ftp-backup-view-sponsor-text">
-          {{ sponsorText }}
+          {{ t('sponsor.text') }}
         </div>
         <k-dropdown-item
           icon="heart"
           link="https://github.com/sponsors/tearoom1"
           target="_blank"
         >
-          Sponsor on GitHub
+          {{ t('sponsor.github') }}
         </k-dropdown-item>
         <k-dropdown-item
           icon="heart"
           link="https://buymeacoffee.com/tearoom1"
           target="_blank"
         >
-          Buy Me a Coffee
+          {{ t('sponsor.coffee') }}
         </k-dropdown-item>
       </k-dropdown-content>
+    </div>
+
+    <!-- Status of the last run and the age of the newest backup -->
+    <div v-if="statusMessages.length" class="k-ftp-backup-view-status">
+      <k-box
+        v-for="status in statusMessages"
+        :key="status.key"
+        :theme="status.theme"
+        :icon="status.icon"
+        :text="status.text"
+      />
     </div>
 
     <!-- Warning Panel for FTP Errors -->
@@ -41,27 +52,27 @@
       <k-box theme="negative" class="k-ftp-backup-view-warning-box">
         <k-icon type="alert"/>
         <span>{{ ftpWarning.message }}</span>
-        <k-button icon="settings" @click="showSettingsInfo"/>
-        <k-button icon="cancel" @click="dismissWarning"/>
+        <k-button icon="settings" :title="t('action.setup')" @click="showSettingsInfo"/>
+        <k-button icon="cancel" :title="$t('close')" @click="dismissWarning"/>
       </k-box>
     </div>
 
     <!-- Stats Section -->
     <div class="k-ftp-backup-view-stats">
       <div class="k-ftp-backup-view-stats-card">
-        <h3>Total Backups</h3>
+        <h3>{{ t('stats.count') }}</h3>
         <p>{{ localStats.count }}</p>
       </div>
 
       <div class="k-ftp-backup-view-stats-card">
-        <h3>Total Size</h3>
+        <h3>{{ t('stats.size') }}</h3>
         <p>{{ localStats.formattedTotalSize }}</p>
       </div>
 
       <div class="k-ftp-backup-view-stats-card">
-        <h3>Latest Backup</h3>
-        <p v-if="localStats.latestBackup">{{ localStats.latestBackup.formattedDate }}</p>
-        <p v-else>None</p>
+        <h3>{{ t('stats.latest') }}</h3>
+        <p v-if="localStats.latestBackup">{{ formatDate(localStats.latestBackup.modified) }}</p>
+        <p v-else>{{ t('stats.none') }}</p>
         <div class="k-ftp-backup-view-stats-card-latest" v-if="localStats.latestBackup">
           {{ localStats.latestBackup.filename }}
         </div>
@@ -73,11 +84,12 @@
         <k-button-group>
           <k-button
             icon="upload"
+            variant="filled"
             @click="createBackup"
             :disabled="isLoading || isCreatingBackup"
             :progress="isCreatingBackup"
           >
-            Create Backup Now
+            {{ t('action.create') }}
           </k-button>
           <k-button
             v-if="isCreatingBackup"
@@ -86,25 +98,38 @@
             @click="cancelBackup"
             :disabled="isCancelling"
           >
-            Cancel
+            {{ t('action.cancel') }}
           </k-button>
           <k-button
             icon="refresh"
             @click="loadBackups"
             :disabled="isLoading || isCreatingBackup"
             :progress="isLoadingBackups"
-          />
+          >
+            {{ t('action.refresh') }}
+          </k-button>
           <k-button
-            icon="info"
-            @click="showSettingsInfo"
-          />
+            icon="check"
+            @click="testConnection"
+            :disabled="isCreatingBackup || isTestingConnection"
+            :progress="isTestingConnection"
+          >
+            {{ t('action.test') }}
+          </k-button>
           <k-button
             icon="server"
             @click="showFtpServerStats"
             :disabled="isLoading || isCreatingBackup || isLoadingFtpStats"
             :progress="isLoadingFtpStats"
-            title="Show FTP Server Stats"
-          />
+          >
+            {{ t('action.server') }}
+          </k-button>
+          <k-button
+            icon="info"
+            @click="showSettingsInfo"
+          >
+            {{ t('action.setup') }}
+          </k-button>
         </k-button-group>
       </div>
 
@@ -127,26 +152,75 @@
       </div>
     </div>
 
-    <!-- Backups List -->
+    <!-- Backups List: local backups and the copies on the server in one list -->
     <div class="k-tab-content">
       <div v-if="isLoadingBackups" class="k-ftp-backup-view-loading">
         <k-loader/>
       </div>
-      <div v-else-if="backups.length === 0" class="k-ftp-backup-view-backup-list">
+      <div v-else-if="listItems.length === 0" class="k-ftp-backup-view-backup-list">
         <div class="k-ftp-backup-view-backup-list-empty">
-          No backups available
+          {{ t('list.empty') }}
         </div>
       </div>
       <k-collection
         v-else
-        :items="backups"
+        :items="listItems"
         layout="list"
-      >
-        <template #options="{ item }">
-          <k-button icon="download" @click="downloadBackup(item)"/>
-        </template>
-      </k-collection>
+      />
+      <p v-if="isLoadingRemote" class="k-ftp-backup-view-list-note">
+        {{ t('list.loadingServer') }}
+      </p>
+      <p v-else-if="remoteError" class="k-ftp-backup-view-list-note">
+        {{ t('list.serverError', { message: remoteError }) }}
+      </p>
     </div>
+
+    <!-- Connection Test Dialog -->
+    <k-dialog
+      ref="testDialog"
+      class="k-ftp-backup-stats-dialog"
+      size="medium"
+    >
+      <k-headline>{{ t('test.title') }}</k-headline>
+
+      <div v-if="connectionTest && connectionTest.connection" class="k-ftp-backup-connection">
+        <span>{{ t('server.endpoint') }}</span>
+        <code>{{ formatConnection(connectionTest.connection) }}</code>
+      </div>
+
+      <div v-if="isTestingConnection" class="k-ftp-backup-dialog-loading">
+        <k-loader/>
+        <span>{{ t('test.running') }}</span>
+      </div>
+
+      <template v-else-if="connectionTest">
+        <ul class="k-ftp-backup-test-steps">
+          <li
+            v-for="step in connectionTest.steps"
+            :key="step.step"
+            :class="step.ok ? 'is-ok' : 'is-failed'"
+          >
+            <k-icon :type="step.ok ? 'check' : 'cancel'"/>
+            <div>
+              <strong>{{ t('test.step.' + step.step) }}</strong>
+              <p>{{ step.ok ? t('test.ok.' + step.step, step) : step.message }}</p>
+            </div>
+          </li>
+        </ul>
+        <k-box
+          :theme="connectionTest.status === 'success' ? 'positive' : 'negative'"
+          :text="connectionTest.status === 'success' ? t('test.success') : t('test.failed')"
+        />
+      </template>
+
+      <template #footer>
+        <k-button-group>
+          <k-button icon="check" @click="$refs.testDialog.close()">
+            {{ $t('close') }}
+          </k-button>
+        </k-button-group>
+      </template>
+    </k-dialog>
 
     <!-- Settings Info Dialog -->
     <k-dialog
@@ -154,39 +228,29 @@
       size="large"
     >
       <div class="k-ftp-backup-dialog-content">
-        <h2 class="k-ftp-backup-dialog-title">FTP Backup Settings</h2>
+        <h2 class="k-ftp-backup-dialog-title">{{ t('setup.title') }}</h2>
 
         <div class="k-ftp-backup-dialog-section">
-          <h3>Configuration</h3>
-          <p>FTP settings are managed through your site config file.</p>
-          <p>Add the following to your <code>site/config/config.php</code> file:</p>
+          <p>{{ t('setup.config') }}</p>
 
           <div class="k-ftp-backup-dialog-code">
 <pre>'tearoom1.kirby-ftp-backup' => [
-    'ftpProtocol' => 'ftp', // ftp, ftps or sftp
+    'ftpProtocol' => 'sftp', // ftp, ftps or sftp
     'ftpHost' => 'your-ftp-host.com',
-    'ftpPort' => 21,
     'ftpUsername' => 'your-username',
     'ftpPassword' => 'your-password',
+    'ftpPrivateKey' => '/path/to/key', // sftp: instead of a password
     'ftpDirectory' => 'backups',
-    'ftpPassive' => true,
-    'ftpPrivateKey' => '', // for sftp
-    'ftpPassphrase' => '', // for sftp
-    'excludeContentWatch' => true,
-    'excludeDrafts' => true,
-    'excludePaths' => ['.backups']
+    'retentionStrategy' => 'tiered',
+    'notifyEmail' => 'you@example.com',
+    'maxBackupAge' => 36, // hours
 ]</pre>
           </div>
-          Find more about those options in the Readme.md file
+          <p class="k-ftp-backup-dialog-hint">{{ t('setup.readme') }}</p>
         </div>
 
         <div class="k-ftp-backup-dialog-section">
-          <h3>Automatic Backups</h3>
-          <p>For automatic backups, set up a cron job to run:</p>
-          <div class="k-ftp-backup-dialog-code">
-            <pre>php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
-          </div>
-          <p class="k-ftp-backup-dialog-hint">Example crontab entry (daily at 2AM):</p>
+          <p>{{ t('setup.cron') }}</p>
           <div class="k-ftp-backup-dialog-code">
             <pre>0 2 * * * php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
           </div>
@@ -196,7 +260,7 @@
       <template #footer>
         <k-button-group>
           <k-button icon="check" @click="$refs.settingsDialog.close()">
-            Close
+            {{ $t('close') }}
           </k-button>
         </k-button-group>
       </template>
@@ -206,20 +270,18 @@
     <k-dialog
       ref="ftpStatsDialog"
       class="k-ftp-backup-stats-dialog"
-      :button="'close'"
       size="large"
-      theme="info"
     >
-      <k-headline>FTP Server Stats</k-headline>
+      <k-headline>{{ t('server.title') }}</k-headline>
 
       <div v-if="isLoadingFtpStats" class="k-ftp-backup-dialog-loading">
-        <k-icon type="loader" class="k-ftp-backup-spinner"/>
-        <span>Loading FTP server stats...</span>
+        <k-loader/>
+        <span>{{ t('server.loading') }}</span>
       </div>
 
       <div v-else-if="ftpStatsError" class="k-ftp-backup-dialog-error">
         <div v-if="ftpStatsErrorConnection" class="k-ftp-backup-connection">
-          <span>Endpoint</span>
+          <span>{{ t('server.endpoint') }}</span>
           <code>{{ ftpStatsErrorConnection }}</code>
         </div>
         <k-box theme="negative">
@@ -229,36 +291,36 @@
 
       <div v-else-if="ftpStats" class="k-ftp-backup-view-server-stats">
         <div v-if="ftpStats.connection" class="k-ftp-backup-connection">
-          <span>Endpoint</span>
+          <span>{{ t('server.endpoint') }}</span>
           <code>{{ ftpStatsConnection }}</code>
         </div>
 
         <div class="k-ftp-backup-view-stats">
           <div class="k-ftp-backup-view-stats-card">
-            <h3>Files on Server</h3>
+            <h3>{{ t('server.files') }}</h3>
             <p>{{ ftpStats.count }}</p>
           </div>
 
           <div class="k-ftp-backup-view-stats-card">
-            <h3>Total Size</h3>
+            <h3>{{ t('stats.size') }}</h3>
             <p>{{ ftpStats.formattedTotalSize }}</p>
           </div>
 
           <div class="k-ftp-backup-view-stats-card">
-            <h3>Latest Backup</h3>
+            <h3>{{ t('stats.latest') }}</h3>
             <p>{{ ftpStats.latestModified }}</p>
           </div>
         </div>
 
         <div class="k-ftp-backup-dialog-section">
-          <h3 class="k-ftp-backup-files-title">Files on FTP Server</h3>
+          <h3 class="k-ftp-backup-files-title">{{ t('server.files') }}</h3>
           <div v-if="ftpStats.files && ftpStats.files.length > 0">
             <table class="k-ftp-backup-files-table">
               <thead>
               <tr>
-                <th>Filename</th>
-                <th>Size</th>
-                <th>Date</th>
+                <th>{{ t('server.filename') }}</th>
+                <th>{{ t('server.size') }}</th>
+                <th>{{ t('server.date') }}</th>
               </tr>
               </thead>
               <tbody>
@@ -271,11 +333,18 @@
             </table>
           </div>
           <div v-else class="k-ftp-backup-view-backup-list-empty">
-            No backups available on FTP server
+            {{ t('server.empty') }}
           </div>
         </div>
       </div>
 
+      <template #footer>
+        <k-button-group>
+          <k-button icon="check" @click="$refs.ftpStatsDialog.close()">
+            {{ $t('close') }}
+          </k-button>
+        </k-button-group>
+      </template>
     </k-dialog>
   </k-panel-inside>
 </template>
@@ -293,8 +362,15 @@ export default {
       isCancelling: false,
       isLoadingBackups: false,
       isLoadingFtpStats: false,
+      isLoadingRemote: false,
+      isTestingConnection: false,
       localStats: this.stats || {},
-      backups: [],
+      localBackups: [],
+      remoteFiles: null,
+      remoteError: null,
+      health: null,
+      ftpConfigured: false,
+      connectionTest: null,
       ftpWarning: {
         show: false,
         message: '',
@@ -314,14 +390,71 @@ export default {
   },
 
   computed: {
-    sponsorText() {
-      const language = this.panelLanguage();
+    locale() {
+      const translation = window.panel && window.panel.translation;
+      return (translation && translation.code) || undefined;
+    },
 
-      if (language.startsWith('de')) {
-        return 'Dieses Plugin entsteht mit viel Liebe und laufendem Aufwand. Wenn es dir Zeit spart, hilft eine kleine Spende, Wartung und Weiterentwicklung möglich zu machen.';
+    // Local backups and server copies merged by filename, newest first
+    listItems() {
+      const byName = {};
+
+      for (const backup of this.localBackups) {
+        byName[backup.filename] = {...backup, local: true, remote: false};
+      }
+      for (const file of this.remoteFiles || []) {
+        const entry = byName[file.filename] || {
+          filename: file.filename,
+          size: file.size,
+          modified: file.modified,
+          local: false,
+          protected: file.protected
+        };
+        entry.remote = true;
+        entry.deleteNext = entry.deleteNext || file.deleteNext;
+        byName[file.filename] = entry;
       }
 
-      return 'This plugin is built with care and ongoing effort. If it saves you time, a small donation helps keep maintenance and future improvements going.';
+      return Object.values(byName)
+        .sort((a, b) => (b.modified - a.modified) || b.filename.localeCompare(a.filename))
+        .map(backup => this.toListItem(backup));
+    },
+
+    statusMessages() {
+      const messages = [];
+      const health = this.health;
+      if (!health) {
+        return messages;
+      }
+
+      const run = health.lastRun;
+      if (run) {
+        const data = {date: this.formatDate(run.time), message: run.message || ''};
+        const themes = {success: 'positive', warning: 'notice', error: 'negative', cancelled: 'info'};
+        let key = 'lastRun.' + run.status;
+        if (run.status === 'success') {
+          key = run.uploaded ? 'lastRun.uploaded' : 'lastRun.local';
+        }
+        messages.push({
+          key: 'lastRun',
+          theme: themes[run.status] || 'info',
+          icon: run.status === 'success' ? 'check' : 'alert',
+          text: this.t(key, data)
+        });
+      }
+
+      if (health.stale) {
+        messages.push({
+          key: 'stale',
+          theme: 'negative',
+          icon: 'clock',
+          text: health.latestBackup
+            ? this.t('stale', {hours: health.maxBackupAge})
+            : this.t('stale.none')
+        });
+      }
+
+      return messages;
     },
 
     progressPercent() {
@@ -330,24 +463,28 @@ export default {
     },
     isIndeterminate() {
       if (this.progressPhase === 'zip') return true;
-      // FTP/FTPS has no byte-level progress callbacks — show indeterminate bar
+      // Until the first bytes are reported
       if (this.progressPhase === 'upload' && this.progressCurrent === 0) return true;
       return false;
     },
     progressLabel() {
       const phase = this.progressPhase;
-      if (!phase || phase === 'starting') return 'Preparing…';
-      if (phase === 'zip') return this.progressMessage || 'Compressing archive…';
+      if (!phase || phase === 'starting') return this.t('progress.preparing');
+      if (phase === 'zip') return this.t('progress.zip');
       if (phase === 'upload') {
         return this.progressTotal && this.progressCurrent
-          ? `Uploading… ${this.formatSize(this.progressCurrent)} / ${this.formatSize(this.progressTotal)} (${this.progressPercent}%)`
-          : 'Uploading to FTP server…';
+          ? this.t('progress.uploadBytes', {
+            sent: this.formatSize(this.progressCurrent),
+            total: this.formatSize(this.progressTotal),
+            percent: this.progressPercent
+          })
+          : this.t('progress.upload');
       }
-      if (phase === 'cleanup') return 'Cleaning up old backups…';
-      if (phase === 'cancelling') return this.progressMessage || 'Cancellation requested…';
-      if (phase === 'done') return this.progressMessage || 'Done';
-      if (phase === 'cancelled') return 'Cancelled';
-      if (phase === 'error') return 'Error: ' + (this.progressMessage || 'Unknown error');
+      if (phase === 'cleanup') return this.t('progress.cleanup');
+      if (phase === 'cancelling') return this.t('progress.cancelling');
+      if (phase === 'done') return this.t('progress.done');
+      if (phase === 'cancelled') return this.t('progress.cancelled');
+      if (phase === 'error') return this.t('progress.error', {message: this.progressMessage});
       return this.progressMessage || '';
     },
     ftpStatsConnection() {
@@ -356,8 +493,7 @@ export default {
   },
 
   created() {
-    this.loadBackups();
-    this.checkFtpSettings();
+    this.checkFtpSettings().then(() => this.loadBackups());
   },
 
   beforeDestroy() {
@@ -365,6 +501,18 @@ export default {
   },
 
   methods: {
+    t(key, data) {
+      return this.$t('tearoom1.ftp-backup.' + key, data);
+    },
+
+    api(path) {
+      return window.panel.urls.api + '/ftp-backup/' + path;
+    },
+
+    formatDate(timestamp) {
+      return timestamp ? new Date(timestamp * 1000).toLocaleString(this.locale) : '';
+    },
+
     formatConnection(connection) {
       if (!connection) {
         return '';
@@ -378,13 +526,92 @@ export default {
       return `${protocol}${host}${port}${path}`;
     },
 
-    panelLanguage() {
-      const panel = window.panel || {};
-      const panelLanguage = panel.language && panel.language.code;
-      const viewLanguage = panel.view && panel.view.props && panel.view.props.language;
-      const browserLanguage = window.navigator && window.navigator.language;
+    toListItem(backup) {
+      const info = [this.formatDate(backup.modified), this.formatSize(backup.size || 0)];
+      // Only say where a backup is when the server list is known
+      if (this.remoteFiles !== null) {
+        info.push(backup.local && backup.remote
+          ? this.t('list.both')
+          : (backup.local ? this.t('list.local') : this.t('list.remote')));
+      }
+      if (backup.protected) info.push(this.t('list.protected'));
+      if (backup.deleteNext) info.push(this.t('list.deleteNext'));
 
-      return String(viewLanguage || panelLanguage || browserLanguage || 'en').toLowerCase();
+      return {
+        id: backup.filename,
+        text: backup.filename,
+        info: info.join(' · '),
+        image: {
+          icon: backup.protected ? 'lock' : (backup.local ? 'archive' : 'server')
+        },
+        options: this.itemOptions(backup)
+      };
+    },
+
+    itemOptions(backup) {
+      const options = [];
+      if (backup.local) {
+        options.push({icon: 'download', text: this.t('option.download'), click: () => window.open(backup.downloadUrl, '_blank')});
+      }
+      options.push(backup.protected
+        ? {icon: 'unlock', text: this.t('option.unprotect'), click: () => this.protectBackup(backup, false)}
+        : {icon: 'lock', text: this.t('option.protect'), click: () => this.protectBackup(backup, true)});
+
+      if (!backup.protected) {
+        options.push('-');
+        if (backup.local) {
+          options.push({icon: 'trash', text: this.t('option.deleteLocal'), click: () => this.confirmDelete(backup, false)});
+        }
+        if (backup.remote) {
+          options.push({
+            icon: 'trash',
+            text: backup.local ? this.t('option.deleteBoth') : this.t('option.deleteRemote'),
+            click: () => this.confirmDelete(backup, true)
+          });
+        }
+      }
+      return options;
+    },
+
+    // Kirby's API turns a result with status "error" into a failed request
+    async postAction(path, data) {
+      try {
+        return await this.$api.post(path, data);
+      } catch (error) {
+        return {status: 'error', message: error.message};
+      }
+    },
+
+    async protectBackup(backup, isProtected) {
+      const response = await this.postAction('ftp-backup/protect', {filename: backup.filename, protected: isProtected});
+      if (response.status === 'success') {
+        window.panel.notification.success(this.t(isProtected ? 'notify.protected' : 'notify.unprotected'));
+      } else {
+        window.panel.notification.error(response.message);
+      }
+      this.loadBackups();
+    },
+
+    confirmDelete(backup, remote) {
+      const key = remote ? (backup.local ? 'delete.confirmBoth' : 'delete.confirmRemote') : 'delete.confirmLocal';
+      window.panel.dialog.open({
+        component: 'k-remove-dialog',
+        props: {
+          text: this.t(key, {filename: backup.filename}) + ' ' + this.t('delete.hint')
+        },
+        on: {
+          submit: async () => {
+            const response = await this.postAction('ftp-backup/delete', {filename: backup.filename, remote});
+            window.panel.dialog.close();
+            if (response.status === 'success') {
+              window.panel.notification.success(this.t('notify.deleted'));
+            } else {
+              window.panel.notification.error(response.message);
+            }
+            this.loadBackups();
+          }
+        }
+      });
     },
 
     async loadBackups() {
@@ -393,28 +620,59 @@ export default {
       try {
         const response = await this.$api.get('ftp-backup/backups');
 
-        if (response.status === 'success' && response.data) {
-          this.backups = response.data.map(backup => {
-            return {
-              id: backup.filename,
-              text: backup.filename,
-              info: new Date(backup.modified * 1000).toLocaleString() + ' - ' + this.formatSize(backup.size),
-              url: backup.downloadUrl,
-              icon: 'archive'
-            };
-          });
+        if (response.status === 'success') {
+          this.localBackups = response.data || [];
+          this.localStats = response.stats || this.localStats;
+          this.health = response.health || null;
         } else {
-          this.backups = [];
-        }
-
-        if (response.status === 'success' && response.stats) {
-          this.localStats = response.stats;
+          this.localBackups = [];
         }
       } catch (error) {
-        window.panel.notification.error('Failed to load backups');
-        this.backups = [];
+        window.panel.notification.error(this.t('notify.loadFailed'));
+        this.localBackups = [];
       } finally {
         this.isLoadingBackups = false;
+      }
+
+      this.loadRemoteFiles();
+    },
+
+    // The server listing needs a connection, so it is loaded after the local list
+    async loadRemoteFiles() {
+      if (!this.ftpConfigured) {
+        this.remoteFiles = null;
+        return;
+      }
+
+      this.isLoadingRemote = true;
+      this.remoteError = null;
+      try {
+        const response = await this.$api.get('ftp-backup/ftp-stats');
+        if (response.status === 'success' && response.data) {
+          this.remoteFiles = response.data.files || [];
+          this.ftpStats = response.data;
+        } else {
+          this.remoteFiles = null;
+          this.remoteError = response.message || '';
+        }
+      } catch (error) {
+        this.remoteFiles = null;
+        this.remoteError = error.message || '';
+      } finally {
+        this.isLoadingRemote = false;
+      }
+    },
+
+    async testConnection() {
+      this.connectionTest = null;
+      this.isTestingConnection = true;
+      this.$refs.testDialog.open();
+      try {
+        this.connectionTest = (await this.$api.post('ftp-backup/test-connection')).data;
+      } catch (error) {
+        this.connectionTest = {status: 'error', steps: [{step: 'connect', ok: false, message: error.message}]};
+      } finally {
+        this.isTestingConnection = false;
       }
     },
 
@@ -462,9 +720,8 @@ export default {
       try {
         await this.$api.post('ftp-backup/cancel', {jobId: this.currentJobId});
         this.progressPhase = 'cancelling';
-        this.progressMessage = 'Cancellation requested…';
       } catch (e) {
-        window.panel.notification.error('Failed to send cancel signal');
+        window.panel.notification.error(this.t('notify.cancelFailed'));
         this.isCancelling = false;
       }
     },
@@ -478,7 +735,7 @@ export default {
       this.isCreatingBackup = false;
       this.isCancelling = false;
       this.currentJobId = null;
-      window.panel.notification.info('Backup was cancelled');
+      window.panel.notification.info(this.t('notify.cancelled'));
     },
 
     async createBackup() {
@@ -494,7 +751,7 @@ export default {
       try {
         // Plain fetch so a non-JSON reply (e.g. a proxy timeout page) can be explained;
         // the API URL respects installations in a subfolder and custom API slugs
-        const rawResponse = await fetch(window.panel.urls.api + '/ftp-backup/create', {
+        const rawResponse = await fetch(this.api('create'), {
           method: 'POST',
           credentials: 'same-origin',
           headers: {
@@ -506,10 +763,9 @@ export default {
 
         const contentType = rawResponse.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          const statusText = rawResponse.status === 504
-            ? '504 Gateway Timeout — the backup did not complete in time. Raise your server\'s proxy timeout (e.g. fastcgi_read_timeout in nginx) or check your PHP error log.'
-            : `HTTP ${rawResponse.status} error. Check your PHP error log.`;
-          throw new Error(statusText);
+          throw new Error(rawResponse.status === 504
+            ? this.t('error.timeout')
+            : this.t('error.http', {status: rawResponse.status}));
         }
 
         const response = await rawResponse.json();
@@ -521,12 +777,11 @@ export default {
 
         if (response.status === 'success') {
           window.panel.notification.success(response.message);
-          this.loadBackups();
 
           // Check if FTP upload failed (but only if FTP is enabled)
           if (response.data && response.data.ftpResult && !response.data.ftpResult.uploaded && !response.data.ftpResult.disabled) {
             this.showFtpWarning(response.data.ftpResult.message || 'FTP upload failed', true);
-          } else {
+          } else if (this.ftpConfigured) {
             this.dismissWarning();
           }
         } else {
@@ -535,7 +790,7 @@ export default {
           window.panel.notification.error(errorMessage);
 
           // Show warning if the error appears to be FTP-related
-          if (errorMessage.toLowerCase().includes('ftp') || errorMessage.toLowerCase().includes('sftp')) {
+          if (errorMessage.toLowerCase().includes('ftp')) {
             this.showFtpWarning(errorMessage, true);
           }
         }
@@ -543,21 +798,18 @@ export default {
         const errorMessage = error.message || 'Failed to create backup';
         window.panel.notification.error(errorMessage);
         console.error('Backup creation error:', error);
-        this.showFtpWarning('Error: ' + errorMessage, true);
+        this.showFtpWarning(errorMessage, true);
       } finally {
         this.stopProgressPolling();
         this.isCreatingBackup = false;
         this.isCancelling = false;
         this.currentJobId = null;
+        this.loadBackups();
       }
     },
 
     showSettingsInfo() {
       this.$refs.settingsDialog.open();
-    },
-
-    downloadBackup(item) {
-      window.open(item.url, '_blank');
     },
 
     // FTP Server Stats methods
@@ -576,13 +828,14 @@ export default {
 
         if (response.status === 'success' && response.data) {
           this.ftpStats = response.data;
+          this.remoteFiles = response.data.files || [];
         } else {
           this.ftpStatsError = response.message || 'Failed to load FTP server stats';
           this.ftpStatsErrorConnection = this.formatConnection(response.connection);
           this.ftpStats = null;
         }
       } catch (error) {
-        this.ftpStatsError = 'Failed to connect to FTP server' + (error.message ? ': ' + error.message : '');
+        this.ftpStatsError = error.message || 'Failed to load FTP server stats';
         this.ftpStats = null;
       } finally {
         this.isLoadingFtpStats = false;
@@ -590,58 +843,61 @@ export default {
     },
 
     // FTP Warning Panel Methods
-    showFtpWarning(message, isPersistent = false) {
+    // kind 'config' warnings disappear once the settings are complete
+    showFtpWarning(message, isPersistent = false, kind = 'upload') {
       this.ftpWarning = {
         show: true,
         message: message,
-        isPersistent: isPersistent
+        isPersistent: isPersistent,
+        kind: kind
       };
 
-      // Store in sessionStorage for persistence during the session
+      // Keep the warning for this browser session
       if (isPersistent) {
-        sessionStorage.setItem('ftpBackupWarning', JSON.stringify(this.ftpWarning));
+        try {
+          sessionStorage.setItem('ftpBackupWarning', JSON.stringify(this.ftpWarning));
+        } catch (e) {
+          // storage unavailable (private mode)
+        }
       }
     },
 
     dismissWarning() {
       this.ftpWarning.show = false;
-      sessionStorage.removeItem('ftpBackupWarning');
+      try {
+        sessionStorage.removeItem('ftpBackupWarning');
+      } catch (e) {
+        // storage unavailable (private mode)
+      }
     },
 
-    checkFtpSettings() {
-      // Check if there's a persisted warning message
-      const savedWarning = sessionStorage.getItem('ftpBackupWarning');
-      if (savedWarning) {
-        try {
+    async checkFtpSettings() {
+      try {
+        const savedWarning = sessionStorage.getItem('ftpBackupWarning');
+        if (savedWarning) {
           this.ftpWarning = JSON.parse(savedWarning);
-        } catch (e) {
-          // Invalid JSON, clear it
-          sessionStorage.removeItem('ftpBackupWarning');
         }
+      } catch (e) {
+        // storage unavailable or invalid JSON
       }
 
-      // Always check if FTP settings are configured
-      this.$api.get('ftp-backup/settings-status')
-        .then(response => {
-          if (response.status === 'success') {
-            // Check if FTP is explicitly disabled
-            if (response.data.ftpEnabled === false) {
-              this.showFtpWarning('FTP upload is disabled. Backups will be created locally only.', true);
-            }
-            // Check if FTP is not configured
-            else if (!response.data.configured) {
-              const reason = response.data.reason ? ` (${response.data.reason})` : '';
-              this.showFtpWarning(`FTP settings are not configured${reason}. Backups will be created locally only.`, true);
-            }
-            // FTP is enabled and configured
-            else {
-              this.dismissWarning();
-            }
-          }
-        })
-        .catch(() => {
-          // Silent failure, we don't want to show errors for this check
-        });
+      try {
+        const response = await this.$api.get('ftp-backup/settings-status');
+        if (response.status !== 'success') {
+          return;
+        }
+
+        this.ftpConfigured = response.data.configured;
+        if (response.data.ftpEnabled === false) {
+          this.showFtpWarning(this.t('warning.disabled'), true, 'config');
+        } else if (!response.data.configured) {
+          this.showFtpWarning(this.t('warning.notConfigured', {reason: response.data.reason || ''}), true, 'config');
+        } else if (this.ftpWarning.kind === 'config') {
+          this.dismissWarning();
+        }
+      } catch (e) {
+        // Silent failure, we don't want to show errors for this check
+      }
     },
 
     formatSize(bytes) {
@@ -654,7 +910,7 @@ export default {
         unitIndex++;
       }
 
-      return `${size.toFixed(2)} ${units[unitIndex]}`;
+      return `${size.toFixed(unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`;
     }
   }
 };
@@ -686,6 +942,45 @@ export default {
   color: var(--color-text-dimmed);
   font-size: .8rem;
   line-height: 1.35;
+}
+
+.k-ftp-backup-view-status {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.k-ftp-backup-view-list-note {
+  margin-top: 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-dimmed);
+}
+
+.k-ftp-backup-test-steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.k-ftp-backup-test-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.k-ftp-backup-test-steps li.is-ok .k-icon {
+  color: var(--color-positive);
+}
+
+.k-ftp-backup-test-steps li.is-failed .k-icon {
+  color: var(--color-negative);
+}
+
+.k-ftp-backup-test-steps p {
+  margin-top: 0.15rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-dimmed);
+  overflow-wrap: anywhere;
 }
 
 .k-ftp-backup-progress {
@@ -734,17 +1029,12 @@ export default {
   line-height: 1.25;
 }
 
-.k-ftp-backup-stats-dialog .k-dialog-buttons {
-  grid-template-columns: 1fr;
-  width: 100%;
-}
-
-.k-ftp-backup-stats-dialog .k-button-group.k-dialog-buttons:has(>.k-button:nth-child(2)) {
-  grid-template-columns: 1fr;
-}
-
-.k-ftp-backup-stats-dialog .k-dialog-buttons .k-button:first-child {
-  display: none;
+.k-ftp-backup-dialog-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-connection {
