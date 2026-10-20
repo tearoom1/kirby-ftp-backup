@@ -4,17 +4,37 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
   test:
-
+    name: PHP ${{ matrix.php }} / Kirby ${{ matrix.kirby }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        php-versions: ['8.2', '8.3', '8.4']
+        php: ['8.2', '8.3', '8.4']
+        kirby: ['^4.0', '^5.0']
+
+    # Real servers for tests/ServerIntegrationTest.php
+    services:
+      sftp:
+        image: atmoz/sftp
+        ports:
+          - 2222:22
+        env:
+          SFTP_USERS: tester:testpass:1001::upload
+      ftp:
+        image: delfer/alpine-ftp-server
+        ports:
+          - 2121:21
+          - 21000-21010:21000-21010
+        env:
+          USERS: ftptester|ftppass|/home/ftptester|1002
+          ADDRESS: 127.0.0.1
 
     steps:
       - uses: actions/checkout@v7
@@ -22,25 +42,37 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
-
-      - name: Cache Composer packages
-        id: composer-cache
-        uses: actions/cache@v6
-        with:
-          path: vendor
-          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-
+          php-version: ${{ matrix.php }}
+          extensions: ftp, zip
 
       - name: Install dependencies
-        run: composer update --no-progress
+        run: composer update --no-progress --with "getkirby/cms:${{ matrix.kirby }}"
+
+      - name: Run test suite
+        run: composer test
+        env:
+          FTP_BACKUP_TEST_FTP: ftp://ftptester:ftppass@127.0.0.1:2121/home/ftptester
+          FTP_BACKUP_TEST_SFTP: sftp://tester:testpass@127.0.0.1:2222/upload
+          FTP_BACKUP_TEST_SFTP_RELATIVE: upload
+
+  analyse:
+    name: Static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ftp, zip
 
       - name: Validate composer.json and composer.lock
         run: composer validate
 
-      # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
-      # Docs: https://getcomposer.org/doc/articles/scripts.md
+      - name: Install dependencies
+        run: composer install --no-progress
 
-      - name: Run test suite
-        run: composer test
+      - name: Run phpstan
+        run: composer analyze

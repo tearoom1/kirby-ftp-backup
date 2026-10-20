@@ -1,0 +1,8 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - index.php
+        - run.php
+    bootstrapFiles:
+        - kirby/bootstrap.php

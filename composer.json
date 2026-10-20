@@ -24,6 +24,7 @@
     "source": "https://github.com/tearoom1/kirby-ftp-backup"
   },
   "require": {
+    "php": ">=8.1",
     "getkirby/composer-installer": "^1.2",
     "phpseclib/phpseclib": "^3.0",
     "ext-zip": "*",
@@ -31,7 +32,8 @@
   },
   "require-dev": {
     "phpunit/phpunit": "^10.0",
-    "getkirby/cms": "^4.0.0 || ^5.0.0"
+    "getkirby/cms": "^4.0.0 || ^5.0.0",
+    "phpstan/phpstan": "^2.1"
   },
   "autoload": {
     "psr-4": {
@@ -45,7 +47,7 @@
     }
   },
   "scripts": {
-    "analyze": "phpstan analyse src",
+    "analyze": "phpstan analyse --memory-limit=1G",
     "fix": "php-cs-fixer fix src",
     "dist": "composer install --no-dev --optimize-autoloader",
     "update-dist": "composer update --no-dev --optimize-autoloader",
