@@ -1,5 +1,35 @@
 ## [1.11.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.2...v1.11.0) (2026-10-23)
 
+### What's new in 1.11
+
+#### A new Panel view
+- The area now uses Kirby's own view header: large title, "Create backup" as the main action, "Support this plugin", and a "…" menu with "Test connection" and "Setup" (Setup only for admins).
+- Three tiles give the overview at a glance:
+  - **Last backup:** how long ago, with date and time. It turns orange when the newest backup is older than `maxBackupAge` and tells you to check the cron job.
+  - **On this web server:** number and total size of the local backups.
+  - **On the FTP server:** number and total size of the server copies, and when the server was last checked.
+- The backups table shows where each backup lives ("Web server", "FTP server"), with unambiguous dates ("Mar 12, 2026") and aligned times.
+- Notes in the table say which copy the retention rule will remove: "Local copy deleted by the next run", "Server copy deleted by the next run", or "Deleted by the next run".
+
+#### Server listing is cached
+- The Panel no longer connects to the FTP server on every visit. The server listing is cached for 15 minutes and refreshed after a backup, after cleanup on the server, after deleting a server copy, and when you click refresh.
+- New option `serverCacheMinutes` (default `15`, `0` disables the cache).
+- If the server can't be reached, the last known listing is shown and marked as such.
+- The separate "Server" dialog was removed. Its information is now in the tile and the table.
+
+#### Backups that only exist on the FTP server
+- They can now be downloaded from the Panel.
+- "Copy to web server" fetches them into the local backup folder.
+
+#### Fixes
+- Backup dates come from the timestamp in the filename instead of the file time. Copied or restored files no longer show the wrong date or end up in the wrong place in the list.
+
+#### Good to know when updating
+- `FtpClientInterface` has a new `download()` method. This only matters if you wrote your own client implementation.
+- A backup copied back to the web server falls under the local retention rule again. Protect it if you want to keep it.
+
+#### Commits
+
 
 ### Features
 
