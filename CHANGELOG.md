@@ -1,3 +1,10 @@
+## [1.10.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.9.0...v1.10.0) (2026-10-23)
+
+
+### Features
+
+* Panel support link opens the central support page ([43079b8](https://github.com/tearoom1/kirby-ftp-backup/commit/43079b8cc0f234b40a0a8a0dadb65fefd7ece2f9))
+
 ## [1.9.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.8.0...v1.9.0) (2026-10-20)
 
 
@@ -33,11 +40,4 @@
 ### Bug Fixes
 
 * discard buffered output before sending backup download ([227a577](https://github.com/tearoom1/kirby-ftp-backup/commit/227a5779c19f4c79505decce8c0c8fcdd28dd71b)), closes [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6)
-
-## [1.7.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.1...v1.7.2) (2026-10-05)
-
-
-### Bug Fixes
-
-* show endpoint and cause in FTP connection errors ([55373eb](https://github.com/tearoom1/kirby-ftp-backup/commit/55373eb935299ed30d510eccae3740e60265ece9))
 
