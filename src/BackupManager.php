@@ -667,7 +667,10 @@ class BackupManager
      */
     private function additionalPaths(): array
     {
+        // Resolve symlinks (e.g. a deploy `current` link, or /var -> /private/var on macOS)
+        // the same way as the configured paths, or the prefix comparison below fails
         $base = dirname(kirby()->root('site'));
+        $base = realpath($base) ?: $base;
         $content = realpath(kirby()->root('content'));
         $paths = [];
 
