@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { isTooOld, mergeBackups, newestBackup } from '../../js/backups.js'
+import { deleteNote, isTooOld, mergeBackups, newestBackup } from '../../js/backups.js'
 
 const now = Date.UTC(2026, 9, 23, 12) / 1000
 const day = 86400
@@ -56,4 +56,23 @@ test('the view defines everything it reads from this', () => {
     !new RegExp(`^\\s+(async\\s+)?${name}\\s*(\\(|:)`, 'm').test(view)
   )
   assert.deepEqual(missing, [])
+})
+
+test('retention note per location', () => {
+  const name = 'basic-2026-03-12-091129.zip'
+  const note = (localFlag, remoteFlag) => deleteNote(
+    mergeBackups([{ filename: name, modified: now, deleteNext: localFlag }], [{ filename: name, modified: now, deleteNext: remoteFlag }])[0],
+    true
+  )
+
+  assert.equal(note(true, false), 'local', 'only the local copy')
+  assert.equal(note(false, true), 'remote', 'only the server copy')
+  assert.equal(note(true, true), 'both')
+  assert.equal(note(false, false), null)
+
+  // One copy only: the whole backup goes
+  assert.equal(deleteNote(mergeBackups([{ filename: name, modified: now, deleteNext: true }], [])[0], true), 'both')
+  assert.equal(deleteNote(mergeBackups([], [{ filename: name, modified: now, deleteNext: true }])[0], true), 'both')
+  // Server listing not loaded yet: the server copy may stay
+  assert.equal(deleteNote(mergeBackups([{ filename: name, modified: now, deleteNext: true }], null)[0], false), 'local')
 })

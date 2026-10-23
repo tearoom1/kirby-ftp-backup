@@ -118,7 +118,7 @@
             <td class="k-ftp-backup-table-location">{{ locationLabel(backup) }}</td>
             <td class="k-ftp-backup-table-notes">
               <span v-if="backup.protected" class="k-ftp-backup-tag is-protected">{{ t('list.protected') }}</span>
-              <span v-if="backup.deleteNext" class="k-ftp-backup-tag is-delete">{{ t('list.deleteNext') }}</span>
+              <span v-if="deleteNoteKey(backup)" class="k-ftp-backup-tag is-delete">{{ t(deleteNoteKey(backup)) }}</span>
             </td>
             <td class="k-ftp-backup-table-file" :title="backup.filename">{{ backup.filename }}</td>
             <td class="k-ftp-backup-table-options">
@@ -239,7 +239,7 @@
 </template>
 
 <script>
-import {isTooOld, mergeBackups, newestBackup} from '../backups.js';
+import {deleteNote, isTooOld, mergeBackups, newestBackup} from '../backups.js';
 
 export default {
   props: {
@@ -499,8 +499,15 @@ export default {
       return `${protocol}${host}${port}${path}`;
     },
 
+    // Translation key of the retention note: list.deleteNext, list.deleteNextLocal or list.deleteNextRemote
+    deleteNoteKey(backup) {
+      const note = deleteNote(backup, this.remoteFiles !== null);
+      if (!note) return null;
+      return {both: 'list.deleteNext', local: 'list.deleteNextLocal', remote: 'list.deleteNextRemote'}[note];
+    },
+
     formatDay(timestamp) {
-      return new Date(timestamp * 1000).toLocaleDateString(this.locale, {day: '2-digit', month: '2-digit', year: 'numeric'});
+      return new Date(timestamp * 1000).toLocaleDateString(this.locale, {day: 'numeric', month: 'short', year: 'numeric'});
     },
 
     formatTime(timestamp) {
