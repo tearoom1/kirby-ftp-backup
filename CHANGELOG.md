@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.0...v1.10.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* keep additional paths relative when the Kirby root is behind a symlink ([a682230](https://github.com/tearoom1/kirby-ftp-backup/commit/a6822305a47f77392dd2a9a943987c47fe35bc71))
+
 ## [1.10.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.9.0...v1.10.0) (2026-10-23)
 
 
@@ -33,11 +40,4 @@
 ### Bug Fixes
 
 * harden retention, downloads, SFTP keys and backup runs ([dad3f46](https://github.com/tearoom1/kirby-ftp-backup/commit/dad3f46819e479d5b49229770ece2f05b3457c4f))
-
-## [1.7.3](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.2...v1.7.3) (2026-10-20)
-
-
-### Bug Fixes
-
-* discard buffered output before sending backup download ([227a577](https://github.com/tearoom1/kirby-ftp-backup/commit/227a5779c19f4c79505decce8c0c8fcdd28dd71b)), closes [#6](https://github.com/tearoom1/kirby-ftp-backup/issues/6)
 
