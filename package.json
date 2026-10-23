@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npx -y kirbyup js/index.js --watch",
     "build": "npx -y kirbyup js/index.js",
-    "lint": "npx standard js/**/*.js"
+    "lint": "npx standard js/**/*.js",
+    "test": "node --test tests/js/*.test.js"
   },
   "keywords": [
     "kirby",
@@ -15,5 +16,6 @@
     "ftp"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "type": "module"
 }

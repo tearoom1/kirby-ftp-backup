@@ -231,6 +231,8 @@
 </template>
 
 <script>
+import {isTooOld, mergeBackups, newestBackup} from '../backups.js';
+
 export default {
   props: {
     stats: Object,
@@ -285,26 +287,7 @@ export default {
 
     // Local backups and server copies merged by filename, newest first
     listItems() {
-      const byName = {};
-
-      for (const backup of this.localBackups) {
-        byName[backup.filename] = {...backup, local: true, remote: false};
-      }
-      for (const file of this.remoteFiles || []) {
-        const entry = byName[file.filename] || {
-          filename: file.filename,
-          size: file.size,
-          modified: file.modified,
-          local: false,
-          protected: file.protected
-        };
-        entry.remote = true;
-        entry.deleteNext = entry.deleteNext || file.deleteNext;
-        byName[file.filename] = entry;
-      }
-
-      return Object.values(byName)
-        .sort((a, b) => (b.modified - a.modified) || b.filename.localeCompare(a.filename));
+      return mergeBackups(this.localBackups, this.remoteFiles);
     },
 
     // Header "…" menu; the setup help is only for admins
@@ -364,6 +347,11 @@ export default {
       return this.remoteError !== null ? this.t('tile.unreachable') : '–';
     },
 
+    // The newest backup in the merged list, so a copy only on the server counts too
+    latestBackup() {
+      return newestBackup(this.listItems);
+    },
+
     lastBackupState() {
       if (this.isStale) {
         return 'old';
@@ -388,8 +376,7 @@ export default {
       if (!this.maxBackupAge || this.isLoadingBackups && !this.listItems.length) {
         return false;
       }
-      const latest = this.latestBackup;
-      return !latest || latest.modified < Date.now() / 1000 - this.maxBackupAge * 3600;
+      return isTooOld(this.latestBackup, this.maxBackupAge, Date.now() / 1000);
     },
 
     progressPercent() {

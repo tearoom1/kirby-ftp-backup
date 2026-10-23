@@ -93,3 +93,12 @@ jobs:
 
       - name: Run phpstan
         run: composer analyze
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pure helpers of the Panel view (no dependencies needed)
+      - name: Run JS tests
+        run: npm test
