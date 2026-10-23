@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.1...v1.10.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* update phpseclib to 3.0.57 for security advisories ([a48a5c3](https://github.com/tearoom1/kirby-ftp-backup/commit/a48a5c3728ebecf0fa0627eceb50285d23fdb001))
+
 ## [1.10.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.0...v1.10.1) (2026-10-23)
 
 
@@ -33,11 +40,4 @@
 ### Bug Fixes
 
 * Kirby 4 downloads, include filters and duplicate starts ([bda4c23](https://github.com/tearoom1/kirby-ftp-backup/commit/bda4c231fb4ea662ed25e699ac6829ac89edcf3f))
-
-## [1.7.4](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.3...v1.7.4) (2026-10-20)
-
-
-### Bug Fixes
-
-* harden retention, downloads, SFTP keys and backup runs ([dad3f46](https://github.com/tearoom1/kirby-ftp-backup/commit/dad3f46819e479d5b49229770ece2f05b3457c4f))
 
