@@ -10,23 +10,38 @@ use Kirby\Http\Response;
 class FileDownloadResponse extends Response
 {
     private string $path;
+    private bool $deleteAfterSend;
 
-    public function __construct(string $path)
+    /**
+     * @param string|null $downloadName Filename for the browser (default: the file's name)
+     * @param bool $deleteAfterSend Remove the file once it was sent (temporary copies)
+     */
+    public function __construct(string $path, ?string $downloadName = null, bool $deleteAfterSend = false)
     {
         $this->path = $path;
+        $this->deleteAfterSend = $deleteAfterSend;
+        if ($deleteAfterSend) {
+            // Also when the client aborts the transfer and the script ends early
+            register_shutdown_function(static fn () => @unlink($path));
+        }
 
         parent::__construct([
             'body' => '',
             'type' => 'application/zip',
             'code' => 200,
             'headers' => [
-                'Content-Disposition' => 'attachment; filename="' . basename($path) . '"',
+                'Content-Disposition' => 'attachment; filename="' . ($downloadName ?? basename($path)) . '"',
                 'Content-Length' => (string)filesize($path),
                 'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)) . ' GMT',
                 'Cache-Control' => 'no-cache, no-store, must-revalidate',
                 'X-Content-Type-Options' => 'nosniff',
             ],
         ]);
+    }
+
+    public function deletesAfterSend(): bool
+    {
+        return $this->deleteAfterSend;
     }
 
     public function path(): string
@@ -48,14 +63,17 @@ class FileDownloadResponse extends Response
         parent::send();
 
         $handle = fopen($this->path, 'rb');
-        if ($handle === false) {
-            return '';
+        if ($handle !== false) {
+            while (!feof($handle)) {
+                echo fread($handle, 1024 * 1024);
+                flush();
+            }
+            fclose($handle);
         }
-        while (!feof($handle)) {
-            echo fread($handle, 1024 * 1024);
-            flush();
+
+        if ($this->deleteAfterSend) {
+            @unlink($this->path);
         }
-        fclose($handle);
 
         return '';
     }

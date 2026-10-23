@@ -165,6 +165,22 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                     );
                 })
             ],
+            // Fetch a backup that is only on the server; the browser then loads it from the returned URL
+            [
+                'pattern' => 'ftp-backup/server-download',
+                'method' => 'POST',
+                'action' => $guarded('downloading from the server', function () {
+                    return (new BackupManager())->prepareServerDownload((string)kirby()->request()->get('filename'));
+                })
+            ],
+            // Copy a backup from the server to this web server
+            [
+                'pattern' => 'ftp-backup/copy-from-server',
+                'method' => 'POST',
+                'action' => $guarded('copying from the server', function () {
+                    return (new BackupManager())->copyFromServer((string)kirby()->request()->get('filename'));
+                })
+            ],
             // Poll progress of a running backup
             [
                 'pattern' => 'ftp-backup/progress/(:any)',
@@ -233,6 +249,19 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 if ($response instanceof FileDownloadResponse) {
                     // Send it ourselves: Kirby 4 rebuilds returned responses
                     // from their body and would drop the stream
+                    echo $response->send();
+                    exit;
+                }
+                return $response;
+            })
+        ],
+        // Send a backup fetched from the server once, then remove the temporary copy (Panel session required)
+        [
+            'pattern' => 'ftp-backup/server-download/(:any)',
+            'method' => 'GET',
+            'action' => $guarded('downloading from the server', function (string $token) {
+                $response = (new BackupManager())->serverDownload($token);
+                if ($response instanceof FileDownloadResponse) {
                     echo $response->send();
                     exit;
                 }

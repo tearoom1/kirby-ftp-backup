@@ -43,6 +43,7 @@ class FakeFtpClient implements FtpClientInterface
             $onProgress($size, $size);
         }
         $this->addFile($remoteFile, time(), $size);
+        $this->files[$remoteFile]['content'] = file_get_contents($localFile);
         $this->uploaded[] = $remoteFile;
         return true;
     }
@@ -73,6 +74,18 @@ class FakeFtpClient implements FtpClientInterface
             }
         }
         return $names;
+    }
+
+    /** Remote paths that were downloaded */
+    public array $downloaded = [];
+
+    public function download(string $remoteFile, string $localFile): void
+    {
+        if (!isset($this->files[$remoteFile])) {
+            throw new \Exception("Not found: {$remoteFile}");
+        }
+        file_put_contents($localFile, $this->files[$remoteFile]['content'] ?? str_repeat('x', $this->files[$remoteFile]['size']));
+        $this->downloaded[] = $remoteFile;
     }
 
     public function getFileSize(string $remoteFile): int

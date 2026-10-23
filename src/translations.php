@@ -40,9 +40,11 @@ $en = [
     'list.protected' => 'Protected',
     'list.deleteNext' => 'Deleted by the next run',
     'list.loadingServer' => 'Checking the server …',
+    'list.fetching' => 'Fetching from the FTP server …',
     'list.serverError' => 'The list of backups on the server is not available: {message}',
 
     'option.download' => 'Download',
+    'option.copyLocal' => 'Copy to web server',
     'option.protect' => 'Protect from deletion',
     'option.unprotect' => 'Remove protection',
     'option.deleteLocal' => 'Delete local copy',
@@ -71,6 +73,7 @@ $en = [
     'notify.protected' => 'The backup is protected from automatic deletion',
     'notify.unprotected' => 'Protection removed',
     'notify.deleted' => 'Backup deleted',
+    'notify.copied' => 'Backup copied to this web server',
     'error.timeout' => 'The server stopped waiting for the backup (504 Gateway Timeout). Raise the proxy timeout (e.g. fastcgi_read_timeout in nginx) or check the PHP error log.',
     'error.http' => 'HTTP error {status}. Check the PHP error log.',
 
@@ -136,9 +139,11 @@ $de = [
     'list.protected' => 'Geschützt',
     'list.deleteNext' => 'Wird beim nächsten Lauf gelöscht',
     'list.loadingServer' => 'Server wird abgefragt …',
+    'list.fetching' => 'Wird vom FTP-Server geholt …',
     'list.serverError' => 'Die Liste der Backups auf dem Server ist nicht verfügbar: {message}',
 
     'option.download' => 'Herunterladen',
+    'option.copyLocal' => 'Auf den Webserver kopieren',
     'option.protect' => 'Vor dem Löschen schützen',
     'option.unprotect' => 'Schutz aufheben',
     'option.deleteLocal' => 'Lokale Kopie löschen',
@@ -167,6 +172,7 @@ $de = [
     'notify.protected' => 'Das Backup ist vor dem automatischen Löschen geschützt',
     'notify.unprotected' => 'Schutz aufgehoben',
     'notify.deleted' => 'Backup gelöscht',
+    'notify.copied' => 'Backup auf den Webserver kopiert',
     'error.timeout' => 'Der Server hat nicht lange genug auf das Backup gewartet (504 Gateway Timeout). Erhöhe das Proxy-Timeout (z. B. fastcgi_read_timeout in nginx) oder sieh im PHP-Fehlerprotokoll nach.',
     'error.http' => 'HTTP-Fehler {status}. Sieh im PHP-Fehlerprotokoll nach.',
 

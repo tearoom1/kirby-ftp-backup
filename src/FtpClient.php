@@ -300,6 +300,21 @@ class FtpClient implements FtpClientInterface
     }
 
     /**
+     * Download a file from the FTP server into a local file
+     */
+    public function download(string $remoteFile, string $localFile): void
+    {
+        if (!$this->connection) {
+            throw new \Exception('Not connected to FTP server');
+        }
+
+        error_clear_last();
+        if (!@ftp_get($this->connection, $localFile, $remoteFile, FTP_BINARY)) {
+            throw $this->error("Failed to download from FTP server: {$remoteFile}");
+        }
+    }
+
+    /**
      * Get file size from FTP server
      */
     public function getFileSize(string $remoteFile): int

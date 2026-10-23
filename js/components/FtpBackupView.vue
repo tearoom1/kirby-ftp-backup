@@ -122,7 +122,15 @@
             </td>
             <td class="k-ftp-backup-table-file" :title="backup.filename">{{ backup.filename }}</td>
             <td class="k-ftp-backup-table-options">
-              <k-options-dropdown :options="itemOptions(backup)"/>
+              <k-button
+                v-if="busyFile === backup.filename"
+                icon="download"
+                size="sm"
+                :progress="true"
+                :disabled="true"
+                :title="t('list.fetching')"
+              />
+              <k-options-dropdown v-else :options="itemOptions(backup)"/>
             </td>
           </tr>
           </tbody>
@@ -250,6 +258,8 @@ export default {
       isLoadingBackups: true,
       isLoadingRemote: false,
       isTestingConnection: false,
+      // Backup that is being fetched from the server (download or copy)
+      busyFile: null,
       localStats: this.stats || {},
       localBackups: [],
       remoteFiles: this.server ? (this.server.files || []) : null,
@@ -508,8 +518,13 @@ export default {
 
     itemOptions(backup) {
       const options = [];
+      const busy = this.busyFile !== null;
       if (backup.local) {
         options.push({icon: 'download', text: this.t('option.download'), click: () => window.open(backup.downloadUrl, '_blank')});
+      } else if (backup.remote) {
+        // Only on the server: fetched through this web server, which takes a while
+        options.push({icon: 'download', text: this.t('option.download'), disabled: busy, click: () => this.downloadFromServer(backup)});
+        options.push({icon: 'copy', text: this.t('option.copyLocal'), disabled: busy, click: () => this.copyFromServer(backup)});
       }
       options.push(backup.protected
         ? {icon: 'unlock', text: this.t('option.unprotect'), click: () => this.protectBackup(backup, false)}
@@ -544,6 +559,30 @@ export default {
       const response = await this.postAction('ftp-backup/protect', {filename: backup.filename, protected: isProtected});
       if (response.status === 'success') {
         window.panel.notification.success(this.t(isProtected ? 'notify.protected' : 'notify.unprotected'));
+      } else {
+        window.panel.notification.error(response.message);
+      }
+      this.loadBackups();
+    },
+
+    async downloadFromServer(backup) {
+      this.busyFile = backup.filename;
+      const response = await this.postAction('ftp-backup/server-download', {filename: backup.filename});
+      this.busyFile = null;
+      if (response.status === 'success' && response.data) {
+        // The file is sent as an attachment, the Panel stays open
+        window.location.assign(response.data.url);
+      } else {
+        window.panel.notification.error(response.message);
+      }
+    },
+
+    async copyFromServer(backup) {
+      this.busyFile = backup.filename;
+      const response = await this.postAction('ftp-backup/copy-from-server', {filename: backup.filename});
+      this.busyFile = null;
+      if (response.status === 'success') {
+        window.panel.notification.success(this.t('notify.copied'));
       } else {
         window.panel.notification.error(response.message);
       }

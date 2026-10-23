@@ -300,6 +300,20 @@ class SftpClient implements FtpClientInterface
     }
 
     /**
+     * Download a file from the SFTP server into a local file
+     */
+    public function download(string $remoteFile, string $localFile): void
+    {
+        if (!$this->sftp) {
+            throw new \Exception('Not connected to SFTP server');
+        }
+
+        if ($this->sftp->get($remoteFile, $localFile) === false) {
+            throw new \Exception("Failed to download from SFTP server: {$remoteFile} [" . $this->endpoint() . ']');
+        }
+    }
+
+    /**
      * Get file size from SFTP server
      */
     public function getFileSize(string $remoteFile): int

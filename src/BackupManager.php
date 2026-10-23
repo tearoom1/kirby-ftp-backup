@@ -430,7 +430,7 @@ class BackupManager
         $limit = time() - 86400;
         foreach (Dir::read($this->backupDir) as $file) {
             $path = $this->backupDir . '/' . $file;
-            if (preg_match('/^\.(job|cancel|progress)-/', $file) && (int)@filemtime($path) < $limit) {
+            if (preg_match('/^\.(job|cancel|progress|download)-/', $file) && (int)@filemtime($path) < $limit) {
                 @unlink($path);
             }
         }
@@ -1504,6 +1504,132 @@ class BackupManager
         }
 
         return new FileDownloadResponse($filepath);
+    }
+
+    // -------------------------------------------------------------------------
+    // Backups that only exist on the server: download and copy
+    // -------------------------------------------------------------------------
+
+    private const DOWNLOAD_PREFIX = '.download-';
+
+    /**
+     * Fetch a backup from the server into a temporary file in the backup directory
+     * (never part of an archive, and on the same disk for the rename when copying)
+     *
+     * @return array{0: string, 1: string} Token and path of the temporary file
+     */
+    private function fetchFromServer(string $filename): array
+    {
+        if (!$this->isValidBackupName($filename)) {
+            throw new \InvalidArgumentException('Invalid filename');
+        }
+        $settings = $this->getSettings();
+        if (!$settings['ftpEnabled']) {
+            throw new \Exception('FTP is disabled');
+        }
+
+        $this->removeOldDownloads();
+        $token = bin2hex(random_bytes(16));
+        $temp = $this->backupDir . '/' . self::DOWNLOAD_PREFIX . $token . '-' . $filename . '.part';
+        $ftpClient = null;
+
+        try {
+            $ftpClient = $this->createFtpClient($settings);
+            // Only files the server lists can be fetched
+            if (!in_array($filename, $ftpClient->listDirectory($settings['ftpDirectory']), true)) {
+                throw new \Exception('This backup is not on the FTP server');
+            }
+            $ftpClient->download($this->remotePath($settings['ftpDirectory'], $filename), $temp);
+            return [$token, $temp];
+        } catch (\Throwable $e) {
+            @unlink($temp);
+            throw $e;
+        } finally {
+            $ftpClient?->disconnect();
+        }
+    }
+
+    /**
+     * Temporary downloads the browser never picked up
+     */
+    private function removeOldDownloads(int $maxAge = 3600): void
+    {
+        foreach (Dir::read($this->backupDir) as $file) {
+            $path = $this->backupDir . '/' . $file;
+            if (str_starts_with($file, self::DOWNLOAD_PREFIX) && (int)@filemtime($path) < time() - $maxAge) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Step 1 of a server download (Panel API): fetch the file, return the URL that sends it
+     */
+    public function prepareServerDownload(string $filename): array
+    {
+        try {
+            [$token] = $this->fetchFromServer($filename);
+        } catch (\Throwable $e) {
+            return ['status' => 'error', 'message' => 'Could not download from the FTP server: ' . $e->getMessage()];
+        }
+
+        return [
+            'status' => 'success',
+            'data' => [
+                'filename' => $filename,
+                'url' => kirby()->url('index') . '/ftp-backup/server-download/' . $token,
+            ]
+        ];
+    }
+
+    /**
+     * Step 2: send the fetched file once and remove it
+     */
+    public function serverDownload(string $token): Response
+    {
+        if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+            return Response::json(['status' => 'error', 'message' => 'Invalid download'], 400);
+        }
+
+        $prefix = self::DOWNLOAD_PREFIX . $token . '-';
+        foreach (Dir::read($this->backupDir) as $file) {
+            if (!str_starts_with($file, $prefix) || !str_ends_with($file, '.part')) {
+                continue;
+            }
+            $filename = substr($file, strlen($prefix), -strlen('.part'));
+            if (!$this->isValidBackupName($filename)) {
+                break;
+            }
+            return new FileDownloadResponse($this->backupDir . '/' . $file, $filename, true);
+        }
+
+        return Response::json(['status' => 'error', 'message' => 'Download not found or expired'], 404);
+    }
+
+    /**
+     * Copy a backup from the server to this web server, where it then counts as both
+     */
+    public function copyFromServer(string $filename): array
+    {
+        if (!$this->isValidBackupName($filename)) {
+            return ['status' => 'error', 'message' => 'Invalid filename'];
+        }
+        $target = $this->backupDir . '/' . $filename;
+        if (is_file($target)) {
+            return ['status' => 'error', 'message' => 'This backup is already on this web server'];
+        }
+
+        try {
+            [, $temp] = $this->fetchFromServer($filename);
+            if (!@rename($temp, $target)) {
+                @unlink($temp);
+                throw new \Exception('Could not save the file in the backup directory');
+            }
+        } catch (\Throwable $e) {
+            return ['status' => 'error', 'message' => 'Could not copy from the FTP server: ' . $e->getMessage()];
+        }
+
+        return ['status' => 'success', 'message' => 'Backup copied to this web server'];
     }
 
     /**

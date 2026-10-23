@@ -65,7 +65,7 @@ The plugin adds a "FTP Backup" area to your Kirby Panel (in English or German, f
 
 - Three tiles: the last backup (how old it is, orange with a hint when it is older than `maxBackupAge`), the backups on this web server and the backups on the FTP server with their size and when the server was last checked
 - One list of all backups, on this web server and on the FTP server, with date, size, where each copy is, whether it is protected and whether the next run will delete it. The date comes from the filename, so copied or restored files keep their creation date
-- Per backup: download, protect from deletion, delete the local copy, delete on the server
+- Per backup: download, protect from deletion, delete the local copy, delete on the server. A backup that is only on the FTP server can be downloaded through the Panel or copied back to this web server
 - Create a backup manually with live progress (compression, upload in bytes for FTP and SFTP, cleanup)
 - Cancel a running backup (only one backup runs at a time; a second start is rejected)
 - Test connection: checks the settings, login, write access and the backup directory without creating a backup

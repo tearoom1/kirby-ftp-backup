@@ -55,6 +55,11 @@ class ServerIntegrationTest extends PluginTestCase
                 $this->assertContains('backup.zip', $client->listDirectory($directory));
                 $this->assertSame(200000, $client->getFileSize($remote));
                 $this->assertEqualsWithDelta(time(), $client->getModifiedTime($remote), 120);
+                // Download returns the same bytes (backups that only exist on the server)
+                $copy = $this->root . '/download.zip';
+                $client->download($remote, $copy);
+                $this->assertTrue(file_get_contents($local) === file_get_contents($copy), 'Downloaded bytes differ');
+                unlink($copy);
                 $this->assertTrue($client->delete($remote));
                 $this->assertNotContains('backup.zip', $client->listDirectory($directory));
             }

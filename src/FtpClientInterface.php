@@ -19,6 +19,11 @@ interface FtpClientInterface
     public function delete(string $remoteFile): bool;
 
     /**
+     * Download a remote file into a local file (binary, streamed to disk)
+     */
+    public function download(string $remoteFile, string $localFile): void;
+
+    /**
      * @return string[] Names (not paths) of the entries in the directory
      */
     public function listDirectory(string $directory): array;
