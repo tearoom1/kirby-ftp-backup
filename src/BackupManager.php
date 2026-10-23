@@ -790,7 +790,12 @@ class BackupManager
             }
         } : null;
 
-        $ftpClient->upload($localFile, $this->remotePath($settings['ftpDirectory'], $remoteFilename), $onProgress);
+        try {
+            $ftpClient->upload($localFile, $this->remotePath($settings['ftpDirectory'], $remoteFilename), $onProgress);
+        } finally {
+            // Even a failed upload may have left a partial file
+            $this->invalidateServerListing();
+        }
 
         return [
             'uploaded' => true,
@@ -1103,6 +1108,10 @@ class BackupManager
                 error_log('[kirby-ftp-backup] Could not delete old FTP backups: ' . implode('; ', $failed));
             }
 
+            if ($toDelete) {
+                $this->invalidateServerListing();
+            }
+
             $deleted = count($toDelete) - count($failed);
             return [
                 'success' => empty($failed),
@@ -1197,10 +1206,166 @@ class BackupManager
         return $result(true);
     }
 
+    // -------------------------------------------------------------------------
+    // Server listing (cached, so a Panel visit does not always connect)
+    // -------------------------------------------------------------------------
+
     /**
-     * Get stats and file list from the FTP server
+     * Minutes a server listing stays valid; 0 turns the cache off
      */
-    public function getFtpServerStats(): array
+    private function serverCacheMinutes(): int
+    {
+        return max(0, (int)$this->option('serverCacheMinutes', 15));
+    }
+
+    /**
+     * One entry per target, so a changed configuration never shows another server's files
+     */
+    private function serverCacheKey(array $settings): string
+    {
+        return 'server-listing-' . md5(json_encode([
+            $settings['ftpProtocol'], $settings['ftpHost'], $settings['ftpPort'],
+            $settings['ftpUsername'], $settings['ftpDirectory'],
+        ]));
+    }
+
+    private function serverCache(): ?\Kirby\Cache\Cache
+    {
+        return $this->serverCacheMinutes() > 0 ? kirby()->cache('tearoom1.kirby-ftp-backup') : null;
+    }
+
+    /**
+     * The cached listing (files, checkedAt, expired) or null
+     */
+    private function cachedServerListing(array $settings): ?array
+    {
+        $entry = $this->serverCache()?->get($this->serverCacheKey($settings));
+        return is_array($entry) && isset($entry['files'], $entry['checkedAt']) ? $entry : null;
+    }
+
+    private function isFreshListing(?array $entry): bool
+    {
+        return $entry !== null
+            && $entry['checkedAt'] > $this->serverChangedAt()
+            && $entry['checkedAt'] >= time() - $this->serverCacheMinutes() * 60;
+    }
+
+    /**
+     * When this site last changed the server (upload, cleanup, delete)
+     */
+    private function serverChangedAt(): int
+    {
+        $path = $this->backupDir . '/.server-changed';
+        clearstatcache(true, $path);
+        return is_file($path) ? (int)filemtime($path) : 0;
+    }
+
+    /**
+     * Mark cached listings as outdated after the server changed. A marker file in
+     * the backup directory reaches the Panel's cache also from cron runs, whose
+     * Kirby instance may use another cache location. The cached entry stays as a
+     * fallback for when the server cannot be reached.
+     */
+    public function invalidateServerListing(): void
+    {
+        @touch($this->backupDir . '/.server-changed');
+    }
+
+    /**
+     * Read the backup files on the server: filename, size and creation time
+     */
+    private function fetchServerListing(array $settings): array
+    {
+        $ftpClient = null;
+        $directory = $settings['ftpDirectory'];
+
+        try {
+            $ftpClient = $this->createFtpClient($settings);
+            $files = [];
+            foreach ($ftpClient->listDirectory($directory) as $file) {
+                if (F::extension($file) !== 'zip') {
+                    continue;
+                }
+                $path = $this->remotePath($directory, $file);
+                try {
+                    $files[] = [
+                        'filename' => $file,
+                        'size' => $ftpClient->getFileSize($path),
+                        // Only ask the server for the file time when the name has none
+                        'modified' => $this->backupTime($file, fn () => $ftpClient->getModifiedTime($path)),
+                    ];
+                } catch (\Throwable $e) {
+                    // Still list files we can't get details for
+                    $files[] = ['filename' => $file, 'size' => null, 'modified' => $this->parseBackupName($file)['timestamp'] ?? 0];
+                }
+            }
+            return $files;
+        } finally {
+            $ftpClient?->disconnect();
+        }
+    }
+
+    /**
+     * Response data for a listing; protection and the next cleanup are evaluated
+     * now, so a cached listing still shows changes made since it was read
+     */
+    private function serverStatsData(array $settings, array $entry, bool $cached): array
+    {
+        $files = $entry['files'];
+        $names = array_column($files, 'filename');
+        $deleteNext = $settings['deleteFromFtp'] ? $this->deletedByNextRun($names, $settings) : [];
+        $protected = $this->protectedBackups();
+
+        $backupFiles = [];
+        $totalSize = 0;
+        $latestModified = 0;
+        foreach ($files as $file) {
+            $known = $file['size'] !== null;
+            $backupFiles[] = [
+                'filename' => $file['filename'],
+                'size' => (int)$file['size'],
+                'formattedSize' => $known ? BackupController::formatSize((int)$file['size']) : 'Unknown',
+                'modified' => (int)$file['modified'],
+                'formattedDate' => $file['modified'] ? date('Y-m-d H:i:s', (int)$file['modified']) : 'Unknown',
+                'protected' => in_array($file['filename'], $protected, true),
+                'deleteNext' => in_array($file['filename'], $deleteNext, true),
+            ];
+            $totalSize += (int)$file['size'];
+            $latestModified = max($latestModified, (int)$file['modified']);
+        }
+        usort($backupFiles, fn ($a, $b) => $b['modified'] <=> $a['modified']);
+
+        return [
+            'connection' => $this->connectionInfo($settings),
+            'files' => $backupFiles,
+            'count' => count($backupFiles),
+            'totalSize' => $totalSize,
+            'formattedTotalSize' => BackupController::formatSize($totalSize),
+            'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None',
+            'checkedAt' => (int)$entry['checkedAt'],
+            'cached' => $cached,
+        ];
+    }
+
+    /**
+     * The cached listing if it is still valid, without connecting; null otherwise
+     */
+    public function cachedServerStats(): ?array
+    {
+        $settings = $this->getSettings();
+        if (!$settings['ftpEnabled'] || !$this->isFtpConfigured()) {
+            return null;
+        }
+        $entry = $this->cachedServerListing($settings);
+        return $this->isFreshListing($entry) ? $this->serverStatsData($settings, $entry, true) : null;
+    }
+
+    /**
+     * Backups on the server. A valid cached listing is returned without connecting;
+     * `$fresh` always reads the server. If the server cannot be reached, the last
+     * cached listing is returned with `stale` and the error.
+     */
+    public function getFtpServerStats(bool $fresh = false): array
     {
         $settings = $this->getSettings();
 
@@ -1211,79 +1376,31 @@ class BackupManager
             ];
         }
 
-        $ftpClient = null;
-        $directory = $settings['ftpDirectory'];
-        $connection = $this->connectionInfo($settings);
+        $entry = $this->cachedServerListing($settings);
+        if (!$fresh && $this->isFreshListing($entry)) {
+            return ['status' => 'success', 'data' => $this->serverStatsData($settings, $entry, true)];
+        }
 
         try {
-            $ftpClient = $this->createFtpClient($settings);
-
-            $backupFiles = [];
-            $totalSize = 0;
-            $latestModified = 0;
-            $files = $ftpClient->listDirectory($directory);
-            $deleteNext = $settings['deleteFromFtp'] ? $this->deletedByNextRun($files, $settings) : [];
-            $protected = $this->protectedBackups();
-
-            foreach ($files as $file) {
-                if (F::extension($file) !== 'zip') {
-                    continue;
-                }
-
-                try {
-                    $path = $this->remotePath($directory, $file);
-                    $fileSize = $ftpClient->getFileSize($path);
-                    // Only ask the server for the file time when the name has none
-                    $fileModified = $this->backupTime($file, fn () => $ftpClient->getModifiedTime($path));
-
-                    $backupFiles[] = [
-                        'filename' => $file,
-                        'size' => $fileSize,
-                        'formattedSize' => BackupController::formatSize($fileSize),
-                        'modified' => $fileModified,
-                        'formattedDate' => date('Y-m-d H:i:s', $fileModified),
-                        'protected' => in_array($file, $protected, true),
-                        'deleteNext' => in_array($file, $deleteNext, true),
-                    ];
-
-                    $totalSize += $fileSize;
-                    $latestModified = max($latestModified, $fileModified);
-                } catch (\Throwable $e) {
-                    // Still list files we can't get details for
-                    $backupFiles[] = [
-                        'filename' => $file,
-                        'size' => 0,
-                        'formattedSize' => 'Unknown',
-                        'modified' => 0,
-                        'formattedDate' => 'Unknown',
-                        'protected' => in_array($file, $protected, true),
-                        'deleteNext' => in_array($file, $deleteNext, true),
-                    ];
-                }
-            }
-
-            usort($backupFiles, fn ($a, $b) => $b['modified'] <=> $a['modified']);
-
-            return [
-                'status' => 'success',
-                'data' => [
-                    'connection' => $connection,
-                    'files' => $backupFiles,
-                    'count' => count($backupFiles),
-                    'totalSize' => $totalSize,
-                    'formattedTotalSize' => BackupController::formatSize($totalSize),
-                    'latestModified' => $latestModified > 0 ? date('Y-m-d H:i:s', $latestModified) : 'None'
-                ]
-            ];
+            $listing = ['files' => $this->fetchServerListing($settings), 'checkedAt' => time()];
+            $this->serverCache()?->set($this->serverCacheKey($settings), $listing);
+            return ['status' => 'success', 'data' => $this->serverStatsData($settings, $listing, false)];
         } catch (\Throwable $e) {
             error_log('[kirby-ftp-backup] Error retrieving FTP server stats: ' . $e->getMessage());
+            $message = 'Error retrieving FTP server stats: ' . $e->getMessage();
+            if ($entry !== null) {
+                // A failed check is a valid result: show what the server had last time
+                return ['status' => 'success', 'data' => [
+                    ...$this->serverStatsData($settings, $entry, true),
+                    'stale' => true,
+                    'error' => $message,
+                ]];
+            }
             return [
                 'status' => 'error',
-                'message' => 'Error retrieving FTP server stats: ' . $e->getMessage(),
-                'connection' => $connection
+                'message' => $message,
+                'connection' => $this->connectionInfo($settings)
             ];
-        } finally {
-            $ftpClient?->disconnect();
         }
     }
 
@@ -1356,6 +1473,7 @@ class BackupManager
                 ];
             } finally {
                 $ftpClient?->disconnect();
+                $this->invalidateServerListing();
             }
         } elseif (!$deletedLocally) {
             return ['status' => 'error', 'message' => 'Backup file not found'];

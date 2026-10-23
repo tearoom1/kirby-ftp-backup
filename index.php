@@ -76,6 +76,8 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
         'notifyWebhook' => null, // URL that receives a JSON POST per notification
         'notifyOnSuccess' => false, // Also notify about successful runs
         'maxBackupAge' => 0, // Warn in the Panel when the newest backup is older than this many hours (0 = off)
+        'serverCacheMinutes' => 15, // Panel: reuse the list of files on the server for this many minutes (0 = always connect)
+        'cache' => true, // Plugin cache that holds the server list
         // general settings
         'backupDirectory' => kirby()->root('content') . '/.backups',
         'backupRetention' => 10, // Number of backups to keep
@@ -213,7 +215,9 @@ Kirby::plugin('tearoom1/kirby-ftp-backup', [
                 'pattern' => 'ftp-backup/ftp-stats',
                 'method' => 'GET',
                 'action' => $guarded('retrieving FTP stats', function () {
-                    return (new BackupManager())->getFtpServerStats();
+                    // ?fresh=1 skips the cached list (refresh button in the Panel)
+                    $fresh = filter_var(kirby()->request()->get('fresh', false), FILTER_VALIDATE_BOOLEAN);
+                    return (new BackupManager())->getFtpServerStats($fresh);
                 })
             ],
         ]

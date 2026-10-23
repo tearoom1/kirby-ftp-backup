@@ -76,6 +76,7 @@ All configuration is handled through Kirby's option system. Add the following to
 | `notifyWebhook` | string | `null` | URL that receives each notification as JSON `POST` (e.g. for Slack, ntfy or a monitoring service) |
 | `notifyOnSuccess` | boolean | `false` | Also notify about successful runs |
 | `maxBackupAge` | integer | `0` | Show a warning in the Panel when the newest backup is older than this many hours (`0` = off) |
+| `serverCacheMinutes` | integer | `15` | Panel: reuse the list of files on the FTP server for this many minutes instead of connecting on every visit (`0` = always connect). Uploads, cleanup and deletions mark the list as outdated; the refresh button always reads the server |
 | `backupDirectory` | string | `'content/.backups'` | Either absolute or relative (to Kirby base) path for local backups. It is never included in a backup, even when it lies inside `content` |
 | `backupRetention` | integer | `10` | Number of backups to keep when using simple retention strategy   |
 | `deleteFromFtp` | boolean | `true` | Whether to delete old backups from FTP server                    |

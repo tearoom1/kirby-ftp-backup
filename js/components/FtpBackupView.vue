@@ -74,21 +74,8 @@
           <dd class="k-stat-info">{{ formatSize(localTotalSize) }}</dd>
         </div>
 
-        <div class="k-stat k-ftp-backup-tile">
-          <dt class="k-stat-label">
-            <span>{{ t('tile.remote') }}</span>
-            <k-button
-              v-if="ftpConfigured"
-              class="k-ftp-backup-tile-action"
-              icon="server"
-              size="xs"
-              variant="filled"
-              :title="t('tile.showFilesHint')"
-              :text="t('tile.showFiles')"
-              :disabled="isCreatingBackup || isLoadingFtpStats"
-              @click="showFtpServerStats"
-            />
-          </dt>
+        <div class="k-stat k-ftp-backup-tile" :data-state="remoteStale ? 'old' : null">
+          <dt class="k-stat-label" :title="remoteTarget || null">{{ t('tile.remote') }}</dt>
           <dd class="k-stat-value">{{ remoteValue }}</dd>
           <dd class="k-stat-info" :title="remoteError || null">{{ remoteInfo }}</dd>
         </div>
@@ -240,86 +227,6 @@
       </template>
     </k-dialog>
 
-    <!-- FTP Server Stats Dialog -->
-    <k-dialog
-      ref="ftpStatsDialog"
-      class="k-ftp-backup-stats-dialog"
-      size="large"
-    >
-      <k-headline>{{ t('server.title') }}</k-headline>
-
-      <div v-if="isLoadingFtpStats" class="k-ftp-backup-dialog-loading">
-        <k-loader/>
-        <span>{{ t('server.loading') }}</span>
-      </div>
-
-      <div v-else-if="ftpStatsError" class="k-ftp-backup-dialog-error">
-        <div v-if="ftpStatsErrorConnection" class="k-ftp-backup-connection">
-          <span>{{ t('server.endpoint') }}</span>
-          <code>{{ ftpStatsErrorConnection }}</code>
-        </div>
-        <k-box theme="negative">
-          {{ ftpStatsError }}
-        </k-box>
-      </div>
-
-      <div v-else-if="ftpStats" class="k-ftp-backup-view-server-stats">
-        <div v-if="ftpStats.connection" class="k-ftp-backup-connection">
-          <span>{{ t('server.endpoint') }}</span>
-          <code>{{ ftpStatsConnection }}</code>
-        </div>
-
-        <div class="k-ftp-backup-view-stats">
-          <div class="k-ftp-backup-view-stats-card">
-            <h3>{{ t('server.files') }}</h3>
-            <p>{{ ftpStats.count }}</p>
-          </div>
-
-          <div class="k-ftp-backup-view-stats-card">
-            <h3>{{ t('stats.size') }}</h3>
-            <p>{{ ftpStats.formattedTotalSize }}</p>
-          </div>
-
-          <div class="k-ftp-backup-view-stats-card">
-            <h3>{{ t('stats.latest') }}</h3>
-            <p>{{ ftpStats.latestModified }}</p>
-          </div>
-        </div>
-
-        <div class="k-ftp-backup-dialog-section">
-          <h3 class="k-ftp-backup-files-title">{{ t('server.files') }}</h3>
-          <div v-if="ftpStats.files && ftpStats.files.length > 0">
-            <table class="k-ftp-backup-files-table">
-              <thead>
-              <tr>
-                <th>{{ t('server.filename') }}</th>
-                <th>{{ t('server.size') }}</th>
-                <th>{{ t('server.date') }}</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="file in ftpStats.files" :key="file.filename">
-                <td>{{ file.filename }}</td>
-                <td>{{ file.formattedSize }}</td>
-                <td>{{ file.formattedDate }}</td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="k-ftp-backup-view-backup-list-empty">
-            {{ t('server.empty') }}
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <k-button-group>
-          <k-button icon="check" @click="$refs.ftpStatsDialog.close()">
-            {{ $t('close') }}
-          </k-button>
-        </k-button-group>
-      </template>
-    </k-dialog>
   </k-panel-inside>
 </template>
 
@@ -327,6 +234,8 @@
 export default {
   props: {
     stats: Object,
+    // Cached server listing from the area, so the view is complete on first render
+    server: Object,
     isAdmin: Boolean
   },
 
@@ -337,12 +246,11 @@ export default {
       isCancelling: false,
       // true until the first list arrives, so the empty state does not flash
       isLoadingBackups: true,
-      isLoadingFtpStats: false,
       isLoadingRemote: false,
       isTestingConnection: false,
       localStats: this.stats || {},
       localBackups: [],
-      remoteFiles: null,
+      remoteFiles: this.server ? (this.server.files || []) : null,
       remoteError: null,
       health: null,
       ftpSettings: null,
@@ -353,9 +261,12 @@ export default {
         message: '',
         isPersistent: false
       },
-      ftpStats: null,
-      ftpStatsError: null,
-      ftpStatsErrorConnection: '',
+      ftpStats: this.server || null,
+      // the next load can skip the request when the area already sent the listing
+      remoteFromProps: Boolean(this.server),
+      // ticks every minute for "checked 5 min ago"
+      now: Date.now(),
+      nowTimer: null,
       // Progress tracking
       currentJobId: null,
       progressPollTimer: null,
@@ -412,7 +323,8 @@ export default {
         icon: 'refresh',
         title: this.t('action.refresh'),
         disabled: this.isLoadingBackups || this.isLoadingRemote || this.isCreatingBackup,
-        click: () => this.loadBackups()
+        // Always reads the server, the cached listing is skipped
+        click: () => this.loadBackups(true)
       }];
     },
 
@@ -442,14 +354,14 @@ export default {
       if (!this.ftpConfigured) {
         return this.ftpSettings ? this.t('tile.ftpLocalOnly') : '–';
       }
-      if (this.remoteKnown) {
-        return this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0));
+      if (this.remoteStale) {
+        return this.t('tile.unreachable') + ' · ' + this.t('tile.lastChecked', {time: this.formatChecked(this.ftpStats.checkedAt)});
+      }
+      if (this.remoteKnown && this.ftpStats) {
+        const size = this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0));
+        return size + ' · ' + this.formatCheckedLine(this.ftpStats.checkedAt);
       }
       return this.remoteError !== null ? this.t('tile.unreachable') : '–';
-    },
-
-    latestBackup() {
-      return this.listItems[0] || null;
     },
 
     lastBackupState() {
@@ -510,17 +422,26 @@ export default {
       if (phase === 'error') return this.t('progress.error', {message: this.progressMessage});
       return this.progressMessage || '';
     },
-    ftpStatsConnection() {
-      return this.formatConnection(this.ftpStats && this.ftpStats.connection);
+    remoteTarget() {
+      return this.ftpStats ? this.formatConnection(this.ftpStats.connection) : '';
+    },
+
+    // Showing the last listing because the server could not be reached
+    remoteStale() {
+      return Boolean(this.ftpStats && this.ftpStats.stale);
     }
   },
 
   created() {
     this.checkFtpSettings().then(() => this.loadBackups());
+    this.nowTimer = setInterval(() => {
+      this.now = Date.now();
+    }, 60000);
   },
 
   beforeDestroy() {
     this.stopProgressPolling();
+    clearInterval(this.nowTimer);
   },
 
   methods: {
@@ -547,6 +468,21 @@ export default {
       if (abs < 2 * 86400) return format.format(Math.round(seconds / 3600), 'hour');
       if (abs < 60 * 86400) return format.format(Math.round(seconds / 86400), 'day');
       return format.format(Math.round(seconds / (30 * 86400)), 'month');
+    },
+
+    // "checked 5 min ago"; this.now keeps it current
+    formatChecked(timestamp) {
+      const seconds = Math.round(timestamp - this.now / 1000);
+      const format = new Intl.RelativeTimeFormat(this.locale, {numeric: 'auto', style: 'short'});
+      if (Math.abs(seconds) < 3600) return format.format(Math.round(seconds / 60), 'minute');
+      if (Math.abs(seconds) < 86400) return format.format(Math.round(seconds / 3600), 'hour');
+      return format.format(Math.round(seconds / 86400), 'day');
+    },
+
+    formatCheckedLine(timestamp) {
+      return this.now / 1000 - timestamp < 60
+        ? this.t('tile.checkedNow')
+        : this.t('tile.checked', {time: this.formatChecked(timestamp)});
     },
 
     backupCount(count) {
@@ -649,7 +585,7 @@ export default {
       });
     },
 
-    async loadBackups() {
+    async loadBackups(fresh = false) {
       this.isLoadingBackups = true;
 
       try {
@@ -669,23 +605,29 @@ export default {
         this.isLoadingBackups = false;
       }
 
-      this.loadRemoteFiles();
+      this.loadRemoteFiles(fresh);
     },
 
-    // The server listing needs a connection, so it is loaded after the local list
-    async loadRemoteFiles() {
+    // The server listing (cached on the server) is loaded after the local list
+    async loadRemoteFiles(fresh = false) {
       if (!this.ftpConfigured) {
         this.remoteFiles = null;
         return;
       }
+      if (this.remoteFromProps && !fresh) {
+        this.remoteFromProps = false;
+        return;
+      }
+      this.remoteFromProps = false;
 
       this.isLoadingRemote = true;
       this.remoteError = null;
       try {
-        const response = await this.$api.get('ftp-backup/ftp-stats');
+        const response = await this.$api.get('ftp-backup/ftp-stats', fresh ? {fresh: 1} : undefined);
         if (response.status === 'success' && response.data) {
           this.remoteFiles = response.data.files || [];
           this.ftpStats = response.data;
+          this.remoteError = response.data.stale ? (response.data.error || '') : null;
         } else {
           this.remoteFiles = null;
           this.remoteError = response.message || '';
@@ -845,36 +787,6 @@ export default {
 
     showSettingsInfo() {
       this.$refs.settingsDialog.open();
-    },
-
-    // FTP Server Stats methods
-    showFtpServerStats() {
-      this.$refs.ftpStatsDialog.open();
-      this.loadFtpServerStats();
-    },
-
-    async loadFtpServerStats() {
-      this.isLoadingFtpStats = true;
-      this.ftpStatsError = null;
-      this.ftpStatsErrorConnection = '';
-
-      try {
-        const response = await this.$api.get('ftp-backup/ftp-stats');
-
-        if (response.status === 'success' && response.data) {
-          this.ftpStats = response.data;
-          this.remoteFiles = response.data.files || [];
-        } else {
-          this.ftpStatsError = response.message || 'Failed to load FTP server stats';
-          this.ftpStatsErrorConnection = this.formatConnection(response.connection);
-          this.ftpStats = null;
-        }
-      } catch (error) {
-        this.ftpStatsError = error.message || 'Failed to load FTP server stats';
-        this.ftpStats = null;
-      } finally {
-        this.isLoadingFtpStats = false;
-      }
     },
 
     // FTP Warning Panel Methods

@@ -14,6 +14,8 @@ class FakeFtpClient implements FtpClientInterface
     public array $uploaded = [];
     public array $deleted = [];
     public bool $connected = false;
+    /** Number of connections, to see whether a cached listing was used */
+    public int $connects = 0;
     public ?\Throwable $connectError = null;
     public ?\Throwable $uploadError = null;
 
@@ -28,6 +30,7 @@ class FakeFtpClient implements FtpClientInterface
             throw $this->connectError;
         }
         $this->connected = true;
+        $this->connects++;
     }
 
     public function upload(string $localFile, string $remoteFile, ?callable $onProgress = null): bool

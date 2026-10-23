@@ -46,6 +46,8 @@ abstract class PluginTestCase extends TestCase
             ],
             'options' => [
                 'tearoom1.kirby-ftp-backup' => array_merge(['ftpEnabled' => false], $options),
+                // The plugin is not registered in tests: enable its cache under the plain key
+                'cache.tearoom1.kirby-ftp-backup' => true,
             ],
         ]);
     }

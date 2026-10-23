@@ -15,8 +15,12 @@ return [
                     throw new \Kirby\Exception\PermissionException('You are not allowed to access FTP Backup');
                 }
                 $stats = null;
+                $server = null;
                 try {
-                    $stats = BackupController::getStats();
+                    $manager = new \TearoomOne\FtpBackup\BackupManager();
+                    $stats = BackupController::getStats($manager);
+                    // A valid cached server list, so the view is complete without connecting
+                    $server = $manager->cachedServerStats();
                 } catch (\Throwable $e) {
                     error_log('[kirby-ftp-backup] Failed to load stats in panel view: ' . $e->getMessage());
                 }
@@ -25,6 +29,7 @@ return [
                     'title' => 'FTP Backup',
                     'props' => [
                         'stats' => $stats,
+                        'server' => $server,
                         // Only admins see the setup help with the config example
                         'isAdmin' => kirby()->user()?->isAdmin() ?? false,
                     ]
