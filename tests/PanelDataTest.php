@@ -114,4 +114,46 @@ class PanelDataTest extends PluginTestCase
 
         $this->assertSame([false, false], array_column($stats['data']['files'], 'deleteNext'));
     }
+
+    public function testBackupTimeComesFromTheFilenameNotTheFileTime(): void
+    {
+        $this->app(['filePrefix' => 'basic-', 'maxBackupAge' => 36]);
+        $created = $this->days(10);
+        // Copied or restored later: the file time is newer than the backup
+        $this->createLocalBackup($this->backupName($created, 'basic-'), 0);
+        $this->createLocalBackup($this->backupName($this->days(20), 'basic-'), 0);
+        // A name of another format keeps its file time
+        $this->createLocalBackup('manual.zip', 15);
+
+        $manager = new BackupManager();
+        $list = $manager->listBackupFiles();
+
+        $this->assertSame(
+            [$this->backupName($created, 'basic-'), 'manual.zip', $this->backupName($this->days(20), 'basic-')],
+            array_column($list, 'filename'),
+            'Sorted by creation time, newest first'
+        );
+        $this->assertSame($created, $list[0]['modified']);
+        $this->assertEqualsWithDelta($this->days(15), $list[1]['modified'], 1);
+        // The age check uses the same time: 10 days is older than 36 hours
+        $health = $manager->backupHealth();
+        $this->assertSame($created, $health['latestBackup']);
+        $this->assertTrue($health['stale']);
+    }
+
+    public function testServerListTakesTheTimeFromTheFilename(): void
+    {
+        $this->app(['ftpEnabled' => true, 'ftpHost' => 'h', 'ftpUsername' => 'u', 'ftpDirectory' => 'backups']);
+        $created = $this->days(3);
+        $client = new FakeFtpClient();
+        $client->addFile('backups/' . $this->backupName($created), time());
+        $client->addFile('backups/other.zip', $this->days(1));
+
+        $data = $this->managerWithClient($client)->getFtpServerStats()['data'];
+
+        $times = array_column($data['files'], 'modified', 'filename');
+        $this->assertSame($created, $times[$this->backupName($created)]);
+        $this->assertSame($this->days(1), $times['other.zip']);
+        $this->assertSame('other.zip', $data['files'][0]['filename']);
+    }
 }

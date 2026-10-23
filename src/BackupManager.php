@@ -281,7 +281,7 @@ class BackupManager
                 $backups[] = [
                     'filename' => $file,
                     'size' => F::size($path),
-                    'modified' => F::modified($path),
+                    'modified' => $this->backupTime($file, fn () => F::modified($path)),
                     'protected' => in_array($file, $this->protectedBackups(), true),
                     'deleteNext' => in_array($file, $deleteNext, true),
                     'downloadUrl' => kirby()->url('index') . '/ftp-backup/download/' . rawurlencode($file)
@@ -568,25 +568,47 @@ class BackupManager
      */
     private function ownBackups(array $filenames): array
     {
-        $prefix = preg_quote((string)$this->option('filePrefix', 'backup-'), '/');
-        $pattern = '/^' . $prefix . '(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d+))?\.zip$/';
-
         $backups = [];
         foreach ($filenames as $filename) {
-            if (!preg_match($pattern, $filename, $m)) {
+            $parsed = $this->parseBackupName($filename);
+            if ($parsed === null) {
                 continue;
             }
-            $timestamp = mktime((int)$m[4], (int)$m[5], (int)$m[6], (int)$m[2], (int)$m[3], (int)$m[1]);
-            $backups[] = [
-                'filename' => $filename,
-                'timestamp' => $timestamp,
-                'sequence' => (int)($m[7] ?? 1),
-            ];
+            $backups[] = ['filename' => $filename, ...$parsed];
         }
 
         usort($backups, fn ($a, $b) => [$b['timestamp'], $b['sequence']] <=> [$a['timestamp'], $a['sequence']]);
 
         return $backups;
+    }
+
+    /**
+     * Creation time and sequence encoded in a backup filename of this plugin
+     * (`<prefix>YYYY-MM-DD-HHMMSS[-N].zip`), or null for any other name
+     *
+     * @return array{timestamp: int, sequence: int}|null
+     */
+    private function parseBackupName(string $filename): ?array
+    {
+        $prefix = preg_quote((string)$this->option('filePrefix', 'backup-'), '/');
+        $pattern = '/^' . $prefix . '(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d+))?\.zip$/';
+        if (!preg_match($pattern, $filename, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+            return null;
+        }
+
+        return [
+            'timestamp' => (int)mktime((int)$m[4], (int)$m[5], (int)$m[6], (int)$m[2], (int)$m[3], (int)$m[1]),
+            'sequence' => (int)($m[7] ?? 1),
+        ];
+    }
+
+    /**
+     * When a backup was created: the time in its filename, so copying or touching
+     * the file does not change it; the file time only for names of other formats
+     */
+    private function backupTime(string $filename, callable $fileTime): int
+    {
+        return $this->parseBackupName($filename)['timestamp'] ?? (int)$fileTime();
     }
 
     /**
@@ -1211,7 +1233,8 @@ class BackupManager
                 try {
                     $path = $this->remotePath($directory, $file);
                     $fileSize = $ftpClient->getFileSize($path);
-                    $fileModified = $ftpClient->getModifiedTime($path);
+                    // Only ask the server for the file time when the name has none
+                    $fileModified = $this->backupTime($file, fn () => $ftpClient->getModifiedTime($path));
 
                     $backupFiles[] = [
                         'filename' => $file,
