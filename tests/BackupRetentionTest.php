@@ -37,7 +37,6 @@ class BackupRetentionTest extends PluginTestCase
         // Use reflection to access private method
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         // Apply retention strategy
         $keepBackups = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
@@ -63,7 +62,6 @@ class BackupRetentionTest extends PluginTestCase
         $emptyBackups = [];
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->backupManager, $emptyBackups, $tieredSettings);
         $this->assertEmpty($result, 'Empty backup list should return empty result');
@@ -109,7 +107,6 @@ class BackupRetentionTest extends PluginTestCase
 
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
 
@@ -147,7 +144,6 @@ class BackupRetentionTest extends PluginTestCase
 
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
         $filenames = array_column($result, 'filename');
@@ -222,7 +218,6 @@ class BackupRetentionTest extends PluginTestCase
 
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
         $filenames = array_column($result, 'filename');
@@ -298,7 +293,6 @@ class BackupRetentionTest extends PluginTestCase
 
         $reflection = new \ReflectionClass($this->backupManager);
         $method = $reflection->getMethod('applyTieredRetentionStrategy');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->backupManager, $testBackups, $tieredSettings);
         $filenames = array_column($result, 'filename');
