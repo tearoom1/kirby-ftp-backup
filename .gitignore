@@ -50,6 +50,7 @@
 # kirby dependencies that are only needed for testing
 /vendor/christian-riesen
 /vendor/claviska
+/vendor/erusev
 /vendor/composer/semver
 /vendor/filp
 /vendor/laminas
