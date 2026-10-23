@@ -358,6 +358,7 @@ return array(
     'phpseclib3\\Math\\Common\\FiniteField\\Integer' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Math/Common/FiniteField/Integer.php',
     'phpseclib3\\Math\\PrimeField' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Math/PrimeField.php',
     'phpseclib3\\Math\\PrimeField\\Integer' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Math/PrimeField/Integer.php',
+    'phpseclib3\\Net\\SCP' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Net/SCP.php',
     'phpseclib3\\Net\\SFTP' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Net/SFTP.php',
     'phpseclib3\\Net\\SFTP\\Stream' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Net/SFTP/Stream.php',
     'phpseclib3\\Net\\SSH2' => $vendorDir . '/phpseclib/phpseclib/phpseclib/Net/SSH2.php',
