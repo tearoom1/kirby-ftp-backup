@@ -1,3 +1,21 @@
+## [1.11.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.2...v1.11.0) (2026-10-23)
+
+
+### Features
+
+* **panel:** align backup times in the Created column ([cd8fb49](https://github.com/tearoom1/kirby-ftp-backup/commit/cd8fb491bae01d364283dcc46081fc9e162cf977))
+* **panel:** cache the FTP server listing instead of connecting on every visit ([47d3a9d](https://github.com/tearoom1/kirby-ftp-backup/commit/47d3a9d0f16c4962d252c00a329fdb0d0604d59d))
+* **panel:** download or copy backups that only exist on the FTP server ([8f9b5a9](https://github.com/tearoom1/kirby-ftp-backup/commit/8f9b5a9cc84dfa043cd6ee0bbc07cb61838238e0))
+* **panel:** native Kirby view with header buttons, overview tiles and a backups section ([a825fcb](https://github.com/tearoom1/kirby-ftp-backup/commit/a825fcb7180246e2f74a2b6c4f8937697ac0327f))
+* **panel:** tiles for last backup, web server and FTP server ([2ede745](https://github.com/tearoom1/kirby-ftp-backup/commit/2ede745dc68407e55383dbc03b199da036d7ca74))
+* **panel:** unambiguous table dates and retention notes per copy ([6fdbf82](https://github.com/tearoom1/kirby-ftp-backup/commit/6fdbf82fe7b5eccac49db361d5eeef709f56ff88))
+
+
+### Bug Fixes
+
+* **panel:** show the latest backup in the Last backup tile again ([fb93d68](https://github.com/tearoom1/kirby-ftp-backup/commit/fb93d6883504e0ca3ab5c7e0275a44ac58561a8d))
+* take the backup date from the filename instead of the file time ([dd89791](https://github.com/tearoom1/kirby-ftp-backup/commit/dd89791e89f4c370b7ff0ca5f2efa9aaa5c07110))
+
 ## [1.10.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.1...v1.10.2) (2026-10-23)
 
 
@@ -25,19 +43,4 @@
 ### Features
 
 * **panel:** backup list as a table with date, size, local and server columns ([abe2713](https://github.com/tearoom1/kirby-ftp-backup/commit/abe2713eaa7793a4b9fdbe3397f374a91762aa2b))
-
-## [1.8.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.7.4...v1.8.0) (2026-10-20)
-
-
-### Features
-
-* notify about failed runs, record the last run, warn about old backups ([3ca5f91](https://github.com/tearoom1/kirby-ftp-backup/commit/3ca5f91bdaf4c2a650d18f5a9c4bfa783ca110ca))
-* **panel:** one list for local and server backups, connection test, German ([a31259e](https://github.com/tearoom1/kirby-ftp-backup/commit/a31259e1ff1cec3a528481b37879ffc44422b4f9))
-* protect and delete backups, encrypt archives, back up extra paths ([8a938c8](https://github.com/tearoom1/kirby-ftp-backup/commit/8a938c8fe82e07d6053fe10f6744d85d7d29945e))
-* verify archives and FTP uploads, report FTP progress in bytes ([0d2e7f2](https://github.com/tearoom1/kirby-ftp-backup/commit/0d2e7f267cd6735439c07cf7b93d9cb68f6cb9e7))
-
-
-### Bug Fixes
-
-* Kirby 4 downloads, include filters and duplicate starts ([bda4c23](https://github.com/tearoom1/kirby-ftp-backup/commit/bda4c231fb4ea662ed25e699ac6829ac89edcf3f))
 
