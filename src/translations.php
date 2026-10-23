@@ -98,10 +98,7 @@ $en = [
     'setup.readme' => 'All options are described in the README.',
     'setup.cron' => 'For automatic backups, run this command with cron, e.g. daily at 2 am:',
 
-    'sponsor.label' => 'Support FTP Backup',
-    'sponsor.text' => 'This plugin is built with care and ongoing effort. If it saves you time, a small donation helps keep maintenance and future improvements going.',
-    'sponsor.github' => 'Sponsor on GitHub',
-    'sponsor.coffee' => 'Buy Me a Coffee',
+    'sponsor.label' => 'Support this plugin',
 ];
 
 $de = [
@@ -201,10 +198,7 @@ $de = [
     'setup.readme' => 'Alle Optionen sind in der README beschrieben.',
     'setup.cron' => 'Für automatische Backups diesen Befehl per Cron ausführen, z. B. täglich um 2 Uhr:',
 
-    'sponsor.label' => 'FTP Backup unterstützen',
-    'sponsor.text' => 'Dieses Plugin entsteht mit viel Liebe und laufendem Aufwand. Wenn es dir Zeit spart, hilft eine kleine Spende, Wartung und Weiterentwicklung möglich zu machen.',
-    'sponsor.github' => 'Auf GitHub unterstützen',
-    'sponsor.coffee' => 'Buy Me a Coffee',
+    'sponsor.label' => 'Plugin unterstützen',
 ];
 
 $prefix = fn (array $texts) => array_combine(

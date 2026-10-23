@@ -1,39 +1,15 @@
 <template>
   <k-panel-inside class="k-ftp-backup-view">
-    <!-- Sponsor Heart -->
+    <!-- Support link -->
     <div class="k-ftp-backup-view-sponsor">
       <k-button
         class="k-ftp-backup-view-sponsor-button"
         icon="heart"
-        variant="filled"
         size="sm"
-        theme="empty"
-        :title="t('sponsor.label')"
-        :aria-label="t('sponsor.label')"
-        @click="$refs.sponsorDropdown.toggle()"
+        link="https://www.tearoom.one/en/kirby-plugins/support"
+        target="_blank"
+        :text="t('sponsor.label')"
       />
-      <k-dropdown-content
-        ref="sponsorDropdown"
-        align-x="end"
-      >
-        <div class="k-ftp-backup-view-sponsor-text">
-          {{ t('sponsor.text') }}
-        </div>
-        <k-dropdown-item
-          icon="heart"
-          link="https://github.com/sponsors/tearoom1"
-          target="_blank"
-        >
-          {{ t('sponsor.github') }}
-        </k-dropdown-item>
-        <k-dropdown-item
-          icon="heart"
-          link="https://buymeacoffee.com/tearoom1"
-          target="_blank"
-        >
-          {{ t('sponsor.coffee') }}
-        </k-dropdown-item>
-      </k-dropdown-content>
     </div>
 
     <!-- Status of the last run and the age of the newest backup -->
@@ -958,7 +934,6 @@ export default {
 }
 
 .k-ftp-backup-view-sponsor {
-  position: relative;
   display: flex;
   justify-content: flex-end;
   margin-top: -1rem;
@@ -967,20 +942,12 @@ export default {
 
 .k-ftp-backup-view-sponsor-button {
   --button-color-icon: #e0245e;
-  color: #e0245e;
+  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-view-sponsor-button:hover {
   --button-color-icon: #b81d4d;
-  color: #b81d4d;
-}
-
-.k-ftp-backup-view-sponsor-text {
-  max-width: 17rem;
-  padding: .75rem .75rem .5rem;
-  color: var(--color-text-dimmed);
-  font-size: .8rem;
-  line-height: 1.35;
+  color: var(--color-text);
 }
 
 .k-ftp-backup-view-status {
