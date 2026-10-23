@@ -90,7 +90,8 @@
         <table>
           <thead>
           <tr>
-            <th>{{ t('list.created') }}</th>
+            <!-- date and time in two columns, so all times start at the same position -->
+            <th colspan="2">{{ t('list.created') }}</th>
             <th class="is-right">{{ t('list.size') }}</th>
             <th class="is-center">{{ t('list.colLocal') }}</th>
             <th v-if="ftpConfigured" class="is-center">{{ t('list.colServer') }}</th>
@@ -101,10 +102,8 @@
           </thead>
           <tbody>
           <tr v-for="backup in listItems" :key="backup.filename">
-            <td class="k-ftp-backup-table-date">
-              <strong>{{ formatDay(backup.modified) }}</strong>
-              <span>{{ formatTime(backup.modified) }}</span>
-            </td>
+            <td class="k-ftp-backup-table-date">{{ formatDay(backup.modified) }}</td>
+            <td class="k-ftp-backup-table-time">{{ formatTime(backup.modified) }}</td>
             <td class="k-ftp-backup-table-size is-right">{{ formatSize(backup.size || 0) }}</td>
             <td class="k-ftp-backup-table-flag is-center">
               <k-icon v-if="backup.local" type="check" class="is-yes" :title="t('list.colLocal')"/>
@@ -1019,12 +1018,13 @@ export default {
   color: var(--color-text-dimmed);
 }
 
-.k-ftp-backup-table-date strong {
+.k-ftp-backup-table-date {
   font-weight: var(--font-bold);
+  padding-inline-end: 0 !important;
 }
 
-.k-ftp-backup-table-date span {
-  margin-inline-start: 0.4rem;
+.k-ftp-backup-table-time {
+  padding-inline-start: 0.6rem !important;
   color: var(--color-text-dimmed);
 }
 
@@ -1113,10 +1113,25 @@ export default {
     border: 0;
   }
 
+  .k-ftp-backup-table-date,
+  .k-ftp-backup-table-time {
+    display: inline !important;
+  }
+
+  .k-ftp-backup-table-time {
+    padding-inline-start: 0.4rem !important;
+  }
+
   .k-ftp-backup-table-size,
   .k-ftp-backup-table-location {
     display: inline !important;
     color: var(--color-text-dimmed);
+  }
+
+  /* size and location on the second line */
+  .k-ftp-backup-table-size::before {
+    content: "";
+    display: block;
   }
 
   .k-ftp-backup-table-location:not(:empty)::before {
