@@ -4,6 +4,15 @@
       FTP Backup
       <template #buttons>
         <k-button
+          class="k-ftp-backup-view-sponsor-button"
+          icon="heart"
+          size="sm"
+          :responsive="true"
+          link="https://www.tearoom.one/en/kirby-plugins/support"
+          target="_blank"
+          :text="t('sponsor.label')"
+        />
+        <k-button
           icon="upload"
           size="sm"
           variant="filled"
@@ -23,16 +32,6 @@
           :text="t('action.cancel')"
           @click="cancelBackup"
         />
-        <k-button
-          class="k-ftp-backup-view-sponsor-button"
-          icon="heart"
-          size="sm"
-          variant="filled"
-          :responsive="true"
-          link="https://www.tearoom.one/en/kirby-plugins/support"
-          target="_blank"
-          :text="t('sponsor.label')"
-        />
         <k-options-dropdown
           icon="dots"
           size="sm"
@@ -51,51 +50,47 @@
       <p class="k-ftp-backup-progress-label">{{ progressLabel }}</p>
     </k-section>
 
-    <!-- Result of the last run and FTP problems -->
-    <k-section v-if="statusMessages.length || ftpWarning.show" class="k-ftp-backup-view-status">
-      <k-box
-        v-for="status in statusMessages"
-        :key="status.key"
-        :theme="status.theme"
-        :icon="status.icon"
-        :text="status.text"
-      />
-      <k-box v-if="ftpWarning.show" theme="negative" class="k-ftp-backup-view-warning-box">
+    <!-- A manual backup whose upload failed -->
+    <k-section v-if="ftpWarning.show">
+      <k-box theme="negative" class="k-ftp-backup-view-warning-box">
         <k-icon type="alert"/>
         <span>{{ ftpWarning.message }}</span>
-        <k-button v-if="isAdmin" icon="settings" :title="t('action.setup')" @click="showSettingsInfo"/>
         <k-button icon="cancel" :title="$t('close')" @click="dismissWarning"/>
       </k-box>
     </k-section>
 
-    <!-- Overview: Kirby's stat tiles, with a second info line where needed -->
-    <k-section>
-      <dl class="k-stats k-ftp-backup-view-overview" data-size="medium">
-        <div class="k-stat">
-          <dt class="k-stat-label">{{ t('stats.count') }}</dt>
-          <dd class="k-stat-value">{{ listItems.length }}</dd>
-          <dd class="k-stat-info">{{ countInfo }}</dd>
+    <!-- Three tiles in Kirby's stat style: label, value, one info line -->
+    <k-section class="k-ftp-backup-tiles">
+      <dl class="k-stats" data-size="large">
+        <div class="k-stat k-ftp-backup-tile" :data-state="lastBackupState">
+          <dt class="k-stat-label">{{ t('tile.last') }}</dt>
+          <dd class="k-stat-value">{{ latestBackup ? formatAge(latestBackup.modified) : t('stats.none') }}</dd>
+          <dd class="k-stat-info">{{ lastBackupInfo }}</dd>
         </div>
 
-        <div class="k-stat">
-          <dt class="k-stat-label">{{ t('stats.size') }}</dt>
-          <dd class="k-stat-value">{{ t('stats.sizeLocal', {size: formatSize(localTotalSize)}) }}</dd>
-          <dd v-if="ftpConfigured" class="k-stat-info">{{ t('stats.sizeRemote', {size: remoteTotalSize}) }}</dd>
+        <div class="k-stat k-ftp-backup-tile">
+          <dt class="k-stat-label">{{ t('tile.local') }}</dt>
+          <dd class="k-stat-value">{{ backupCount(localBackups.length) }}</dd>
+          <dd class="k-stat-info">{{ formatSize(localTotalSize) }}</dd>
         </div>
 
-        <div class="k-stat" :data-theme="isStale ? 'notice' : null">
+        <div class="k-stat k-ftp-backup-tile">
           <dt class="k-stat-label">
-            <k-icon v-if="isStale" type="alert"/>
-            {{ t('stats.latest') }}
+            <span>{{ t('tile.remote') }}</span>
+            <k-button
+              v-if="ftpConfigured"
+              class="k-ftp-backup-tile-action"
+              icon="server"
+              size="xs"
+              variant="filled"
+              :title="t('tile.showFilesHint')"
+              :text="t('tile.showFiles')"
+              :disabled="isCreatingBackup || isLoadingFtpStats"
+              @click="showFtpServerStats"
+            />
           </dt>
-          <dd class="k-stat-value">{{ latestBackup ? formatDate(latestBackup.modified) : t('stats.none') }}</dd>
-          <dd v-if="isStale" class="k-stat-info">
-            {{ latestBackup ? t('stats.stale', {hours: maxBackupAge}) : t('stats.staleNone') }}
-          </dd>
-          <dd v-if="latestBackup" class="k-stat-info k-ftp-backup-view-overview-file" :title="latestBackup.filename">
-            {{ latestBackup.filename }}
-          </dd>
-          <dd v-if="latestBackup && latestLocation" class="k-stat-info">{{ latestLocation }}</dd>
+          <dd class="k-stat-value">{{ remoteValue }}</dd>
+          <dd class="k-stat-info" :title="remoteError || null">{{ remoteInfo }}</dd>
         </div>
       </dl>
     </k-section>
@@ -350,6 +345,7 @@ export default {
       remoteFiles: null,
       remoteError: null,
       health: null,
+      ftpSettings: null,
       ftpConfigured: false,
       connectionTest: null,
       ftpWarning: {
@@ -400,38 +396,10 @@ export default {
         .sort((a, b) => (b.modified - a.modified) || b.filename.localeCompare(a.filename));
     },
 
-    statusMessages() {
-      const messages = [];
-      const health = this.health;
-      if (!health) {
-        return messages;
-      }
-
-      const run = health.lastRun;
-      if (run) {
-        const data = {date: this.formatDate(run.time), message: run.message || ''};
-        const themes = {success: 'positive', warning: 'notice', error: 'negative', cancelled: 'info'};
-        let key = 'lastRun.' + run.status;
-        if (run.status === 'success') {
-          key = run.uploaded ? 'lastRun.uploaded' : 'lastRun.local';
-        }
-        messages.push({
-          key: 'lastRun',
-          theme: themes[run.status] || 'info',
-          icon: run.status === 'success' ? 'check' : 'alert',
-          text: this.t(key, data)
-        });
-      }
-
-      return messages;
-    },
-
     // Header "…" menu; the setup help is only for admins
     headerOptions() {
-      const busy = this.isLoading || this.isCreatingBackup;
       const options = [
-        {icon: 'check', text: this.t('action.test'), click: () => this.testConnection(), disabled: this.isCreatingBackup || this.isTestingConnection},
-        {icon: 'server', text: this.t('action.server'), click: () => this.showFtpServerStats(), disabled: busy || this.isLoadingFtpStats}
+        {icon: 'check', text: this.t('action.test'), click: () => this.testConnection(), disabled: this.isCreatingBackup || this.isTestingConnection}
       ];
       if (this.isAdmin) {
         options.push({icon: 'info', text: this.t('action.setup'), click: () => this.showSettingsInfo()});
@@ -453,36 +421,49 @@ export default {
       return this.ftpConfigured && this.remoteFiles !== null;
     },
 
-    countInfo() {
-      const local = this.localBackups.length;
-      if (!this.ftpConfigured) {
-        return this.t('stats.countLocal', {local});
-      }
-      return this.t('stats.countInfo', {local, remote: this.remoteKnown ? this.remoteFiles.length : '–'});
-    },
-
     localTotalSize() {
       return this.localBackups.reduce((sum, backup) => sum + (backup.size || 0), 0);
     },
 
-    remoteTotalSize() {
-      return this.remoteKnown
-        ? this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0))
-        : '–';
+    remoteValue() {
+      if (this.ftpSettings && this.ftpSettings.ftpEnabled === false) {
+        return this.t('tile.ftpOff');
+      }
+      if (!this.ftpConfigured) {
+        return this.ftpSettings ? this.t('tile.ftpNotSetUp') : '–';
+      }
+      return this.remoteKnown ? this.backupCount(this.remoteFiles.length) : '–';
+    },
+
+    remoteInfo() {
+      if (this.ftpSettings && this.ftpSettings.ftpEnabled === false) {
+        return this.t('tile.ftpOffInfo');
+      }
+      if (!this.ftpConfigured) {
+        return this.ftpSettings ? this.t('tile.ftpLocalOnly') : '–';
+      }
+      if (this.remoteKnown) {
+        return this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0));
+      }
+      return this.remoteError !== null ? this.t('tile.unreachable') : '–';
     },
 
     latestBackup() {
       return this.listItems[0] || null;
     },
 
-    latestLocation() {
-      if (!this.ftpConfigured) {
-        return '';
+    lastBackupState() {
+      if (this.isStale) {
+        return 'old';
       }
-      if (this.remoteFiles === null) {
-        return this.isLoadingRemote ? this.t('list.loadingServer') : '';
+      return this.latestBackup ? 'ok' : null;
+    },
+
+    lastBackupInfo() {
+      if (this.isStale) {
+        return this.latestBackup ? this.t('stats.stale', {hours: this.maxBackupAge}) : this.t('stats.staleNone');
       }
-      return this.locationLabel(this.latestBackup);
+      return this.latestBackup ? this.formatDate(this.latestBackup.modified) : '–';
     },
 
     maxBackupAge() {
@@ -555,6 +536,21 @@ export default {
       return timestamp
         ? new Date(timestamp * 1000).toLocaleString(this.locale, {dateStyle: 'medium', timeStyle: 'short'})
         : '';
+    },
+
+    // "2 days ago", in the Panel language
+    formatAge(timestamp) {
+      const seconds = Math.round(timestamp - Date.now() / 1000);
+      const abs = Math.abs(seconds);
+      const format = new Intl.RelativeTimeFormat(this.locale, {numeric: 'auto'});
+      if (abs < 3600) return format.format(Math.round(seconds / 60), 'minute');
+      if (abs < 2 * 86400) return format.format(Math.round(seconds / 3600), 'hour');
+      if (abs < 60 * 86400) return format.format(Math.round(seconds / 86400), 'day');
+      return format.format(Math.round(seconds / (30 * 86400)), 'month');
+    },
+
+    backupCount(count) {
+      return count === 1 ? this.t('tile.countOne') : this.t('tile.count', {count});
     },
 
     formatConnection(connection) {
@@ -926,12 +922,10 @@ export default {
           return;
         }
 
+        this.ftpSettings = response.data;
         this.ftpConfigured = response.data.configured;
-        if (response.data.ftpEnabled === false) {
-          this.showFtpWarning(this.t('warning.disabled'), true, 'config');
-        } else if (!response.data.configured) {
-          this.showFtpWarning(this.t('warning.notConfigured', {reason: response.data.reason || ''}), true, 'config');
-        } else if (this.ftpWarning.kind === 'config') {
+        // Older versions stored configuration warnings; the FTP tile shows that now
+        if (this.ftpWarning.kind === 'config') {
           this.dismissWarning();
         }
       } catch (e) {
@@ -963,6 +957,7 @@ export default {
   --ftp-backup-yes: light-dark(var(--color-green-700), var(--color-green-400));
   --ftp-backup-delete: light-dark(var(--color-red-700), var(--color-red-400));
   --ftp-backup-protected: light-dark(var(--color-blue-700), var(--color-blue-400));
+  --ftp-backup-old: light-dark(var(--color-orange-700), var(--color-orange-400));
 }
 
 .k-ftp-backup-view-sponsor-button {
@@ -973,32 +968,58 @@ export default {
   --button-color-icon: #b81d4d;
 }
 
-.k-ftp-backup-view-status {
-  display: grid;
-  gap: var(--spacing-2);
+/* Tiles: three columns, stacked when the view is narrow */
+.k-ftp-backup-tiles {
+  container-type: inline-size;
 }
 
-/* The latest backup needs the most room: date, filename and location */
-.k-ftp-backup-view-overview {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
+.k-ftp-backup-tiles .k-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.k-ftp-backup-view-overview .k-stat-value {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.k-ftp-backup-view-overview-file {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 40rem) {
-  .k-ftp-backup-view-overview {
+@container (max-width: 36rem) {
+  .k-ftp-backup-tiles .k-stats {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.k-ftp-backup-tile {
+  container-type: inline-size;
+}
+
+.k-ftp-backup-tile :is(.k-stat-value, .k-stat-info) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Label with the "Show files" button at the top right */
+.k-ftp-backup-tile .k-stat-label {
+  justify-content: space-between;
+  min-height: var(--height-xs);
+}
+
+.k-ftp-backup-tile-action {
+  flex-shrink: 0;
+}
+
+/* Too narrow for the text: icon only, the tooltip explains it */
+@container (max-width: 15rem) {
+  .k-ftp-backup-tile-action .k-button-text {
+    display: none;
+  }
+}
+
+.k-ftp-backup-tile[data-state="ok"] .k-stat-value {
+  color: var(--ftp-backup-yes);
+}
+
+.k-ftp-backup-tile[data-state="old"] {
+  background: color-mix(in srgb, var(--color-orange-500) 14%, var(--stat-color-back));
+}
+
+.k-ftp-backup-tile[data-state="old"] :is(.k-stat-value, .k-stat-info) {
+  color: var(--ftp-backup-old);
 }
 
 .k-ftp-backup-table {

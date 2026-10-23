@@ -26,7 +26,6 @@ class TranslationsTest extends TestCase
         $dynamic = [
             'test.step.settings', 'test.step.connect', 'test.step.write', 'test.step.list',
             'test.ok.settings', 'test.ok.connect', 'test.ok.write', 'test.ok.list',
-            'lastRun.warning', 'lastRun.error', 'lastRun.cancelled',
         ];
 
         $used = array_unique([...$matches[1], ...$dynamic]);
