@@ -3,7 +3,13 @@
 // Panel texts; keys are prefixed with tearoom1.ftp-backup.
 $en = [
     'stats.count' => 'Backups',
-    'stats.size' => 'Total size',
+    'stats.size' => 'Size',
+    'stats.countInfo' => '{local} local · {remote} on server',
+    'stats.countLocal' => '{local} local',
+    'stats.sizeLocal' => '{size} local',
+    'stats.sizeRemote' => '{size} on server',
+    'stats.stale' => 'Older than {hours} h – check the cron job',
+    'stats.staleNone' => 'No backup yet – check the cron job',
     'stats.latest' => 'Latest backup',
     'stats.none' => 'None',
 
@@ -14,6 +20,7 @@ $en = [
     'action.server' => 'Server',
     'action.setup' => 'Setup',
 
+    'list.title' => 'Backups',
     'list.empty' => 'No backups yet',
     'list.created' => 'Created',
     'list.size' => 'Size',
@@ -46,8 +53,6 @@ $en = [
     'lastRun.warning' => 'Last run on {date}: the backup was created, but the upload failed. {message}',
     'lastRun.error' => 'Last run on {date} failed. {message}',
     'lastRun.cancelled' => 'Last run on {date} was cancelled.',
-    'stale' => 'The newest backup is older than {hours} hours. Check that the scheduled backup is running.',
-    'stale.none' => 'There is no backup yet.',
 
     'warning.disabled' => 'FTP upload is disabled. Backups are only stored locally.',
     'warning.notConfigured' => 'FTP is not fully configured ({reason}). Backups are only stored locally.',
@@ -103,7 +108,13 @@ $en = [
 
 $de = [
     'stats.count' => 'Backups',
-    'stats.size' => 'Gesamtgröße',
+    'stats.size' => 'Größe',
+    'stats.countInfo' => '{local} lokal · {remote} auf dem Server',
+    'stats.countLocal' => '{local} lokal',
+    'stats.sizeLocal' => '{size} lokal',
+    'stats.sizeRemote' => '{size} auf dem Server',
+    'stats.stale' => 'Älter als {hours} h – Cronjob prüfen',
+    'stats.staleNone' => 'Noch kein Backup – Cronjob prüfen',
     'stats.latest' => 'Letztes Backup',
     'stats.none' => 'Keines',
 
@@ -114,6 +125,7 @@ $de = [
     'action.server' => 'Server',
     'action.setup' => 'Einrichtung',
 
+    'list.title' => 'Backups',
     'list.empty' => 'Noch keine Backups',
     'list.created' => 'Erstellt',
     'list.size' => 'Größe',
@@ -146,8 +158,6 @@ $de = [
     'lastRun.warning' => 'Letzter Lauf am {date}: Das Backup wurde erstellt, der Upload ist aber fehlgeschlagen. {message}',
     'lastRun.error' => 'Letzter Lauf am {date} ist fehlgeschlagen. {message}',
     'lastRun.cancelled' => 'Letzter Lauf am {date} wurde abgebrochen.',
-    'stale' => 'Das neueste Backup ist älter als {hours} Stunden. Prüfe, ob das geplante Backup läuft.',
-    'stale.none' => 'Es gibt noch kein Backup.',
 
     'warning.disabled' => 'Der FTP-Upload ist ausgeschaltet. Backups werden nur lokal gespeichert.',
     'warning.notConfigured' => 'FTP ist nicht vollständig eingerichtet ({reason}). Backups werden nur lokal gespeichert.',

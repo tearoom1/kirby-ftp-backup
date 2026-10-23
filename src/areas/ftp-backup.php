@@ -24,7 +24,9 @@ return [
                     'component' => 'ftp-backup-view',
                     'title' => 'FTP Backup',
                     'props' => [
-                        'stats' => $stats
+                        'stats' => $stats,
+                        // Only admins see the setup help with the config example
+                        'isAdmin' => kirby()->user()?->isAdmin() ?? false,
                     ]
                 ];
             }

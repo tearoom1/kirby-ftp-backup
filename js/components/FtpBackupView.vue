@@ -1,19 +1,58 @@
 <template>
   <k-panel-inside class="k-ftp-backup-view">
-    <!-- Support link -->
-    <div class="k-ftp-backup-view-sponsor">
-      <k-button
-        class="k-ftp-backup-view-sponsor-button"
-        icon="heart"
-        size="sm"
-        link="https://www.tearoom.one/en/kirby-plugins/support"
-        target="_blank"
-        :text="t('sponsor.label')"
-      />
-    </div>
+    <k-header>
+      FTP Backup
+      <template #buttons>
+        <k-button
+          icon="upload"
+          size="sm"
+          variant="filled"
+          theme="positive"
+          :disabled="isLoading || isCreatingBackup"
+          :progress="isCreatingBackup"
+          :text="t('action.create')"
+          @click="createBackup"
+        />
+        <k-button
+          v-if="isCreatingBackup"
+          icon="cancel"
+          size="sm"
+          variant="filled"
+          theme="negative"
+          :disabled="isCancelling"
+          :text="t('action.cancel')"
+          @click="cancelBackup"
+        />
+        <k-button
+          class="k-ftp-backup-view-sponsor-button"
+          icon="heart"
+          size="sm"
+          variant="filled"
+          :responsive="true"
+          link="https://www.tearoom.one/en/kirby-plugins/support"
+          target="_blank"
+          :text="t('sponsor.label')"
+        />
+        <k-options-dropdown
+          icon="dots"
+          size="sm"
+          variant="filled"
+          :options="headerOptions"
+        />
+      </template>
+    </k-header>
 
-    <!-- Status of the last run and the age of the newest backup -->
-    <div v-if="statusMessages.length" class="k-ftp-backup-view-status">
+    <!-- Progress of a running backup -->
+    <k-section v-if="isCreatingBackup" class="k-ftp-backup-progress">
+      <div class="k-ftp-backup-progress-bar">
+        <div v-if="isIndeterminate" class="k-ftp-backup-progress-indeterminate"></div>
+        <div v-else class="k-ftp-backup-progress-fill" :style="{ width: progressPercent + '%' }"></div>
+      </div>
+      <p class="k-ftp-backup-progress-label">{{ progressLabel }}</p>
+    </k-section>
+
+    <!-- Result of the last run and FTP problems -->
+    <k-section v-if="statusMessages.length || ftpWarning.show" class="k-ftp-backup-view-status">
       <k-box
         v-for="status in statusMessages"
         :key="status.key"
@@ -21,123 +60,50 @@
         :icon="status.icon"
         :text="status.text"
       />
-    </div>
-
-    <!-- Warning Panel for FTP Errors -->
-    <div v-if="ftpWarning.show" class="k-ftp-backup-view-warning">
-      <k-box theme="negative" class="k-ftp-backup-view-warning-box">
+      <k-box v-if="ftpWarning.show" theme="negative" class="k-ftp-backup-view-warning-box">
         <k-icon type="alert"/>
         <span>{{ ftpWarning.message }}</span>
-        <k-button icon="settings" :title="t('action.setup')" @click="showSettingsInfo"/>
+        <k-button v-if="isAdmin" icon="settings" :title="t('action.setup')" @click="showSettingsInfo"/>
         <k-button icon="cancel" :title="$t('close')" @click="dismissWarning"/>
       </k-box>
-    </div>
+    </k-section>
 
-    <!-- Stats Section -->
-    <div class="k-ftp-backup-view-stats">
-      <div class="k-ftp-backup-view-stats-card">
-        <h3>{{ t('stats.count') }}</h3>
-        <p>{{ localStats.count }}</p>
-      </div>
-
-      <div class="k-ftp-backup-view-stats-card">
-        <h3>{{ t('stats.size') }}</h3>
-        <p>{{ localStats.formattedTotalSize }}</p>
-      </div>
-
-      <div class="k-ftp-backup-view-stats-card">
-        <h3>{{ t('stats.latest') }}</h3>
-        <p v-if="localStats.latestBackup">{{ formatDate(localStats.latestBackup.modified) }}</p>
-        <p v-else>{{ t('stats.none') }}</p>
-        <div class="k-ftp-backup-view-stats-card-latest" v-if="localStats.latestBackup">
-          {{ localStats.latestBackup.filename }}
+    <!-- Overview: Kirby's stat tiles, with a second info line where needed -->
+    <k-section>
+      <dl class="k-stats k-ftp-backup-view-overview" data-size="medium">
+        <div class="k-stat">
+          <dt class="k-stat-label">{{ t('stats.count') }}</dt>
+          <dd class="k-stat-value">{{ listItems.length }}</dd>
+          <dd class="k-stat-info">{{ countInfo }}</dd>
         </div>
-      </div>
-    </div>
 
-    <div class="k-ftp-backup-view-section">
-      <div class="k-ftp-backup-view-actions">
-        <k-button-group>
-          <k-button
-            icon="upload"
-            variant="filled"
-            @click="createBackup"
-            :disabled="isLoading || isCreatingBackup"
-            :progress="isCreatingBackup"
-          >
-            {{ t('action.create') }}
-          </k-button>
-          <k-button
-            v-if="isCreatingBackup"
-            icon="cancel"
-            theme="negative"
-            @click="cancelBackup"
-            :disabled="isCancelling"
-          >
-            {{ t('action.cancel') }}
-          </k-button>
-          <k-button
-            icon="refresh"
-            @click="loadBackups"
-            :disabled="isLoading || isCreatingBackup"
-            :progress="isLoadingBackups"
-          >
-            {{ t('action.refresh') }}
-          </k-button>
-          <k-button
-            icon="check"
-            @click="testConnection"
-            :disabled="isCreatingBackup || isTestingConnection"
-            :progress="isTestingConnection"
-          >
-            {{ t('action.test') }}
-          </k-button>
-          <k-button
-            icon="server"
-            @click="showFtpServerStats"
-            :disabled="isLoading || isCreatingBackup || isLoadingFtpStats"
-            :progress="isLoadingFtpStats"
-          >
-            {{ t('action.server') }}
-          </k-button>
-          <k-button
-            icon="info"
-            @click="showSettingsInfo"
-          >
-            {{ t('action.setup') }}
-          </k-button>
-        </k-button-group>
-      </div>
+        <div class="k-stat">
+          <dt class="k-stat-label">{{ t('stats.size') }}</dt>
+          <dd class="k-stat-value">{{ t('stats.sizeLocal', {size: formatSize(localTotalSize)}) }}</dd>
+          <dd v-if="ftpConfigured" class="k-stat-info">{{ t('stats.sizeRemote', {size: remoteTotalSize}) }}</dd>
+        </div>
 
-      <!-- Progress bar -->
-      <div v-if="isCreatingBackup" class="k-ftp-backup-progress">
-        <div class="k-ftp-backup-progress-bar">
-          <div
-            v-if="isIndeterminate"
-            class="k-ftp-backup-progress-indeterminate"
-          ></div>
-          <div
-            v-else
-            class="k-ftp-backup-progress-fill"
-            :style="{ width: progressPercent + '%' }"
-          ></div>
+        <div class="k-stat" :data-theme="isStale ? 'notice' : null">
+          <dt class="k-stat-label">
+            <k-icon v-if="isStale" type="alert"/>
+            {{ t('stats.latest') }}
+          </dt>
+          <dd class="k-stat-value">{{ latestBackup ? formatDate(latestBackup.modified) : t('stats.none') }}</dd>
+          <dd v-if="isStale" class="k-stat-info">
+            {{ latestBackup ? t('stats.stale', {hours: maxBackupAge}) : t('stats.staleNone') }}
+          </dd>
+          <dd v-if="latestBackup" class="k-stat-info k-ftp-backup-view-overview-file" :title="latestBackup.filename">
+            {{ latestBackup.filename }}
+          </dd>
+          <dd v-if="latestBackup && latestLocation" class="k-stat-info">{{ latestLocation }}</dd>
         </div>
-        <div class="k-ftp-backup-progress-label">
-          {{ progressLabel }}
-        </div>
-      </div>
-    </div>
+      </dl>
+    </k-section>
 
-    <!-- Backups List: local backups and the copies on the server in one list -->
-    <div class="k-tab-content">
-      <div v-if="isLoadingBackups" class="k-ftp-backup-view-loading">
-        <k-loader/>
-      </div>
-      <div v-else-if="listItems.length === 0" class="k-ftp-backup-view-backup-list">
-        <div class="k-ftp-backup-view-backup-list-empty">
-          {{ t('list.empty') }}
-        </div>
-      </div>
+    <!-- Backups: local backups and the copies on the server in one list -->
+    <k-section :label="t('list.title')" :buttons="sectionButtons">
+      <k-loader v-if="isLoadingBackups && !listItems.length"/>
+      <k-empty v-else-if="listItems.length === 0" icon="archive" :text="t('list.empty')"/>
       <div v-else class="k-ftp-backup-table">
         <table>
           <thead>
@@ -186,7 +152,7 @@
       <p v-else-if="remoteError" class="k-ftp-backup-view-list-note">
         {{ t('list.serverError', { message: remoteError }) }}
       </p>
-    </div>
+    </k-section>
 
     <!-- Connection Test Dialog -->
     <k-dialog
@@ -365,7 +331,8 @@
 <script>
 export default {
   props: {
-    stats: Object
+    stats: Object,
+    isAdmin: Boolean
   },
 
   data() {
@@ -373,7 +340,8 @@ export default {
       isLoading: false,
       isCreatingBackup: false,
       isCancelling: false,
-      isLoadingBackups: false,
+      // true until the first list arrives, so the empty state does not flash
+      isLoadingBackups: true,
       isLoadingFtpStats: false,
       isLoadingRemote: false,
       isTestingConnection: false,
@@ -455,18 +423,80 @@ export default {
         });
       }
 
-      if (health.stale) {
-        messages.push({
-          key: 'stale',
-          theme: 'negative',
-          icon: 'clock',
-          text: health.latestBackup
-            ? this.t('stale', {hours: health.maxBackupAge})
-            : this.t('stale.none')
-        });
-      }
-
       return messages;
+    },
+
+    // Header "…" menu; the setup help is only for admins
+    headerOptions() {
+      const busy = this.isLoading || this.isCreatingBackup;
+      const options = [
+        {icon: 'check', text: this.t('action.test'), click: () => this.testConnection(), disabled: this.isCreatingBackup || this.isTestingConnection},
+        {icon: 'server', text: this.t('action.server'), click: () => this.showFtpServerStats(), disabled: busy || this.isLoadingFtpStats}
+      ];
+      if (this.isAdmin) {
+        options.push({icon: 'info', text: this.t('action.setup'), click: () => this.showSettingsInfo()});
+      }
+      return options;
+    },
+
+    sectionButtons() {
+      return [{
+        icon: 'refresh',
+        title: this.t('action.refresh'),
+        disabled: this.isLoadingBackups || this.isLoadingRemote || this.isCreatingBackup,
+        click: () => this.loadBackups()
+      }];
+    },
+
+    // The server values stay "–" until the server listing has arrived
+    remoteKnown() {
+      return this.ftpConfigured && this.remoteFiles !== null;
+    },
+
+    countInfo() {
+      const local = this.localBackups.length;
+      if (!this.ftpConfigured) {
+        return this.t('stats.countLocal', {local});
+      }
+      return this.t('stats.countInfo', {local, remote: this.remoteKnown ? this.remoteFiles.length : '–'});
+    },
+
+    localTotalSize() {
+      return this.localBackups.reduce((sum, backup) => sum + (backup.size || 0), 0);
+    },
+
+    remoteTotalSize() {
+      return this.remoteKnown
+        ? this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0))
+        : '–';
+    },
+
+    latestBackup() {
+      return this.listItems[0] || null;
+    },
+
+    latestLocation() {
+      if (!this.ftpConfigured) {
+        return '';
+      }
+      if (this.remoteFiles === null) {
+        return this.isLoadingRemote ? this.t('list.loadingServer') : '';
+      }
+      return this.locationLabel(this.latestBackup);
+    },
+
+    maxBackupAge() {
+      return (this.health && this.health.maxBackupAge) || 0;
+    },
+
+    // Same rule as the server check (maxBackupAge in hours, 0 = off), applied to
+    // the newest backup in the list, so a copy that only exists on the server counts too
+    isStale() {
+      if (!this.maxBackupAge || this.isLoadingBackups && !this.listItems.length) {
+        return false;
+      }
+      const latest = this.latestBackup;
+      return !latest || latest.modified < Date.now() / 1000 - this.maxBackupAge * 3600;
     },
 
     progressPercent() {
@@ -522,7 +552,9 @@ export default {
     },
 
     formatDate(timestamp) {
-      return timestamp ? new Date(timestamp * 1000).toLocaleString(this.locale) : '';
+      return timestamp
+        ? new Date(timestamp * 1000).toLocaleString(this.locale, {dateStyle: 'medium', timeStyle: 'short'})
+        : '';
     },
 
     formatConnection(connection) {
@@ -933,27 +965,40 @@ export default {
   --ftp-backup-protected: light-dark(var(--color-blue-700), var(--color-blue-400));
 }
 
-.k-ftp-backup-view-sponsor {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -1rem;
-  margin-bottom: 0.5rem;
-}
-
 .k-ftp-backup-view-sponsor-button {
   --button-color-icon: #e0245e;
-  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-view-sponsor-button:hover {
   --button-color-icon: #b81d4d;
-  color: var(--color-text);
 }
 
 .k-ftp-backup-view-status {
   display: grid;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+  gap: var(--spacing-2);
+}
+
+/* The latest backup needs the most room: date, filename and location */
+.k-ftp-backup-view-overview {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
+}
+
+.k-ftp-backup-view-overview .k-stat-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.k-ftp-backup-view-overview-file {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 40rem) {
+  .k-ftp-backup-view-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .k-ftp-backup-table {
@@ -1154,10 +1199,6 @@ export default {
   font-size: var(--text-sm);
   color: var(--color-text-dimmed);
   overflow-wrap: anywhere;
-}
-
-.k-ftp-backup-progress {
-  margin-top: 1rem;
 }
 
 .k-ftp-backup-progress-bar {
