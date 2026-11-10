@@ -1,6 +1,10 @@
 /* surface of v-ftp-backup-tooltip, see tooltip.js */
 .k-ftp-backup-tooltip {
   position: fixed;
+  /* reset the browser's popover defaults, tooltip.js sets top and left */
+  inset: auto;
+  margin: 0;
+  overflow: visible;
   z-index: var(--z-fatal);
   width: max-content;
   max-width: min(20rem, calc(100vw - 2 * var(--spacing-2)));

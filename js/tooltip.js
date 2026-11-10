@@ -56,6 +56,12 @@ function tooltipElement() {
     tooltip.className = 'k-ftp-backup-tooltip';
     tooltip.setAttribute('role', 'tooltip');
     tooltip.hidden = true;
+
+    // dialogs and drawers sit in the browser's top layer, only a popover gets above them
+    if (typeof tooltip.showPopover === 'function') {
+      tooltip.setAttribute('popover', 'manual');
+    }
+
     document.body.appendChild(tooltip);
   }
 
@@ -74,6 +80,10 @@ function show(trigger) {
   const element = tooltipElement();
   element.textContent = text;
   element.hidden = false;
+
+  if (element.hasAttribute('popover')) {
+    element.showPopover();
+  }
 
   // measure with the text in place, wrapping decides the height
   const {top, left} = tooltipPosition(
@@ -97,6 +107,10 @@ function show(trigger) {
 function hide() {
   if (!activeTrigger) {
     return;
+  }
+
+  if (tooltip.hasAttribute('popover') && tooltip.matches(':popover-open')) {
+    tooltip.hidePopover();
   }
 
   tooltip.hidden = true;
