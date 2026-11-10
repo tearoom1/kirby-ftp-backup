@@ -40,12 +40,15 @@
       />
     </template>
 
+    <!-- A custom footer slot replaces the core footer, so keep its wrapper for the padding -->
     <template #footer>
-      <k-button-group>
-        <k-button icon="check" @click="$emit('cancel')">
-          {{ $t('close') }}
-        </k-button>
-      </k-button-group>
+      <k-dialog-footer>
+        <k-button-group>
+          <k-button icon="check" @click="$emit('cancel')">
+            {{ $t('close') }}
+          </k-button>
+        </k-button-group>
+      </k-dialog-footer>
     </template>
   </k-dialog>
 </template>
