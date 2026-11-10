@@ -55,7 +55,7 @@
       <k-box theme="negative" class="k-ftp-backup-view-warning-box">
         <k-icon type="alert"/>
         <span>{{ ftpWarning.message }}</span>
-        <k-button icon="cancel" :title="$t('close')" @click="dismissWarning"/>
+        <k-button v-ftp-backup-tooltip="$t('close')" icon="cancel" :aria-label="$t('close')" @click="dismissWarning"/>
       </k-box>
     </k-section>
 
@@ -75,9 +75,9 @@
         </div>
 
         <div class="k-stat k-ftp-backup-tile" :data-state="remoteStale ? 'old' : null">
-          <dt class="k-stat-label" :title="remoteTarget || null">{{ t('tile.remote') }}</dt>
+          <dt v-ftp-backup-tooltip="remoteTarget" class="k-stat-label">{{ t('tile.remote') }}</dt>
           <dd class="k-stat-value">{{ remoteValue }}</dd>
-          <dd class="k-stat-info" :title="remoteError || null">{{ remoteInfo }}</dd>
+          <dd v-ftp-backup-tooltip="remoteError" class="k-stat-info">{{ remoteInfo }}</dd>
         </div>
       </dl>
     </k-section>
@@ -106,12 +106,12 @@
             <td class="k-ftp-backup-table-time">{{ formatTime(backup.modified) }}</td>
             <td class="k-ftp-backup-table-size is-right">{{ formatSize(backup.size || 0) }}</td>
             <td class="k-ftp-backup-table-flag is-center">
-              <k-icon v-if="backup.local" type="check" class="is-yes" :title="t('list.colLocal')"/>
+              <k-icon v-if="backup.local" v-ftp-backup-tooltip="t('list.colLocal')" type="check" class="is-yes"/>
               <span v-else class="is-no">–</span>
             </td>
             <td v-if="ftpConfigured" class="k-ftp-backup-table-flag is-center">
-              <span v-if="remoteFiles === null" class="is-no" :title="isLoadingRemote ? t('list.loadingServer') : ''">?</span>
-              <k-icon v-else-if="backup.remote" type="check" class="is-yes" :title="t('list.colServer')"/>
+              <span v-if="remoteFiles === null" v-ftp-backup-tooltip="isLoadingRemote ? t('list.loadingServer') : ''" class="is-no">?</span>
+              <k-icon v-else-if="backup.remote" v-ftp-backup-tooltip="t('list.colServer')" type="check" class="is-yes"/>
               <span v-else class="is-no">–</span>
             </td>
             <td class="k-ftp-backup-table-location">{{ locationLabel(backup) }}</td>
@@ -119,7 +119,7 @@
               <span v-if="backup.protected" class="k-ftp-backup-tag is-protected">{{ t('list.protected') }}</span>
               <span v-if="deleteNoteKey(backup)" class="k-ftp-backup-tag is-delete">{{ t(deleteNoteKey(backup)) }}</span>
             </td>
-            <td class="k-ftp-backup-table-file" :title="backup.filename">{{ backup.filename }}</td>
+            <td v-ftp-backup-tooltip="backup.filename" class="k-ftp-backup-table-file">{{ backup.filename }}</td>
             <td class="k-ftp-backup-table-options">
               <k-button
                 v-if="busyFile === backup.filename"
@@ -127,7 +127,8 @@
                 size="sm"
                 :progress="true"
                 :disabled="true"
-                :title="t('list.fetching')"
+                v-ftp-backup-tooltip="t('list.fetching')"
+                :aria-label="t('list.fetching')"
               />
               <k-options-dropdown v-else :options="itemOptions(backup)"/>
             </td>
