@@ -1,9 +1,13 @@
 import './index.css';
 import FtpBackupView from './components/FtpBackupView.vue';
+import FtpBackupTestDialog from './components/FtpBackupTestDialog.vue';
+import FtpBackupSetupDialog from './components/FtpBackupSetupDialog.vue';
 
-// Register the panel view component
+// Register the panel view and its dialogs (opened through panel.dialog.open)
 panel.plugin('tearoom1/kirby-ftp-backup', {
   components: {
-    'ftp-backup-view': FtpBackupView
+    'ftp-backup-view': FtpBackupView,
+    'k-ftp-backup-test-dialog': FtpBackupTestDialog,
+    'k-ftp-backup-setup-dialog': FtpBackupSetupDialog
   }
 })

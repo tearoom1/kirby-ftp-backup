@@ -74,8 +74,8 @@ The list of files on the FTP server is cached for `serverCacheMinutes` (default 
 
 ## Requirements
 
-- Kirby 4 or 5
-- PHP 8.1+ (Kirby 5 needs 8.2+)
+- Kirby 6
+- PHP 8.3+
 - PHP ZIP extension
 - PHP FTP extension
 

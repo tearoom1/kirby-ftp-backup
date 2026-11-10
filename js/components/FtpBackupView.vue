@@ -84,7 +84,7 @@
 
     <!-- Backups: local backups and the copies on the server in one list -->
     <k-section :label="t('list.title')" :buttons="sectionButtons">
-      <k-loader v-if="isLoadingBackups && !listItems.length"/>
+      <k-icon v-if="isLoadingBackups && !listItems.length" type="loader"/>
       <k-empty v-else-if="listItems.length === 0" icon="archive" :text="t('list.empty')"/>
       <div v-else class="k-ftp-backup-table">
         <table>
@@ -142,98 +142,6 @@
         {{ t('list.serverError', { message: remoteError }) }}
       </p>
     </k-section>
-
-    <!-- Connection Test Dialog -->
-    <k-dialog
-      ref="testDialog"
-      class="k-ftp-backup-stats-dialog"
-      size="medium"
-    >
-      <k-headline>{{ t('test.title') }}</k-headline>
-
-      <div v-if="connectionTest && connectionTest.connection" class="k-ftp-backup-connection">
-        <span>{{ t('server.endpoint') }}</span>
-        <code>{{ formatConnection(connectionTest.connection) }}</code>
-      </div>
-
-      <div v-if="isTestingConnection" class="k-ftp-backup-dialog-loading">
-        <k-loader/>
-        <span>{{ t('test.running') }}</span>
-      </div>
-
-      <template v-else-if="connectionTest">
-        <ul class="k-ftp-backup-test-steps">
-          <li
-            v-for="step in connectionTest.steps"
-            :key="step.step"
-            :class="step.ok ? 'is-ok' : 'is-failed'"
-          >
-            <k-icon :type="step.ok ? 'check' : 'cancel'"/>
-            <div>
-              <strong>{{ t('test.step.' + step.step) }}</strong>
-              <p>{{ step.ok ? t('test.ok.' + step.step, step) : step.message }}</p>
-            </div>
-          </li>
-        </ul>
-        <k-box
-          :theme="connectionTest.status === 'success' ? 'positive' : 'negative'"
-          :text="connectionTest.status === 'success' ? t('test.success') : t('test.failed')"
-        />
-      </template>
-
-      <template #footer>
-        <k-button-group>
-          <k-button icon="check" @click="$refs.testDialog.close()">
-            {{ $t('close') }}
-          </k-button>
-        </k-button-group>
-      </template>
-    </k-dialog>
-
-    <!-- Settings Info Dialog -->
-    <k-dialog
-      ref="settingsDialog"
-      size="large"
-    >
-      <div class="k-ftp-backup-dialog-content">
-        <h2 class="k-ftp-backup-dialog-title">{{ t('setup.title') }}</h2>
-
-        <div class="k-ftp-backup-dialog-section">
-          <p>{{ t('setup.config') }}</p>
-
-          <div class="k-ftp-backup-dialog-code">
-<pre>'tearoom1.kirby-ftp-backup' => [
-    'ftpProtocol' => 'sftp', // ftp, ftps or sftp
-    'ftpHost' => 'your-ftp-host.com',
-    'ftpUsername' => 'your-username',
-    'ftpPassword' => 'your-password',
-    'ftpPrivateKey' => '/path/to/key', // sftp: instead of a password
-    'ftpDirectory' => 'backups',
-    'retentionStrategy' => 'tiered',
-    'notifyEmail' => 'you@example.com',
-    'maxBackupAge' => 36, // hours
-]</pre>
-          </div>
-          <p class="k-ftp-backup-dialog-hint">{{ t('setup.readme') }}</p>
-        </div>
-
-        <div class="k-ftp-backup-dialog-section">
-          <p>{{ t('setup.cron') }}</p>
-          <div class="k-ftp-backup-dialog-code">
-            <pre>0 2 * * * php /path/to/site/plugins/kirby-ftp-backup/run.php</pre>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <k-button-group>
-          <k-button icon="check" @click="$refs.settingsDialog.close()">
-            {{ $t('close') }}
-          </k-button>
-        </k-button-group>
-      </template>
-    </k-dialog>
-
   </k-panel-inside>
 </template>
 
@@ -435,7 +343,7 @@ export default {
     }, 60000);
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopProgressPolling();
     clearInterval(this.nowTimer);
   },
@@ -675,13 +583,35 @@ export default {
     async testConnection() {
       this.connectionTest = null;
       this.isTestingConnection = true;
-      this.$refs.testDialog.open();
+      // Kirby 6 opens dialogs only through panel.dialog, not through a ref in the template
+      this.$panel.dialog.open({
+        component: 'k-ftp-backup-test-dialog',
+        props: this.testDialogProps()
+      });
       try {
         this.connectionTest = (await this.$api.post('ftp-backup/test-connection')).data;
       } catch (error) {
         this.connectionTest = {status: 'error', steps: [{step: 'connect', ok: false, message: error.message}]};
       } finally {
         this.isTestingConnection = false;
+        this.updateTestDialog();
+      }
+    },
+
+    testDialogProps() {
+      return {
+        endpoint: this.connectionTest && this.connectionTest.connection
+          ? this.formatConnection(this.connectionTest.connection)
+          : '',
+        loading: this.isTestingConnection,
+        result: this.connectionTest
+      };
+    },
+
+    // Show the result in the dialog, unless it was closed while the test ran
+    updateTestDialog() {
+      if (this.$panel.dialog.isOpen && this.$panel.dialog.component === 'k-ftp-backup-test-dialog') {
+        this.$panel.dialog.props = this.testDialogProps();
       }
     },
 
@@ -818,7 +748,7 @@ export default {
     },
 
     showSettingsInfo() {
-      this.$refs.settingsDialog.open();
+      this.$panel.dialog.open({component: 'k-ftp-backup-setup-dialog'});
     },
 
     // FTP Warning Panel Methods
