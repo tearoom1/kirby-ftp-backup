@@ -2,6 +2,8 @@
 
 A Kirby CMS plugin that creates backups of your site content and uploads them to an FTP, FTPS or SFTP server.
 
+This is the Kirby 4 and 5 line (bug fixes only). For Kirby 6, use version 2 (branch `main`).
+
 [![Screenshot](screenshot-dark.jpg)](https://github.com/tearoom1/kirby-ftp-backup)
 
 ***
@@ -74,12 +76,14 @@ The list of files on the FTP server is cached for `serverCacheMinutes` (default 
 
 ## Requirements
 
-- Kirby 4 or 5
+| Kirby | Plugin version | Branch |
+|---|---|---|
+| 6 | 2.x (since 2.0.0) | `main` |
+| 4 and 5 | 1.x (bug fixes only, latest 1.11.1) | `kirby-5` |
+
 - PHP 8.1+ (Kirby 5 needs 8.2+)
 - PHP ZIP extension
 - PHP FTP extension
-
-For Kirby 6, use version 2 or newer.
 
 ## Support
 
