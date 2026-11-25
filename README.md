@@ -75,9 +75,18 @@ The list of files on the FTP server is cached for `serverCacheMinutes` (default 
 ## Requirements
 
 - Kirby 6
-- PHP 8.3+
+- PHP 8.3, 8.4, 8.5 or 8.6 (the versions Kirby 6 supports)
 - PHP ZIP extension
 - PHP FTP extension
+
+For Kirby 4 and 5, use the 1.x releases (`composer require tearoom1/kirby-ftp-backup:^1.11`).
+
+## Upgrading from 1.x (Kirby 5)
+
+Version 2 only changes what the plugin runs on. Your configuration, the backups in `content/.backups`, the files on the FTP server, the cron job with `run.php` and the URL execution all stay the same.
+
+1. Update Kirby to version 6 and PHP to 8.3 or newer.
+2. Update the plugin with `composer require tearoom1/kirby-ftp-backup:^2.0`, or replace the plugin folder with the new release.
 
 ## Support
 
