@@ -59,6 +59,14 @@
       </k-box>
     </k-section>
 
+    <!-- The server list could not be read: shown at the top, so it is not lost below a long list -->
+    <k-section v-if="remoteError && !isLoadingRemote">
+      <k-box theme="negative" class="k-ftp-backup-view-warning-box is-compact">
+        <k-icon type="alert"/>
+        <span>{{ t('list.serverError', { message: remoteError }) }}</span>
+      </k-box>
+    </k-section>
+
     <!-- Three tiles in Kirby's stat style: label, value, one info line -->
     <k-section class="k-ftp-backup-tiles">
       <dl class="k-stats" data-size="large">
@@ -138,9 +146,6 @@
       </div>
       <p v-if="isLoadingRemote" class="k-ftp-backup-view-list-note">
         {{ t('list.loadingServer') }}
-      </p>
-      <p v-else-if="remoteError" class="k-ftp-backup-view-list-note">
-        {{ t('list.serverError', { message: remoteError }) }}
       </p>
     </k-section>
   </k-panel-inside>

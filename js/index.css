@@ -62,6 +62,13 @@
   flex: 1;
 }
 
+/* Compact variant for the server error: one quiet line, not a large panel */
+.k-ftp-backup-view-warning-box.is-compact {
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--text-sm);
+}
+
 .k-ftp-backup-view-warning-box .k-button {
   flex-shrink: 0;
   margin-left: 0.5rem;
