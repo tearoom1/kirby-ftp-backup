@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v2.0.0...v2.0.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* show a server list error at the top of the view ([b5a6eb2](https://github.com/tearoom1/kirby-ftp-backup/commit/b5a6eb27f36d938fd5920801266da6841980c225))
+
 ## [2.0.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.11.0...v2.0.0) (2026-11-25)
 
 
@@ -5,6 +12,8 @@
 
 * requires Kirby 6 and PHP 8.3. Use the 1.x releases for
 Kirby 4 and 5.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### Features
 
@@ -55,11 +64,4 @@ Kirby 4 and 5.
 ### Bug Fixes
 
 * keep additional paths relative when the Kirby root is behind a symlink ([a682230](https://github.com/tearoom1/kirby-ftp-backup/commit/a6822305a47f77392dd2a9a943987c47fe35bc71))
-
-## [1.10.0](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.9.0...v1.10.0) (2026-10-23)
-
-
-### Features
-
-* Panel support link opens the central support page ([43079b8](https://github.com/tearoom1/kirby-ftp-backup/commit/43079b8cc0f234b40a0a8a0dadb65fefd7ece2f9))
 
