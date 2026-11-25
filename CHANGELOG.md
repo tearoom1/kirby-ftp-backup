@@ -6,8 +6,6 @@
 * requires Kirby 6 and PHP 8.3. Use the 1.x releases for
 Kirby 4 and 5.
 
-Co-Authored-By: Claude <noreply@anthropic.com>
-
 ### Features
 
 * Kirby 6 support ([82800ce](https://github.com/tearoom1/kirby-ftp-backup/commit/82800ceda3497471408c90e51bafc8e97fc12ba3))
