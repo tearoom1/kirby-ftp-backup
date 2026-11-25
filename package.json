@@ -19,7 +19,7 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "kirbyup": "4.0.0-beta.1"
+    "kirbyup": "^4.0.0"
   },
   "packageManager": "pnpm@10.32.1"
 }
