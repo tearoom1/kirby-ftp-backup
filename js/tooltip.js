@@ -101,7 +101,9 @@ function show(trigger) {
   // a fixed tooltip does not follow its trigger
   window.addEventListener('scroll', hide, true);
   window.addEventListener('resize', hide);
-  document.addEventListener('keydown', onKeydown);
+
+  // capture on the window, so Escape reaches the tooltip before the Panel
+  window.addEventListener('keydown', onKeydown, true);
 }
 
 function hide() {
@@ -119,11 +121,31 @@ function hide() {
 
   window.removeEventListener('scroll', hide, true);
   window.removeEventListener('resize', hide);
-  document.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('keydown', onKeydown, true);
 }
 
+/**
+ * The first Escape only closes the tooltip. Without stopping it here, the
+ * Panel would also close the dialog or drawer around the trigger.
+ */
 function onKeydown(event) {
-  if (event.key === 'Escape') {
+  if (event.key !== 'Escape') {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  hide();
+}
+
+/**
+ * The tooltip stays while the pointer is over its trigger or keyboard focus
+ * is on it, and goes when neither holds.
+ */
+function hideUnlessHeld(trigger) {
+  const state = trigger._ftpBackupTooltip;
+
+  if (activeTrigger === trigger && !state.hovered && !state.focused) {
     hide();
   }
 }
@@ -131,15 +153,27 @@ function onKeydown(event) {
 function onPointerEnter(event) {
   // no hover on touch, a tap only triggers the element
   if (event.pointerType !== 'touch') {
+    event.currentTarget._ftpBackupTooltip.hovered = true;
     show(event.currentTarget);
   }
+}
+
+function onPointerLeave(event) {
+  event.currentTarget._ftpBackupTooltip.hovered = false;
+  hideUnlessHeld(event.currentTarget);
 }
 
 function onFocus(event) {
   // keyboard only, a click must not bring back the tooltip it just closed
   if (event.currentTarget.matches(':focus-visible')) {
+    event.currentTarget._ftpBackupTooltip.focused = true;
     show(event.currentTarget);
   }
+}
+
+function onBlur(event) {
+  event.currentTarget._ftpBackupTooltip.focused = false;
+  hideUnlessHeld(event.currentTarget);
 }
 
 /**
@@ -175,13 +209,13 @@ function update(trigger, text) {
 // Vue 3 directive hooks; on a component such as k-button they act on its root element
 const directive = {
   mounted(el, binding) {
-    el._ftpBackupTooltip = {text: null, named: false, tabStop: false};
+    el._ftpBackupTooltip = {text: null, named: false, tabStop: false, hovered: false, focused: false};
     update(el, binding.value);
 
     el.addEventListener('pointerenter', onPointerEnter);
-    el.addEventListener('pointerleave', hide);
+    el.addEventListener('pointerleave', onPointerLeave);
     el.addEventListener('focus', onFocus);
-    el.addEventListener('blur', hide);
+    el.addEventListener('blur', onBlur);
     el.addEventListener('click', hide);
   },
 
@@ -203,9 +237,9 @@ const directive = {
     }
 
     el.removeEventListener('pointerenter', onPointerEnter);
-    el.removeEventListener('pointerleave', hide);
+    el.removeEventListener('pointerleave', onPointerLeave);
     el.removeEventListener('focus', onFocus);
-    el.removeEventListener('blur', hide);
+    el.removeEventListener('blur', onBlur);
     el.removeEventListener('click', hide);
   }
 };
