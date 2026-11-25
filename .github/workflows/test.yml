@@ -90,6 +90,10 @@ jobs:
       - name: Run phpstan
         run: composer analyze
 
+      # pnpm version comes from "packageManager" in package.json
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -97,4 +101,4 @@ jobs:
 
       # Pure helpers of the Panel view (no dependencies needed)
       - name: Run JS tests
-        run: npm test
+        run: pnpm test

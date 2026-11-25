@@ -56,6 +56,14 @@ FTP_BACKUP_TEST_SFTP_RELATIVE=upload \
 composer test
 ```
 
+The Panel bundle (`index.js`, `index.css`) is built with kirbyup; Node packages are managed with pnpm:
+
+```bash
+pnpm install
+pnpm build
+pnpm test
+```
+
 Make sure to cleanup the vendor after running tests, to remove dev dependencies.
 
 ```bash

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "kirbyup js/index.js --watch",
     "build": "kirbyup js/index.js",
-    "lint": "npx standard js/**/*.js",
+    "lint": "pnpm dlx standard js/**/*.js",
     "test": "node --test tests/js/*.test.js"
   },
   "keywords": [
@@ -20,5 +20,6 @@
   "type": "module",
   "devDependencies": {
     "kirbyup": "4.0.0-beta.1"
-  }
+  },
+  "packageManager": "pnpm@10.32.1"
 }

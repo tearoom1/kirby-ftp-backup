@@ -1,7 +1,7 @@
 # OS files
 .DS_Store
 
-# npm modules
+# Node modules
 /node_modules
 
 # exclude claude
