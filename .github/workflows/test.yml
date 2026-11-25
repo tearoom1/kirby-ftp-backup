@@ -97,7 +97,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       # Pure helpers of the Panel view (no dependencies needed)
       - name: Run JS tests

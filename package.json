@@ -21,5 +21,8 @@
   "devDependencies": {
     "kirbyup": "^4.0.0"
   },
-  "packageManager": "pnpm@10.32.1"
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=24"
+  }
 }
