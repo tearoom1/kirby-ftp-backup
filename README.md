@@ -74,12 +74,14 @@ The list of files on the FTP server is cached for `serverCacheMinutes` (default 
 
 ## Requirements
 
-- Kirby 6
+| Kirby | Plugin version | Branch |
+|---|---|---|
+| 6 | 2.x (since 2.0.0) | `main` |
+| 4 and 5 | 1.x (bug fixes only, latest 1.11.1) | `kirby-5` |
+
 - PHP 8.3, 8.4, 8.5 or 8.6 (the versions Kirby 6 supports)
 - PHP ZIP extension
 - PHP FTP extension
-
-For Kirby 4 and 5, use the 1.x releases (`composer require tearoom1/kirby-ftp-backup:^1.11`).
 
 ## Upgrading from 1.x (Kirby 5)
 
