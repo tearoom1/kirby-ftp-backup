@@ -147,7 +147,7 @@
 </template>
 
 <script>
-import {deleteNote, isTooOld, mergeBackups, newestBackup} from '../backups.js';
+import {deleteNote, isSameDialog, isTooOld, mergeBackups, newestBackup} from '../backups.js';
 
 export default {
   props: {
@@ -176,6 +176,8 @@ export default {
       ftpSettings: null,
       ftpConfigured: false,
       connectionTest: null,
+      // counts connection tests, only the latest may show its result
+      testRun: 0,
       ftpWarning: {
         show: false,
         message: '',
@@ -582,21 +584,32 @@ export default {
     },
 
     async testConnection() {
+      // A newer test makes the result of an older one obsolete
+      const run = ++this.testRun;
       this.connectionTest = null;
       this.isTestingConnection = true;
+
       // Kirby 6 opens dialogs only through panel.dialog, not through a ref in the template
-      this.$panel.dialog.open({
+      await this.$panel.dialog.open({
         component: 'k-ftp-backup-test-dialog',
         props: this.testDialogProps()
       });
+      const dialogId = this.$panel.dialog.id;
+
+      let result;
       try {
-        this.connectionTest = (await this.$api.post('ftp-backup/test-connection')).data;
+        result = (await this.$api.post('ftp-backup/test-connection')).data;
       } catch (error) {
-        this.connectionTest = {status: 'error', steps: [{step: 'connect', ok: false, message: error.message}]};
-      } finally {
-        this.isTestingConnection = false;
-        this.updateTestDialog();
+        result = {status: 'error', steps: [{step: 'connect', ok: false, message: error.message}]};
       }
+
+      if (run !== this.testRun) {
+        return;
+      }
+
+      this.connectionTest = result;
+      this.isTestingConnection = false;
+      this.updateTestDialog(dialogId);
     },
 
     testDialogProps() {
@@ -609,9 +622,10 @@ export default {
       };
     },
 
-    // Show the result in the dialog, unless it was closed while the test ran
-    updateTestDialog() {
-      if (this.$panel.dialog.isOpen && this.$panel.dialog.component === 'k-ftp-backup-test-dialog') {
+    // Show the result only in the dialog this test opened: it may be closed,
+    // or replaced by a newer test from another instance of the view
+    updateTestDialog(dialogId) {
+      if (isSameDialog(this.$panel.dialog, dialogId)) {
         this.$panel.dialog.props = this.testDialogProps();
       }
     },

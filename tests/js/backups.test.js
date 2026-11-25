@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { deleteNote, isTooOld, mergeBackups, newestBackup } from '../../js/backups.js'
+import { deleteNote, isSameDialog, isTooOld, mergeBackups, newestBackup } from '../../js/backups.js'
 
 const now = Date.UTC(2026, 9, 23, 12) / 1000
 const day = 86400
@@ -75,4 +75,14 @@ test('retention note per location', () => {
   assert.equal(deleteNote(mergeBackups([], [{ filename: name, modified: now, deleteNext: true }])[0], true), 'both')
   // Server listing not loaded yet: the server copy may stay
   assert.equal(deleteNote(mergeBackups([{ filename: name, modified: now, deleteNext: true }], null)[0], false), 'local')
+})
+
+test('a late connection test only fills the dialog it opened', () => {
+  // closed while the test ran: Kirby resets the ID
+  assert.equal(isSameDialog({ isOpen: false, id: null }, 'a'), false)
+  // a newer test opened its own dialog meanwhile
+  assert.equal(isSameDialog({ isOpen: true, id: 'b' }, 'a'), false)
+  assert.equal(isSameDialog({ isOpen: true, id: 'a' }, 'a'), true)
+  // no ID known: never write into whatever is open
+  assert.equal(isSameDialog({ isOpen: true, id: null }, null), false)
 })

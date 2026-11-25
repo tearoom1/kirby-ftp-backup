@@ -67,3 +67,11 @@ export function isTooOld (latest, maxBackupAge, nowSeconds) {
   }
   return !latest || latest.modified < nowSeconds - maxBackupAge * 3600
 }
+
+/**
+ * Whether the Panel dialog is still the one opened under `dialogId`:
+ * closing resets the ID, a newer dialog gets a new one
+ */
+export function isSameDialog (dialog, dialogId) {
+  return Boolean(dialogId) && dialog.isOpen === true && dialog.id === dialogId
+}
