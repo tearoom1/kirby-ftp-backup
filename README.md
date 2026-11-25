@@ -79,6 +79,8 @@ The list of files on the FTP server is cached for `serverCacheMinutes` (default 
 - PHP ZIP extension
 - PHP FTP extension
 
+For Kirby 6, use version 2 or newer.
+
 ## Support
 
 FTP Backup is free and MIT licensed, and it stays that way. If it saves you time, you can help keep it maintained. Paying is voluntary and any amount is welcome.
