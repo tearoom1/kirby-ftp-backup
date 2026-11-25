@@ -1147,7 +1147,7 @@ export default {
 .k-ftp-backup-progress-label {
   margin-top: 0.5rem;
   font-size: var(--text-sm);
-  color: var(--color-text-light);
+  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-files-title {
@@ -1176,7 +1176,7 @@ export default {
 
 .k-ftp-backup-connection span {
   flex-shrink: 0;
-  color: var(--color-text-light);
+  color: var(--color-text-dimmed);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
 }

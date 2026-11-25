@@ -43,7 +43,7 @@
 
 .k-ftp-backup-dialog-hint {
   font-size: 0.9rem;
-  color: var(--theme-color-text-light, var(--color-text-light));
+  color: var(--theme-color-text-dimmed);
 }
 
 /* Warning panel styling */
