@@ -16,6 +16,9 @@ const TOOLTIP_ID = 'k-ftp-backup-tooltip';
 let tooltip = null;
 let activeTrigger = null;
 
+// the pointer may move from the trigger onto the tooltip to read it (WCAG 1.4.13)
+let tooltipHovered = false;
+
 /**
  * Where to put the tooltip: under the trigger on its left edge, right-aligned
  * near the right window edge, above the trigger near the bottom window edge.
@@ -62,6 +65,19 @@ function tooltipElement() {
       tooltip.setAttribute('popover', 'manual');
     }
 
+    tooltip.addEventListener('pointerenter', () => {
+      tooltipHovered = true;
+    });
+
+    tooltip.addEventListener('pointerleave', (event) => {
+      tooltipHovered = false;
+
+      // back onto the trigger keeps it, its own pointerenter takes over
+      if (activeTrigger && !activeTrigger.contains(event.relatedTarget)) {
+        hideUnlessHeld(activeTrigger);
+      }
+    });
+
     document.body.appendChild(tooltip);
   }
 
@@ -69,13 +85,14 @@ function tooltipElement() {
 }
 
 function show(trigger) {
-  hide();
-
   const text = trigger._ftpBackupTooltip.text;
 
+  // a trigger without text leaves the tooltip of another element alone
   if (!text) {
     return;
   }
+
+  hide();
 
   const element = tooltipElement();
   element.textContent = text;
@@ -116,6 +133,7 @@ function hide() {
   }
 
   tooltip.hidden = true;
+  tooltipHovered = false;
   activeTrigger.removeAttribute('aria-describedby');
   activeTrigger = null;
 
@@ -139,13 +157,13 @@ function onKeydown(event) {
 }
 
 /**
- * The tooltip stays while the pointer is over its trigger or keyboard focus
- * is on it, and goes when neither holds.
+ * The tooltip stays while the pointer is over its trigger or the tooltip
+ * itself, or keyboard focus is on the trigger, and goes when none holds.
  */
 function hideUnlessHeld(trigger) {
   const state = trigger._ftpBackupTooltip;
 
-  if (activeTrigger === trigger && !state.hovered && !state.focused) {
+  if (activeTrigger === trigger && !state.hovered && !state.focused && !tooltipHovered) {
     hide();
   }
 }
@@ -160,6 +178,12 @@ function onPointerEnter(event) {
 
 function onPointerLeave(event) {
   event.currentTarget._ftpBackupTooltip.hovered = false;
+
+  // onto the tooltip: its surface reaches over the gap, see tooltip.css
+  if (tooltip && tooltip.contains(event.relatedTarget)) {
+    return;
+  }
+
   hideUnlessHeld(event.currentTarget);
 }
 
@@ -226,7 +250,12 @@ const directive = {
 
     update(el, binding.value);
 
-    if (activeTrigger === el) {
+    const state = el._ftpBackupTooltip;
+
+    if (activeTrigger === el && !binding.value) {
+      hide();
+    } else if (activeTrigger === el || state.hovered || state.focused) {
+      // also text that arrives while the pointer or focus is already there
       show(el);
     }
   },
