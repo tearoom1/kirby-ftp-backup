@@ -17,8 +17,11 @@ if (php_sapi_name() !== 'cli') {
 $outputOnSuccessOverride = null;
 $rootArgument = null;
 
-// No arguments when PHP does not provide argv (register_argc_argv off)
-foreach (array_slice($_SERVER['argv'] ?? [], 1) as $argument) {
+// $_SERVER is empty when variables_order lacks "S", the global $argv still
+// holds the arguments then; none at all when register_argc_argv is off
+$arguments = $_SERVER['argv'] ?? $argv ?? [];
+
+foreach (array_slice($arguments, 1) as $argument) {
     if ($argument === '--silent') {
         $outputOnSuccessOverride = false;
         continue;
