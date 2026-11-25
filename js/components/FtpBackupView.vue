@@ -106,12 +106,12 @@
             <td class="k-ftp-backup-table-time">{{ formatTime(backup.modified) }}</td>
             <td class="k-ftp-backup-table-size is-right">{{ formatSize(backup.size || 0) }}</td>
             <td class="k-ftp-backup-table-flag is-center">
-              <k-icon v-if="backup.local" v-ftp-backup-tooltip="t('list.colLocal')" type="check" class="is-yes"/>
+              <k-icon v-if="backup.local" v-ftp-backup-tooltip="t('list.colLocal')" :alt="t('list.colLocal')" type="check" class="is-yes"/>
               <span v-else class="is-no">–</span>
             </td>
             <td v-if="ftpConfigured" class="k-ftp-backup-table-flag is-center">
               <span v-if="remoteFiles === null" v-ftp-backup-tooltip="isLoadingRemote ? t('list.loadingServer') : ''" class="is-no">?</span>
-              <k-icon v-else-if="backup.remote" v-ftp-backup-tooltip="t('list.colServer')" type="check" class="is-yes"/>
+              <k-icon v-else-if="backup.remote" v-ftp-backup-tooltip="t('list.colServer')" :alt="t('list.colServer')" type="check" class="is-yes"/>
               <span v-else class="is-no">–</span>
             </td>
             <td class="k-ftp-backup-table-location">{{ locationLabel(backup) }}</td>
