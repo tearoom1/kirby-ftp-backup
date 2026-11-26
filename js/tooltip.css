@@ -1,0 +1,29 @@
+/* surface of v-ftp-backup-tooltip, see tooltip.js */
+.k-ftp-backup-tooltip {
+  position: fixed;
+  /* reset the browser's popover defaults, tooltip.js sets top and left */
+  inset: auto;
+  margin: 0;
+  overflow: visible;
+  z-index: var(--z-fatal);
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2 * var(--spacing-2)));
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  background: var(--item-color-back);
+  border: 1px solid var(--color-border);
+  border-radius: var(--rounded);
+  box-shadow: var(--shadow-md);
+}
+
+/* invisible margin over the gap to the trigger (GAP in tooltip.js), so the
+   pointer can move onto the tooltip without leaving both */
+.k-ftp-backup-tooltip::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+}
