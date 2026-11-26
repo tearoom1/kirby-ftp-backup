@@ -60,7 +60,7 @@
     </k-section>
 
     <!-- The server list could not be read: shown at the top, so it is not lost below a long list -->
-    <k-section v-if="remoteError && !isLoadingRemote">
+    <k-section v-if="remoteError">
       <k-box theme="negative" class="k-ftp-backup-view-warning-box is-compact">
         <k-icon type="alert"/>
         <span>{{ t('list.serverError', { message: remoteError }) }}</span>
@@ -144,9 +144,6 @@
           </tbody>
         </table>
       </div>
-      <p v-if="isLoadingRemote" class="k-ftp-backup-view-list-note">
-        {{ t('list.loadingServer') }}
-      </p>
     </k-section>
   </k-panel-inside>
 </template>
@@ -175,8 +172,10 @@ export default {
       busyFile: null,
       localStats: this.stats || {},
       localBackups: [],
-      remoteFiles: this.server ? (this.server.files || []) : null,
-      remoteError: null,
+      // null means unknown ("?"): no listing yet, or a cached failed check without one
+      remoteFiles: this.server && Array.isArray(this.server.files) ? this.server.files : null,
+      // A cached failed check carries the error, so the box is there on first render
+      remoteError: this.server && typeof this.server.error === 'string' ? this.server.error : null,
       health: null,
       ftpSettings: null,
       ftpConfigured: false,
@@ -231,6 +230,8 @@ export default {
         icon: 'refresh',
         title: this.t('action.refresh'),
         disabled: this.isLoadingBackups || this.isLoadingRemote || this.isCreatingBackup,
+        // Loading shows on the button instead of a line that comes and goes below the list
+        progress: this.isLoadingBackups || this.isLoadingRemote,
         // Always reads the server, the cached listing is skipped
         click: () => this.loadBackups(true)
       }];
@@ -568,8 +569,9 @@ export default {
       }
       this.remoteFromProps = false;
 
+      // The error stays visible while the server is read again, so nothing jumps;
+      // it changes only when the answer is there
       this.isLoadingRemote = true;
-      this.remoteError = null;
       try {
         const response = await this.$api.get('ftp-backup/ftp-stats', fresh ? {fresh: 1} : undefined);
         if (response.status === 'success' && response.data) {
@@ -1097,12 +1099,6 @@ export default {
     top: 0.3rem;
     right: 0.25rem;
   }
-}
-
-.k-ftp-backup-view-list-note {
-  margin-top: 0.75rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-test-steps {

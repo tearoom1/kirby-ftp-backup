@@ -200,4 +200,145 @@ class ServerCacheTest extends PluginTestCase
         $this->assertSame(2, $this->client->connects);
         $this->assertSame([], $result['data']['files']);
     }
+
+    public function testFailedCheckIsCachedWithoutReconnecting(): void
+    {
+        $this->ftpApp();
+        $this->client->connectError = new \Exception('Connection refused');
+
+        $first = $this->manager()->getFtpServerStats();
+        $second = $this->manager()->getFtpServerStats();
+
+        $this->assertSame(1, $this->client->attempts);
+        $this->assertSame('error', $second['status']);
+        $this->assertSame($first['message'], $second['message']);
+        $this->assertStringContainsString('Connection refused', $second['message']);
+    }
+
+    public function testFailedCheckWithPreviousListingIsCachedAsStale(): void
+    {
+        $this->ftpApp();
+        $listing = $this->manager()->getFtpServerStats();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats(true);
+
+        $result = $this->manager()->getFtpServerStats();
+
+        $this->assertSame(2, $this->client->attempts);
+        $this->assertSame('success', $result['status']);
+        $this->assertTrue($result['data']['stale']);
+        $this->assertStringContainsString('Connection refused', $result['data']['error']);
+        $this->assertSame($listing['data']['files'], $result['data']['files']);
+    }
+
+    public function testFailedCheckExpiresLikeAListing(): void
+    {
+        $this->ftpApp(['serverCacheMinutes' => 10]);
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats();
+
+        $this->ageFailure(11);
+        $this->manager()->getFtpServerStats();
+
+        $this->assertSame(2, $this->client->attempts);
+    }
+
+    public function testFreshReconnectsAfterAFailedCheck(): void
+    {
+        $this->ftpApp();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats();
+
+        $this->manager()->getFtpServerStats(true);
+
+        $this->assertSame(2, $this->client->attempts);
+    }
+
+    public function testSuccessfulCheckClearsTheFailure(): void
+    {
+        $this->ftpApp();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats();
+
+        $this->client->connectError = null;
+        $this->manager()->getFtpServerStats(true);
+        $result = $this->manager()->getFtpServerStats();
+        $stats = (new BackupManager())->cachedServerStats();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertTrue($result['data']['cached']);
+        $this->assertArrayNotHasKey('stale', $result['data']);
+        $this->assertArrayNotHasKey('error', $stats);
+        $this->assertSame(1, $stats['count']);
+    }
+
+    public function testPanelPropsGetTheFailureWithoutListing(): void
+    {
+        $this->ftpApp();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats();
+
+        $stats = (new BackupManager())->cachedServerStats();
+
+        $this->assertSame(1, $this->client->attempts);
+        $this->assertNull($stats['files'], 'The server is unknown, not empty');
+        $this->assertStringContainsString('Connection refused', $stats['error']);
+        $this->assertArrayNotHasKey('stale', $stats);
+        $this->assertArrayHasKey('connection', $stats);
+    }
+
+    public function testPanelPropsGetTheFailureWithThePreviousListing(): void
+    {
+        $this->ftpApp();
+        $listing = $this->manager()->getFtpServerStats();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats(true);
+
+        $stats = (new BackupManager())->cachedServerStats();
+
+        $this->assertSame(2, $this->client->attempts);
+        $this->assertTrue($stats['stale']);
+        $this->assertStringContainsString('Connection refused', $stats['error']);
+        $this->assertSame($listing['data']['files'], $stats['files']);
+    }
+
+    public function testServerChangeInvalidatesTheFailure(): void
+    {
+        $this->ftpApp();
+        $this->client->connectError = new \Exception('Connection refused');
+        $this->manager()->getFtpServerStats();
+
+        // A change one second later, so it is newer than the failed check
+        $this->ageFailure(0, 1);
+        (new BackupManager())->invalidateServerListing();
+
+        $this->assertNull((new BackupManager())->cachedServerStats());
+        $this->manager()->getFtpServerStats();
+        $this->assertSame(2, $this->client->attempts);
+    }
+
+    public function testZeroMinutesDoesNotCacheTheFailure(): void
+    {
+        $this->ftpApp(['serverCacheMinutes' => 0]);
+        $this->client->connectError = new \Exception('Connection refused');
+
+        $this->manager()->getFtpServerStats();
+        $this->manager()->getFtpServerStats();
+
+        $this->assertSame(2, $this->client->attempts);
+        $this->assertNull((new BackupManager())->cachedServerStats());
+    }
+
+    /**
+     * Move the cached failure back in time, by minutes and seconds
+     */
+    private function ageFailure(int $minutes, int $seconds = 0): void
+    {
+        $manager = new BackupManager();
+        $key = (fn () => $this->serverCacheKey($this->getSettings()))->call($manager) . '-error';
+        $cache = kirby()->cache('tearoom1.kirby-ftp-backup');
+        $entry = $cache->get($key);
+        $entry['checkedAt'] -= $minutes * 60 + $seconds;
+        $cache->set($key, $entry);
+    }
 }
