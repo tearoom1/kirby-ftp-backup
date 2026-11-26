@@ -1,3 +1,12 @@
+## [2.0.2](https://github.com/tearoom1/kirby-ftp-backup/compare/v2.0.1...v2.0.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* keep the view still while the server list loads ([1b20fde](https://github.com/tearoom1/kirby-ftp-backup/commit/1b20fdebb22fbe63e021d9e1f982911f8ed4021b))
+* one box for FTP problems instead of two ([dab7f1a](https://github.com/tearoom1/kirby-ftp-backup/commit/dab7f1af1b836458e38d75e383313d0cba7acee3))
+* show backup progress and FTP problems in the tiles, nothing moves ([f048ed0](https://github.com/tearoom1/kirby-ftp-backup/commit/f048ed0bd35eb7bb7a929f97e9746186db6f9fef))
+
 ## [2.0.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v2.0.0...v2.0.1) (2026-11-25)
 
 
@@ -57,11 +66,4 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### Bug Fixes
 
 * update phpseclib to 3.0.57 for security advisories ([a48a5c3](https://github.com/tearoom1/kirby-ftp-backup/commit/a48a5c3728ebecf0fa0627eceb50285d23fdb001))
-
-## [1.10.1](https://github.com/tearoom1/kirby-ftp-backup/compare/v1.10.0...v1.10.1) (2026-10-23)
-
-
-### Bug Fixes
-
-* keep additional paths relative when the Kirby root is behind a symlink ([a682230](https://github.com/tearoom1/kirby-ftp-backup/commit/a6822305a47f77392dd2a9a943987c47fe35bc71))
 
