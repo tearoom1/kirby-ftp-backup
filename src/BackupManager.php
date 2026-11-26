@@ -1243,6 +1243,18 @@ class BackupManager
         return is_array($entry) && isset($entry['files'], $entry['checkedAt']) ? $entry : null;
     }
 
+    /**
+     * The last failed check (error, checkedAt) or null; cleared by the next successful read
+     */
+    private function cachedServerFailure(array $settings): ?array
+    {
+        $entry = $this->serverCache()?->get($this->serverCacheKey($settings) . '-error');
+        return is_array($entry) && isset($entry['error'], $entry['checkedAt']) ? $entry : null;
+    }
+
+    /**
+     * A listing or a failed check is valid for the configured minutes, until this site changes the server
+     */
     private function isFreshListing(?array $entry): bool
     {
         return $entry !== null
@@ -1357,13 +1369,56 @@ class BackupManager
             return null;
         }
         $entry = $this->cachedServerListing($settings);
+        $failure = $this->cachedServerFailure($settings);
+        if ($this->isFreshListing($failure)) {
+            return $this->failedServerStatsData($settings, $entry, $failure);
+        }
         return $this->isFreshListing($entry) ? $this->serverStatsData($settings, $entry, true) : null;
+    }
+
+    /**
+     * Response data after a failed check: the last listing marked stale, or, without one,
+     * an unknown server (`files` is null) with the error
+     */
+    private function failedServerStatsData(array $settings, ?array $entry, array $failure): array
+    {
+        if ($entry !== null) {
+            return [
+                ...$this->serverStatsData($settings, $entry, true),
+                'stale' => true,
+                'error' => (string)$failure['error'],
+            ];
+        }
+        return [
+            'connection' => $this->connectionInfo($settings),
+            'files' => null,
+            'checkedAt' => (int)$failure['checkedAt'],
+            'cached' => true,
+            'error' => (string)$failure['error'],
+        ];
+    }
+
+    /**
+     * The API answer for a failed check, with or without a previous listing
+     */
+    private function failedServerStats(array $settings, ?array $entry, string $message): array
+    {
+        if ($entry !== null) {
+            // A failed check is a valid result: show what the server had last time
+            return ['status' => 'success', 'data' => $this->failedServerStatsData($settings, $entry, ['error' => $message])];
+        }
+        return [
+            'status' => 'error',
+            'message' => $message,
+            'connection' => $this->connectionInfo($settings)
+        ];
     }
 
     /**
      * Backups on the server. A valid cached listing is returned without connecting;
      * `$fresh` always reads the server. If the server cannot be reached, the last
-     * cached listing is returned with `stale` and the error.
+     * cached listing is returned with `stale` and the error. A failed check is cached
+     * like a listing, so an unreachable server is not asked again on every visit.
      */
     public function getFtpServerStats(bool $fresh = false): array
     {
@@ -1376,31 +1431,28 @@ class BackupManager
             ];
         }
 
+        $key = $this->serverCacheKey($settings);
         $entry = $this->cachedServerListing($settings);
-        if (!$fresh && $this->isFreshListing($entry)) {
-            return ['status' => 'success', 'data' => $this->serverStatsData($settings, $entry, true)];
+        if (!$fresh) {
+            $failure = $this->cachedServerFailure($settings);
+            if ($this->isFreshListing($failure)) {
+                return $this->failedServerStats($settings, $entry, (string)$failure['error']);
+            }
+            if ($this->isFreshListing($entry)) {
+                return ['status' => 'success', 'data' => $this->serverStatsData($settings, $entry, true)];
+            }
         }
 
         try {
             $listing = ['files' => $this->fetchServerListing($settings), 'checkedAt' => time()];
-            $this->serverCache()?->set($this->serverCacheKey($settings), $listing);
+            $this->serverCache()?->set($key, $listing);
+            $this->serverCache()?->remove($key . '-error');
             return ['status' => 'success', 'data' => $this->serverStatsData($settings, $listing, false)];
         } catch (\Throwable $e) {
             error_log('[kirby-ftp-backup] Error retrieving FTP server stats: ' . $e->getMessage());
             $message = 'Error retrieving FTP server stats: ' . $e->getMessage();
-            if ($entry !== null) {
-                // A failed check is a valid result: show what the server had last time
-                return ['status' => 'success', 'data' => [
-                    ...$this->serverStatsData($settings, $entry, true),
-                    'stale' => true,
-                    'error' => $message,
-                ]];
-            }
-            return [
-                'status' => 'error',
-                'message' => $message,
-                'connection' => $this->connectionInfo($settings)
-            ];
+            $this->serverCache()?->set($key . '-error', ['error' => $message, 'checkedAt' => time()]);
+            return $this->failedServerStats($settings, $entry, $message);
         }
     }
 

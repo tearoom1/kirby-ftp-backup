@@ -16,6 +16,8 @@ class FakeFtpClient implements FtpClientInterface
     public bool $connected = false;
     /** Number of connections, to see whether a cached listing was used */
     public int $connects = 0;
+    /** Connection attempts, failed ones included */
+    public int $attempts = 0;
     public ?\Throwable $connectError = null;
     public ?\Throwable $uploadError = null;
 
@@ -26,6 +28,7 @@ class FakeFtpClient implements FtpClientInterface
 
     public function connect(): void
     {
+        $this->attempts++;
         if ($this->connectError) {
             throw $this->connectError;
         }
