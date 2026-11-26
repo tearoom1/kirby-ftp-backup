@@ -41,32 +41,29 @@
       </template>
     </k-header>
 
-    <!-- Progress of a running backup -->
-    <k-section v-if="isCreatingBackup" class="k-ftp-backup-progress">
-      <div class="k-ftp-backup-progress-bar">
-        <div v-if="isIndeterminate" class="k-ftp-backup-progress-indeterminate"></div>
-        <div v-else class="k-ftp-backup-progress-fill" :style="{ width: progressPercent + '%' }"></div>
-      </div>
-      <p class="k-ftp-backup-progress-label">{{ progressLabel }}</p>
-    </k-section>
-
-    <!-- One box for problems with the FTP server: a failed upload comes first, otherwise
-         the server list that could not be read. One place and one size, so nothing stacks or jumps -->
-    <k-section v-if="noticeText">
-      <k-box theme="negative" class="k-ftp-backup-view-warning-box is-compact">
-        <k-icon type="alert"/>
-        <span>{{ noticeText }}</span>
-        <k-button v-if="ftpWarning.show" v-ftp-backup-tooltip="$t('close')" icon="cancel" size="xs" :aria-label="$t('close')" @click="dismissWarning"/>
-      </k-box>
-    </k-section>
-
-    <!-- Three tiles in Kirby's stat style: label, value, one info line -->
+    <!-- Three tiles in Kirby's stat style: label, value, one info line. They also carry
+         the state (running backup, failed upload, unreachable server), so the page never
+         gets extra rows above the list and nothing below them moves -->
     <k-section class="k-ftp-backup-tiles">
       <dl class="k-stats" data-size="large">
         <div class="k-stat k-ftp-backup-tile" :data-state="lastBackupState">
           <dt class="k-stat-label">{{ t('tile.last') }}</dt>
-          <dd class="k-stat-value">{{ latestBackup ? formatAge(latestBackup.modified) : t('stats.none') }}</dd>
-          <dd class="k-stat-info">{{ lastBackupInfo }}</dd>
+          <dd class="k-stat-value">{{ lastBackupValue }}</dd>
+          <dd class="k-stat-info">
+            <!-- a problem opens its full text in a dialog -->
+            <button
+              v-if="lastBackupProblem && !isCreatingBackup"
+              type="button"
+              class="k-ftp-backup-tile-link"
+              @click="openProblem('last')"
+            >{{ lastBackupInfo }}</button>
+            <template v-else>{{ lastBackupInfo }}</template>
+          </dd>
+          <!-- progress as a thin bar on the tile's lower edge: takes no room -->
+          <div v-if="isCreatingBackup" class="k-ftp-backup-tile-bar">
+            <div v-if="isIndeterminate" class="k-ftp-backup-progress-indeterminate"></div>
+            <div v-else class="k-ftp-backup-progress-fill" :style="{ width: progressPercent + '%' }"></div>
+          </div>
         </div>
 
         <div class="k-stat k-ftp-backup-tile">
@@ -75,10 +72,19 @@
           <dd class="k-stat-info">{{ formatSize(localTotalSize) }}</dd>
         </div>
 
-        <div class="k-stat k-ftp-backup-tile" :data-state="remoteStale ? 'old' : null">
-          <dt v-ftp-backup-tooltip="remoteTarget" class="k-stat-label">{{ t('tile.remote') }}</dt>
+        <div class="k-stat k-ftp-backup-tile" :data-state="remoteProblem ? 'error' : (remoteStale ? 'old' : null)">
+          <!-- the server address opens above the label, so it never covers the line below -->
+          <dt v-ftp-backup-tooltip.top="remoteTarget" class="k-stat-label">{{ t('tile.remote') }}</dt>
           <dd class="k-stat-value">{{ remoteValue }}</dd>
-          <dd v-ftp-backup-tooltip="remoteError" class="k-stat-info">{{ remoteInfo }}</dd>
+          <dd class="k-stat-info">
+            <button
+              v-if="remoteProblem"
+              type="button"
+              class="k-ftp-backup-tile-link"
+              @click="openProblem('remote')"
+            >{{ remoteInfo }}</button>
+            <template v-else>{{ remoteInfo }}</template>
+          </dd>
         </div>
       </dl>
     </k-section>
@@ -197,17 +203,33 @@ export default {
   },
 
   computed: {
-    // Text of the one problem box: a failed upload of a backup that is saved here,
-    // another FTP warning as it is, otherwise the server list that could not be read
-    noticeText() {
-      if (this.ftpWarning.show) {
-        return this.ftpWarning.kind === 'upload'
-          // the server's message starts with "FTP upload failed:", which the text already says
-          ? this.t('warning.uploadFailed', {message: String(this.ftpWarning.message).replace(/^FTP upload failed:\s*/i, '')})
-          : this.ftpWarning.message;
+    // Full text of a problem with the last backup (failed upload or failed run), for the tooltip
+    lastBackupProblem() {
+      if (!this.ftpWarning.show || this.ftpWarning.kind === 'config') {
+        return null;
       }
-      return this.remoteError ? this.t('list.serverError', {message: this.remoteError}) : '';
+      return this.ftpWarning.kind === 'upload'
+        ? this.t('warning.uploadFailed', {message: String(this.ftpWarning.message).replace(/^FTP upload failed:\s*/i, '')})
+        : this.ftpWarning.message;
     },
+
+    // Full text of a problem with the FTP server (settings or connection), for the tooltip
+    remoteProblem() {
+      if (this.ftpWarning.show && this.ftpWarning.kind === 'config') {
+        return this.ftpWarning.message;
+      }
+      return this.remoteError ? this.t('list.serverError', {message: this.remoteError}) : null;
+    },
+
+    lastBackupValue() {
+      if (this.isCreatingBackup) {
+        return this.isIndeterminate || !this.progressTotal
+          ? this.t('tile.running')
+          : this.t('tile.running') + ' · ' + this.progressPercent + ' %';
+      }
+      return this.latestBackup ? this.formatAge(this.latestBackup.modified) : this.t('stats.none');
+    },
+
 
     locale() {
       const translation = window.panel && window.panel.translation;
@@ -258,7 +280,10 @@ export default {
       if (!this.ftpConfigured) {
         return this.ftpSettings ? this.t('tile.ftpNotSetUp') : '–';
       }
-      return this.remoteKnown ? this.backupCount(this.remoteFiles.length) : '–';
+      if (this.remoteKnown) {
+        return this.backupCount(this.remoteFiles.length);
+      }
+      return this.remoteProblem ? this.t('tile.unreachable') : '–';
     },
 
     remoteInfo() {
@@ -275,7 +300,7 @@ export default {
         const size = this.formatSize(this.remoteFiles.reduce((sum, file) => sum + (file.size || 0), 0));
         return size + ' · ' + this.formatCheckedLine(this.ftpStats.checkedAt);
       }
-      return this.remoteError !== null ? this.t('tile.unreachable') : '–';
+      return this.remoteProblem ? this.t('tile.unreachableWhy') : '–';
     },
 
     // The newest backup in the merged list, so a copy only on the server counts too
@@ -284,6 +309,12 @@ export default {
     },
 
     lastBackupState() {
+      if (this.isCreatingBackup) {
+        return 'running';
+      }
+      if (this.lastBackupProblem) {
+        return 'error';
+      }
       if (this.isStale) {
         return 'old';
       }
@@ -291,6 +322,12 @@ export default {
     },
 
     lastBackupInfo() {
+      if (this.isCreatingBackup) {
+        return this.progressLabel;
+      }
+      if (this.lastBackupProblem) {
+        return this.ftpWarning.kind === 'upload' ? this.t('tile.uploadFailed') : this.ftpWarning.message;
+      }
       if (this.isStale) {
         return this.latestBackup ? this.t('stats.stale', {hours: this.maxBackupAge}) : this.t('stats.staleNone');
       }
@@ -778,6 +815,72 @@ export default {
       }
     },
 
+    // Props of the problem dialog for a red tile
+    problemProps(tile) {
+      const config = this.ftpWarning.show && this.ftpWarning.kind === 'config';
+
+      if (tile === 'remote') {
+        return {
+          kind: config ? 'config' : 'remote',
+          title: this.t(config ? 'problem.configTitle' : 'problem.remoteTitle'),
+          lead: this.t(config ? 'problem.configLead' : 'problem.remoteLead'),
+          message: config ? this.ftpWarning.message : this.remoteError,
+          endpoint: this.remoteTarget,
+          checked: this.ftpStats && this.ftpStats.checkedAt
+            ? this.t('tile.lastChecked', {time: this.formatChecked(this.ftpStats.checkedAt)})
+            : '',
+          loading: false,
+          notice: ''
+        };
+      }
+
+      const upload = this.ftpWarning.kind === 'upload';
+      return {
+        kind: upload ? 'upload' : 'error',
+        title: this.t(upload ? 'problem.uploadTitle' : 'problem.errorTitle'),
+        lead: this.t(upload ? 'problem.uploadLead' : 'problem.errorLead'),
+        message: String(this.ftpWarning.message).replace(/^FTP upload failed:\s*/i, ''),
+        endpoint: this.remoteTarget,
+        checked: '',
+        loading: false,
+        notice: ''
+      };
+    },
+
+    // Full text of a problem from a red tile, readable in a dialog
+    async openProblem(tile) {
+      await this.$panel.dialog.open({
+        component: 'k-ftp-backup-problem-dialog',
+        props: this.problemProps(tile),
+        on: {
+          cancel: () => this.$panel.dialog.close(),
+
+          // A new attempt stays in the dialog: spinner on the button, then the result
+          retry: async () => {
+            const dialogId = this.$panel.dialog.id;
+            this.$panel.dialog.props = {...this.$panel.dialog.props, loading: true, notice: ''};
+
+            await this.loadRemoteFiles(true);
+
+            if (!isSameDialog(this.$panel.dialog, dialogId)) {
+              return;
+            }
+            if (this.remoteProblem) {
+              this.$panel.dialog.props = {...this.problemProps('remote'), notice: this.t('problem.stillFailing')};
+            } else {
+              await this.$panel.dialog.close();
+              window.panel.notification.success(this.t('problem.reachable'));
+            }
+          },
+
+          dismiss: async () => {
+            await this.$panel.dialog.close();
+            this.dismissWarning();
+          }
+        }
+      });
+    },
+
     showSettingsInfo() {
       this.$panel.dialog.open({component: 'k-ftp-backup-setup-dialog'});
     },
@@ -863,6 +966,7 @@ export default {
   --ftp-backup-delete: light-dark(var(--color-red-700), var(--color-red-400));
   --ftp-backup-protected: light-dark(var(--color-blue-700), var(--color-blue-400));
   --ftp-backup-old: light-dark(var(--color-orange-700), var(--color-orange-400));
+  --ftp-backup-error: light-dark(var(--color-red-700), var(--color-red-400));
 }
 
 .k-ftp-backup-view-sponsor-button {
@@ -890,6 +994,40 @@ export default {
 
 .k-ftp-backup-tile {
   container-type: inline-size;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Running backup: a thin bar on the lower edge, it takes no room */
+.k-ftp-backup-tile-bar {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: var(--color-border);
+}
+
+.k-ftp-backup-tile[data-state="error"] {
+  background: color-mix(in srgb, var(--color-red-500) 16%, var(--stat-color-back));
+}
+
+.k-ftp-backup-tile[data-state="error"] :is(.k-stat-value, .k-stat-info) {
+  color: var(--ftp-backup-error);
+}
+
+/* The problem line is a link that opens the full text in a dialog */
+.k-ftp-backup-tile-link {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.k-ftp-backup-tile-link:focus-visible {
+  outline: var(--outline);
+  border-radius: var(--rounded-sm);
 }
 
 .k-ftp-backup-tile :is(.k-stat-value, .k-stat-info) {
@@ -1001,8 +1139,10 @@ export default {
   display: none;
 }
 
-.k-ftp-backup-table-notes .k-ftp-backup-tag + .k-ftp-backup-tag {
-  margin-inline-start: 0.25rem;
+/* two notes in one cell: "Protected · Deleted on the next run" */
+.k-ftp-backup-table-notes .k-ftp-backup-tag + .k-ftp-backup-tag::before {
+  content: " · ";
+  color: var(--color-text-dimmed);
 }
 
 .k-ftp-backup-table-options {
@@ -1010,13 +1150,9 @@ export default {
   padding-inline: 0.25rem !important;
 }
 
+/* A note is coloured text without a frame, so it wraps like any text */
 .k-ftp-backup-tag {
-  display: inline-block;
-  padding: 0 0.45rem;
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  box-shadow: inset 0 0 0 1px currentColor;
+  line-height: 1.4;
 }
 
 .k-ftp-backup-tag.is-protected {
@@ -1036,10 +1172,20 @@ export default {
 }
 
 /* Medium: the filename column would only show a few characters */
-@container (max-width: 52rem) {
+@container (max-width: 58rem) {
   .k-ftp-backup-table th:nth-last-child(2),
   .k-ftp-backup-table-file {
     display: none;
+  }
+
+  /* Without the filename the notes take the free space; a long note
+     ("deleted on the next run") wraps instead of widening the table.
+     Wide tables keep it on one line: there the filename gives way. */
+  .k-ftp-backup-table-notes {
+    min-width: 12rem;
+    white-space: normal !important;
+    /* two even lines, never one word alone on the second */
+    text-wrap: balance;
   }
 }
 
@@ -1137,17 +1283,10 @@ export default {
   overflow-wrap: anywhere;
 }
 
-.k-ftp-backup-progress-bar {
-  height: 6px;
-  background: var(--color-border);
-  border-radius: 3px;
-  overflow: hidden;
-}
 
 .k-ftp-backup-progress-fill {
   height: 100%;
   background: var(--color-focus);
-  border-radius: 3px;
   transition: width 0.4s ease;
 }
 
@@ -1168,11 +1307,6 @@ export default {
   }
 }
 
-.k-ftp-backup-progress-label {
-  margin-top: 0.5rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-dimmed);
-}
 
 .k-ftp-backup-files-title {
   font-size: 1rem;

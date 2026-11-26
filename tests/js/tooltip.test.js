@@ -124,3 +124,22 @@ test('an empty trigger keeps the focused tooltip of another element', () => {
   focused.dispatch('blur')
   assert.equal(visible(), false)
 })
+
+test('tooltipPosition prefers the space above the trigger when asked', async () => {
+  const { tooltipPosition } = await import('../../js/tooltip.js')
+  const trigger = { top: 200, right: 300, bottom: 220, left: 100 }
+  const size = { width: 150, height: 40 }
+  const viewport = { width: 1000, height: 800 }
+
+  // default: below the trigger
+  const below = tooltipPosition(trigger, size, viewport).top
+  assert.ok(below > trigger.bottom)
+
+  // .top: above the trigger, it ends before the trigger starts
+  const above = tooltipPosition(trigger, size, viewport, true).top
+  assert.ok(above + size.height < trigger.top)
+
+  // no room above: falls back to below
+  const nearTop = { top: 10, right: 300, bottom: 30, left: 100 }
+  assert.ok(tooltipPosition(nearTop, size, viewport, true).top > nearTop.bottom)
+})

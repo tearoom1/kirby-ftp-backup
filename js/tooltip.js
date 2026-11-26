@@ -26,9 +26,11 @@ let tooltipHovered = false
  * @param {{top: number, right: number, bottom: number, left: number}} trigger
  * @param {{width: number, height: number}} size of the tooltip
  * @param {{width: number, height: number}} viewport
+ * @param {boolean} [preferAbove] above the trigger when it fits (v-ftp-backup-tooltip.top),
+ *   for a trigger with something clickable right below it
  * @returns {{top: number, left: number}}
  */
-export function tooltipPosition (trigger, size, viewport) {
+export function tooltipPosition (trigger, size, viewport, preferAbove = false) {
   const maxLeft = viewport.width - EDGE - size.width
   const maxTop = viewport.height - EDGE - size.height
 
@@ -41,7 +43,7 @@ export function tooltipPosition (trigger, size, viewport) {
   let top = trigger.bottom + GAP
   const above = trigger.top - GAP - size.height
 
-  if (top > maxTop && above >= EDGE) {
+  if ((preferAbove || top > maxTop) && above >= EDGE) {
     top = above
   }
 
@@ -106,7 +108,8 @@ function show (trigger) {
   const { top, left } = tooltipPosition(
     trigger.getBoundingClientRect(),
     element.getBoundingClientRect(),
-    { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight }
+    { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
+    Boolean(trigger._ftpBackupTooltip && trigger._ftpBackupTooltip.above)
   )
 
   element.style.top = top + 'px'
@@ -233,7 +236,7 @@ function update (trigger, text) {
 // Vue 3 directive hooks; on a component such as k-button they act on its root element
 const directive = {
   mounted (el, binding) {
-    el._ftpBackupTooltip = { text: null, named: false, tabStop: false, hovered: false, focused: false }
+    el._ftpBackupTooltip = { text: null, named: false, tabStop: false, hovered: false, focused: false, above: Boolean(binding.modifiers && binding.modifiers.top) }
     update(el, binding.value)
 
     el.addEventListener('pointerenter', onPointerEnter)

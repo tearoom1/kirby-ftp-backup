@@ -2,6 +2,7 @@ import './index.css';
 import FtpBackupView from './components/FtpBackupView.vue';
 import FtpBackupTestDialog from './components/FtpBackupTestDialog.vue';
 import FtpBackupSetupDialog from './components/FtpBackupSetupDialog.vue';
+import FtpBackupProblemDialog from './components/FtpBackupProblemDialog.vue';
 import Tooltip from './tooltip.js';
 import './tooltip.css';
 
@@ -10,7 +11,8 @@ panel.plugin('tearoom1/kirby-ftp-backup', {
   components: {
     'ftp-backup-view': FtpBackupView,
     'k-ftp-backup-test-dialog': FtpBackupTestDialog,
-    'k-ftp-backup-setup-dialog': FtpBackupSetupDialog
+    'k-ftp-backup-setup-dialog': FtpBackupSetupDialog,
+    'k-ftp-backup-problem-dialog': FtpBackupProblemDialog
   },
   // Immediate styled tooltip directive v-ftp-backup-tooltip
   use: {
