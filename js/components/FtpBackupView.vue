@@ -50,20 +50,13 @@
       <p class="k-ftp-backup-progress-label">{{ progressLabel }}</p>
     </k-section>
 
-    <!-- A manual backup whose upload failed -->
-    <k-section v-if="ftpWarning.show">
-      <k-box theme="negative" class="k-ftp-backup-view-warning-box">
-        <k-icon type="alert"/>
-        <span>{{ ftpWarning.message }}</span>
-        <k-button v-ftp-backup-tooltip="$t('close')" icon="cancel" :aria-label="$t('close')" @click="dismissWarning"/>
-      </k-box>
-    </k-section>
-
-    <!-- The server list could not be read: shown at the top, so it is not lost below a long list -->
-    <k-section v-if="remoteError">
+    <!-- One box for problems with the FTP server: a failed upload comes first, otherwise
+         the server list that could not be read. One place and one size, so nothing stacks or jumps -->
+    <k-section v-if="noticeText">
       <k-box theme="negative" class="k-ftp-backup-view-warning-box is-compact">
         <k-icon type="alert"/>
-        <span>{{ t('list.serverError', { message: remoteError }) }}</span>
+        <span>{{ noticeText }}</span>
+        <k-button v-if="ftpWarning.show" v-ftp-backup-tooltip="$t('close')" icon="cancel" size="xs" :aria-label="$t('close')" @click="dismissWarning"/>
       </k-box>
     </k-section>
 
@@ -204,6 +197,18 @@ export default {
   },
 
   computed: {
+    // Text of the one problem box: a failed upload of a backup that is saved here,
+    // another FTP warning as it is, otherwise the server list that could not be read
+    noticeText() {
+      if (this.ftpWarning.show) {
+        return this.ftpWarning.kind === 'upload'
+          // the server's message starts with "FTP upload failed:", which the text already says
+          ? this.t('warning.uploadFailed', {message: String(this.ftpWarning.message).replace(/^FTP upload failed:\s*/i, '')})
+          : this.ftpWarning.message;
+      }
+      return this.remoteError ? this.t('list.serverError', {message: this.remoteError}) : '';
+    },
+
     locale() {
       const translation = window.panel && window.panel.translation;
       return (translation && translation.code) || undefined;
@@ -737,13 +742,17 @@ export default {
         }
 
         if (response.status === 'success') {
-          window.panel.notification.success(response.message);
+          const upload = response.data && response.data.ftpResult;
 
-          // Check if FTP upload failed (but only if FTP is enabled)
-          if (response.data && response.data.ftpResult && !response.data.ftpResult.uploaded && !response.data.ftpResult.disabled) {
-            this.showFtpWarning(response.data.ftpResult.message || 'FTP upload failed', true);
-          } else if (this.ftpConfigured) {
-            this.dismissWarning();
+          // Upload failed (FTP enabled): the box says the backup is local and why,
+          // no green "created" message next to it
+          if (upload && !upload.uploaded && !upload.disabled) {
+            this.showFtpWarning(upload.message || 'FTP upload failed', true);
+          } else {
+            window.panel.notification.success(response.message);
+            if (this.ftpConfigured) {
+              this.dismissWarning();
+            }
           }
         } else {
           // Show the actual error message from the backend
@@ -752,14 +761,14 @@ export default {
 
           // Show warning if the error appears to be FTP-related
           if (errorMessage.toLowerCase().includes('ftp')) {
-            this.showFtpWarning(errorMessage, true);
+            this.showFtpWarning(errorMessage, true, 'error');
           }
         }
       } catch (error) {
         const errorMessage = error.message || 'Failed to create backup';
         window.panel.notification.error(errorMessage);
         console.error('Backup creation error:', error);
-        this.showFtpWarning(errorMessage, true);
+        this.showFtpWarning(errorMessage, true, 'error');
       } finally {
         this.stopProgressPolling();
         this.isCreatingBackup = false;
