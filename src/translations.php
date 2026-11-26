@@ -44,6 +44,7 @@ $en = [
     'list.loadingServer' => 'Checking the server …',
     'list.fetching' => 'Fetching from the FTP server …',
     'list.serverError' => 'The list of backups on the server is not available: {message}',
+    'warning.uploadFailed' => 'The backup is saved on this web server, but the upload to the FTP server failed: {message}',
 
     'option.download' => 'Download',
     'option.copyLocal' => 'Copy to web server',
@@ -145,6 +146,7 @@ $de = [
     'list.loadingServer' => 'Server wird abgefragt …',
     'list.fetching' => 'Wird vom FTP-Server geholt …',
     'list.serverError' => 'Die Liste der Backups auf dem Server ist nicht verfügbar: {message}',
+    'warning.uploadFailed' => 'Das Backup liegt auf diesem Webserver, das Hochladen auf den FTP-Server ist fehlgeschlagen: {message}',
 
     'option.download' => 'Herunterladen',
     'option.copyLocal' => 'Auf den Webserver kopieren',
